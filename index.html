@@ -4285,7 +4285,30 @@ const CURRENT_ROSTERS = {
     {cap:'22',name:'Daniel Raz',wpPosition:'UT'},
     {cap:'24',name:'Jack Robison',wpPosition:'UT'},
   ] },
-  mountstmarys: { label:"Mount St. Mary's", players:[] },
+  mountstmarys: { label:"Mount St. Mary's", players:[
+    {cap:'1',name:'Milan Miskolczi',wpPosition:'GK'},
+    {cap:'1A',name:'Matthew Royer',wpPosition:'UT'},
+    {cap:'1B',name:'Linc Smith',wpPosition:'GK'},
+    {cap:'2',name:'AJ Waldfogel',wpPosition:'A'},
+    {cap:'3',name:'Nikos Agritelis',wpPosition:'C'},
+    {cap:'4',name:'Max Economy',wpPosition:'UT'},
+    {cap:'5',name:'Luka Urosevic',wpPosition:'C'},
+    {cap:'6',name:'Neven Cerkez',wpPosition:'UT'},
+    {cap:'7',name:'Danko Kesic',wpPosition:'UT'},
+    {cap:'8',name:'Aaron Tarr',wpPosition:'A'},
+    {cap:'9',name:'Nathan Valentine',wpPosition:'UT'},
+    {cap:'10',name:'Jack Fox',wpPosition:'A'},
+    {cap:'11',name:'Ivan Morales',wpPosition:'UT'},
+    {cap:'12',name:'Giannis Skliras',wpPosition:'A'},
+    {cap:'13',name:'Nick Harper',wpPosition:'A'},
+    {cap:'14',name:'Matias Miranda',wpPosition:'A'},
+    {cap:'15',name:'James Robinson',wpPosition:'UT'},
+    {cap:'17',name:'Israel Bratton',wpPosition:'UT'},
+    {cap:'18',name:'Darrion Phelps',wpPosition:'UT'},
+    {cap:'19',name:'Giacomo Graff',wpPosition:'C'},
+    {cap:'21',name:'Will Matthews',wpPosition:'C'},
+    {cap:'22',name:'Aleksandar Radosavljevic',wpPosition:'UT'},
+  ] },
   bucknell: { label:'Bucknell', players:[] },
   johnshopkins: { label:'Johns Hopkins', players:[] },
   georgewashington: { label:'George Washington', players:[] },
@@ -5120,6 +5143,31 @@ const SEED_SCHOOL_PLAYER_STATS = {
     'Colin Minehan':   { '2025': {gp:15, g:2,  a:2, sh:0,  exd:0, stl:2, sv:0} },
     'Daniel Raz':      { '2024': {gp:22, g:6,  a:0, sh:11, exd:7, stl:2, sv:0},
                          '2025': {gp:25, g:12, a:9, sh:0,  exd:21,stl:2, sv:0} },
+  },
+  // Mount St. Mary's bios are prose, same as Iona, and several players explicitly don't give a
+  // games-played number for a season even while giving full stat lines (e.g. Aaron Tarr's 2023 and
+  // 2025) -- gp is left at 0 for exactly those seasons rather than estimated from team totals, so a
+  // real stat line can show up with gp:0 for a player who clearly played; that's a direct
+  // reflection of what the site omits, not a data error. Several players have no Mount stats yet
+  // (true freshmen, or only high-school/other-college history mentioned).
+  'Mount St. Mary\'s': {
+    'Nikos Agritelis': { '2025': {gp:30, g:22, a:2,  sh:0,   exd:37, stl:8,  sv:0, blk:8} },
+    'Max Economy':     { '2024': {gp:7,  g:0,  a:0,  sh:0,   exd:1,  stl:0,  sv:0, blk:0},
+                         '2025': {gp:20, g:5,  a:0,  sh:11,  exd:5,  stl:4,  sv:0, blk:1} },
+    'Aaron Tarr':      { '2023': {gp:0,  g:65, a:50, sh:0,   exd:41, stl:38, sv:0, blk:8},
+                         '2024': {gp:32, g:62, a:63, sh:0,   exd:42, stl:40, sv:0, blk:21},
+                         '2025': {gp:0,  g:83, a:84, sh:0,   exd:60, stl:54, sv:0, blk:30} },
+    'Nathan Valentine':{ '2023': {gp:26, g:15, a:15, sh:0,   exd:11, stl:8,  sv:0, blk:5},
+                         '2024': {gp:30, g:16, a:16, sh:0,   exd:15, stl:11, sv:0, blk:5},
+                         '2025': {gp:34, g:31, a:20, sh:0,   exd:29, stl:21, sv:0, blk:4} },
+    'Jack Fox':        { '2023': {gp:26, g:2,  a:4,  sh:0,   exd:5,  stl:4,  sv:0, blk:0},
+                         '2024': {gp:35, g:17, a:16, sh:0,   exd:14, stl:20, sv:0, blk:7},
+                         '2025': {gp:33, g:16, a:24, sh:0,   exd:18, stl:34, sv:0, blk:11} },
+    'Ivan Morales':    { '2023': {gp:10, g:0,  a:0,  sh:0,   exd:0,  stl:0,  sv:0, blk:0},
+                         '2024': {gp:15, g:1,  a:2,  sh:0,   exd:1,  stl:1,  sv:0, blk:2},
+                         '2025': {gp:20, g:2,  a:9,  sh:0,   exd:7,  stl:2,  sv:0, blk:6} },
+    'Giannis Skliras': { '2025': {gp:0,  g:63, a:34, sh:0,   exd:43, stl:24, sv:0, blk:3} },
+    'Will Matthews':   { '2025': {gp:30, g:54, a:16, sh:118, exd:8,  stl:51, sv:0, blk:16} },
   },
 };
 function blankSeasonRow(year){ return { year, gpSet:new Set(), g:0, gWithShotData:0, a:0, sh:0, hasShotData:false, exd:0, exg:0, stl:0, to:0, blk:0, sv:0, pd:0 }; }
