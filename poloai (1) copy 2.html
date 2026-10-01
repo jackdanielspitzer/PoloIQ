@@ -4205,7 +4205,37 @@ function ensureSeedTeamsAndSchedule(){
 
 // Real current-season rosters, pulled from calbears.com / gostanford.com. Refresh by asking in chat when a season changes.
 const CURRENT_ROSTERS = {
-  navy: { label:'Navy', players:[] },
+  navy: { label:'Navy', players:[
+    {cap:'1',name:'Oren Penning',wpPosition:'GK'},
+    {cap:'1A',name:'Jack Rodoni',wpPosition:'GK'},
+    {cap:'1B',name:'Ryan Munch',wpPosition:'GK'},
+    {cap:'1C',name:'Gavin Linton',wpPosition:'GK'},
+    {cap:'1D',name:'Francis Hendrickson',wpPosition:'GK'},
+    {cap:'2',name:'Orion Erwin',wpPosition:'A'},
+    {cap:'3',name:'Declan Bartlett',wpPosition:'A'},
+    {cap:'4',name:'Jack Pointner',wpPosition:'UT'},
+    {cap:'5',name:'Luka Sekulic',wpPosition:'D'},
+    {cap:'6',name:'Saul Biddle',wpPosition:'A'},
+    {cap:'7',name:'Aiden Berry',wpPosition:'A'},
+    {cap:'8',name:'James Mulvey',wpPosition:'UT'},
+    {cap:'9',name:'Aiden Day',wpPosition:'A'},
+    {cap:'10',name:'Maximus Arnold',wpPosition:'A'},
+    {cap:'11',name:'Kiefer Black',wpPosition:'A'},
+    {cap:'12',name:'Jack Reif',wpPosition:'C'},
+    {cap:'13',name:'Austin Kahn',wpPosition:'A'},
+    {cap:'14',name:'Billy Zech',wpPosition:'C'},
+    {cap:'15',name:'Luke Kirincich',wpPosition:'UT'},
+    {cap:'17',name:'Quinn Bartlett',wpPosition:'A'},
+    {cap:'18',name:'Colin McPhail',wpPosition:'D'},
+    {cap:'19',name:'Connor Cashman',wpPosition:'A'},
+    {cap:'20',name:'Hudson Parks',wpPosition:'D'},
+    {cap:'21',name:'Ramsay Letteau Stallings',wpPosition:'A'},
+    {cap:'22',name:'Tanner Lustig',wpPosition:'A'},
+    {cap:'23',name:'Jack Mason',wpPosition:'A'},
+    {cap:'24',name:'Ryan Mondzelewski',wpPosition:'A'},
+    {cap:'25',name:'Declan Murphy',wpPosition:'UT'},
+    {cap:'26',name:'JB Bergstedt',wpPosition:'A'},
+  ] },
   fordham: { label:'Fordham', players:[] },
   iona: { label:'Iona', players:[] },
   mountstmarys: { label:"Mount St. Mary's", players:[] },
@@ -4916,6 +4946,77 @@ function buildPlayerNoteTally(player, recentGames){
 // sprints-won are treated as a 2026-and-forward stat — no 2024/2025 game, imported or otherwise, has
 // real shot-by-shot data behind it — so those columns read "—" for every earlier season rather than a
 // misleading 0 or an inconsistent partial number.
+// Real per-player, per-season cumulative stats sourced directly from each school's own official
+// site (stat sheets / player bio "Career Statistics" tables) — not reconstructed from individual
+// game logs. Keyed by team name (matching the team's own `name`, same convention as
+// SEED_SCHOOL_RESULTS), then by the player's exact name (matching a CURRENT_ROSTERS entry), with
+// one stat line per year. Fields map onto the same stat vocabulary as live-tracked games: g=goals,
+// a=assists, sh=shot attempts, exd=exclusions drawn, stl=steals, sv=saves (goalies). Categories the
+// source site doesn't publish (exclusions committed, blocks, turnovers) are simply left at 0 rather
+// than guessed. gp (games played) is taken verbatim from the site's own per-year games-played count.
+const SEED_SCHOOL_PLAYER_STATS = {
+  'Navy': {
+    'Oren Penning':   { '2026': {gp:3,  g:0,  a:3,  sh:0,  exd:0,  stl:3,  sv:20} },
+    'Jack Rodoni':    { '2024': {gp:12, g:0,  a:3,  sh:0,  exd:0,  stl:6,  sv:58},
+                        '2025': {gp:11, g:0,  a:11, sh:0,  exd:0,  stl:19, sv:74},
+                        '2026': {gp:4,  g:0,  a:1,  sh:1,  exd:0,  stl:9,  sv:31} },
+    'Ryan Munch':     { '2024': {gp:19, g:0,  a:4,  sh:0,  exd:0,  stl:25, sv:169},
+                        '2025': {gp:21, g:0,  a:3,  sh:0,  exd:0,  stl:29, sv:155},
+                        '2026': {gp:9,  g:0,  a:3,  sh:2,  exd:0,  stl:18, sv:78} },
+    'Gavin Linton':   { '2026': {gp:0,  g:0,  a:0,  sh:0,  exd:0,  stl:0,  sv:0} },
+    'Francis Hendrickson': { '2024': {gp:8, g:0, a:1, sh:0, exd:0, stl:4, sv:21},
+                        '2025': {gp:3,  g:0,  a:0,  sh:0,  exd:0,  stl:0,  sv:6},
+                        '2026': {gp:2,  g:0,  a:0,  sh:0,  exd:0,  stl:3,  sv:3} },
+    'Orion Erwin':    { '2024': {gp:31, g:35, a:24, sh:0,  exd:46, stl:22, sv:0},
+                        '2025': {gp:26, g:20, a:18, sh:0,  exd:20, stl:11, sv:0},
+                        '2026': {gp:3,  g:0,  a:0,  sh:1,  exd:0,  stl:0,  sv:0} },
+    'Declan Bartlett':{ '2026': {gp:11, g:22, a:6,  sh:33, exd:2,  stl:3,  sv:0} },
+    'Jack Pointner':  { '2026': {gp:10, g:8,  a:1,  sh:15, exd:6,  stl:1,  sv:0} },
+    'Luka Sekulic':   { '2024': {gp:32, g:48, a:14, sh:0,  exd:15, stl:22, sv:0},
+                        '2025': {gp:25, g:26, a:11, sh:0,  exd:9,  stl:12, sv:0},
+                        '2026': {gp:10, g:17, a:7,  sh:38, exd:6,  stl:7,  sv:0} },
+    'Saul Biddle':    { '2025': {gp:23, g:7,  a:5,  sh:0,  exd:1,  stl:2,  sv:0},
+                        '2026': {gp:5,  g:7,  a:1,  sh:17, exd:0,  stl:5,  sv:0} },
+    'Aiden Berry':    { '2025': {gp:30, g:25, a:11, sh:0,  exd:8,  stl:26, sv:0},
+                        '2026': {gp:12, g:13, a:4,  sh:29, exd:7,  stl:5,  sv:0} },
+    'James Mulvey':   { '2025': {gp:28, g:30, a:26, sh:0,  exd:12, stl:10, sv:0},
+                        '2026': {gp:10, g:10, a:11, sh:27, exd:10, stl:11, sv:0} },
+    'Aiden Day':      { '2024': {gp:0,  g:0,  a:0,  sh:0,  exd:0,  stl:0,  sv:0},
+                        '2025': {gp:28, g:41, a:32, sh:0,  exd:6,  stl:15, sv:0},
+                        '2026': {gp:10, g:4,  a:16, sh:15, exd:1,  stl:4,  sv:0} },
+    'Maximus Arnold': { '2026': {gp:12, g:10, a:6,  sh:18, exd:2,  stl:4,  sv:0} },
+    'Kiefer Black':   { '2024': {gp:32, g:94, a:77, sh:0,  exd:32, stl:31, sv:0},
+                        '2025': {gp:26, g:71, a:64, sh:0,  exd:35, stl:35, sv:0},
+                        '2026': {gp:10, g:15, a:32, sh:39, exd:13, stl:8,  sv:0} },
+    'Jack Reif':      { '2025': {gp:30, g:28, a:2,  sh:0,  exd:41, stl:9,  sv:0},
+                        '2026': {gp:10, g:11, a:3,  sh:13, exd:20, stl:1,  sv:0} },
+    'Austin Kahn':    { '2024': {gp:32, g:18, a:32, sh:0,  exd:11, stl:25, sv:0},
+                        '2025': {gp:29, g:7,  a:16, sh:0,  exd:6,  stl:15, sv:0},
+                        '2026': {gp:5,  g:1,  a:7,  sh:3,  exd:2,  stl:6,  sv:0} },
+    'Billy Zech':     { '2024': {gp:31, g:40, a:1,  sh:0,  exd:60, stl:16, sv:0},
+                        '2025': {gp:28, g:20, a:3,  sh:0,  exd:35, stl:9,  sv:0},
+                        '2026': {gp:10, g:7,  a:2,  sh:13, exd:15, stl:4,  sv:0} },
+    'Luke Kirincich': { '2025': {gp:20, g:10, a:7,  sh:0,  exd:12, stl:13, sv:0},
+                        '2026': {gp:12, g:4,  a:4,  sh:11, exd:7,  stl:1,  sv:0} },
+    'Quinn Bartlett': { '2024': {gp:32, g:33, a:28, sh:0,  exd:35, stl:20, sv:0},
+                        '2025': {gp:27, g:37, a:26, sh:0,  exd:30, stl:11, sv:0},
+                        '2026': {gp:10, g:28, a:8,  sh:52, exd:27, stl:4,  sv:0} },
+    'Colin McPhail':  { '2026': {gp:10, g:4,  a:4,  sh:10, exd:8,  stl:4,  sv:0} },
+    'Connor Cashman': { '2024': {gp:13, g:7,  a:7,  sh:0,  exd:7,  stl:1,  sv:0},
+                        '2025': {gp:26, g:25, a:13, sh:0,  exd:8,  stl:14, sv:0},
+                        '2026': {gp:12, g:9,  a:8,  sh:13, exd:6,  stl:0,  sv:0} },
+    'Hudson Parks':   { '2026': {gp:10, g:1,  a:0,  sh:4,  exd:3,  stl:0,  sv:0} },
+    'Ramsay Letteau Stallings': { '2025': {gp:25, g:12, a:17, sh:0, exd:4, stl:22, sv:0},
+                        '2026': {gp:12, g:2,  a:5,  sh:3,  exd:3,  stl:2,  sv:0} },
+    'Tanner Lustig':  { '2026': {gp:5,  g:5,  a:3,  sh:8,  exd:2,  stl:3,  sv:0} },
+    'Jack Mason':     { '2025': {gp:22, g:12, a:10, sh:0,  exd:7,  stl:26, sv:0},
+                        '2026': {gp:3,  g:2,  a:4,  sh:5,  exd:3,  stl:5,  sv:0} },
+    'Ryan Mondzelewski': { '2025': {gp:15, g:21, a:9, sh:0, exd:13, stl:9, sv:0},
+                        '2026': {gp:3,  g:4,  a:1,  sh:8,  exd:2,  stl:2,  sv:0} },
+    'Declan Murphy':  { '2026': {gp:11, g:8,  a:2,  sh:13, exd:10, stl:1,  sv:0} },
+    'JB Bergstedt':   { '2026': {gp:4,  g:1,  a:1,  sh:7,  exd:6,  stl:3,  sv:0} },
+  },
+};
 function blankSeasonRow(year){ return { year, gpSet:new Set(), g:0, gWithShotData:0, a:0, sh:0, hasShotData:false, exd:0, exg:0, stl:0, to:0, blk:0, sv:0, pd:0 }; }
 function buildPlayerSeasonStats(player){
   const seasons = {};
@@ -4947,6 +5048,22 @@ function buildPlayerSeasonStats(player){
       else if(def.key==='penalty_drawn') s.pd += count;
     });
   });
+  // Real per-season cumulative stats sourced directly from the player's own school's site (see
+  // SEED_SCHOOL_PLAYER_STATS above) — scoped to this player's own team so same-named players on
+  // different schools never bleed into each other, unlike the name-only HISTORICAL_MATCHUPS match
+  // below (safe there only because that data is Cal-only).
+  const team = findTeam(player.teamId);
+  const schoolStats = team && SEED_SCHOOL_PLAYER_STATS[team.name];
+  const playerSeasonSource = schoolStats && schoolStats[player.name];
+  if(playerSeasonSource){
+    Object.keys(playerSeasonSource).forEach(year=>{
+      const row = playerSeasonSource[year];
+      const s = ensureYear(year);
+      for(let i=0;i<(row.gp||0);i++) s.gpSet.add('seed-'+year+'-'+i);
+      s.g += row.g||0; s.a += row.a||0; s.exd += row.exd||0; s.stl += row.stl||0; s.sv += row.sv||0;
+      if((row.sh||0)>0){ s.sh += row.sh; s.hasShotData = true; s.gWithShotData += row.g||0; }
+    });
+  }
   const nameLower = (player.name||'').trim().toLowerCase();
   if(nameLower){
     Object.values(HISTORICAL_MATCHUPS).forEach(riv=>{
