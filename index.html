@@ -4309,7 +4309,25 @@ const CURRENT_ROSTERS = {
     {cap:'21',name:'Will Matthews',wpPosition:'C'},
     {cap:'22',name:'Aleksandar Radosavljevic',wpPosition:'UT'},
   ] },
-  bucknell: { label:'Bucknell', players:[] },
+  bucknell: { label:'Bucknell', players:[
+    {cap:'1',name:'David Dumitru',wpPosition:'GK'},
+    {cap:'1A',name:'Aidan Stone',wpPosition:'GK'},
+    {cap:'1B',name:'JR Lindberg',wpPosition:'GK'},
+    {cap:'3',name:'Sean Tunnicliff',wpPosition:'A'},
+    {cap:'4',name:'Jake Wedding',wpPosition:'A'},
+    {cap:'5',name:'Ori Raz',wpPosition:'A'},
+    {cap:'7',name:'Jack Dillane',wpPosition:'C'},
+    {cap:'8',name:'Hudson Tweed',wpPosition:'A'},
+    {cap:'9',name:'Kai Johnson',wpPosition:'A'},
+    {cap:'10',name:'Jovan Udovicic',wpPosition:'A'},
+    {cap:'12',name:'Thomas Singleton',wpPosition:'D'},
+    {cap:'13',name:'Andrew Hunyady',wpPosition:'C'},
+    {cap:'14',name:'Greg Nordheim',wpPosition:'D'},
+    {cap:'15',name:'Tyler Hedblad',wpPosition:'A'},
+    {cap:'18',name:'Charles Koven',wpPosition:'UT'},
+    {cap:'19',name:'Pier Giorgio Cicchetti',wpPosition:'A'},
+    {cap:'21',name:'Harley Haveman',wpPosition:'A'},
+  ] },
   johnshopkins: { label:'Johns Hopkins', players:[] },
   georgewashington: { label:'George Washington', players:[] },
   princeton: { label:'Princeton', players:[] },
@@ -5168,6 +5186,35 @@ const SEED_SCHOOL_PLAYER_STATS = {
                          '2025': {gp:20, g:2,  a:9,  sh:0,   exd:7,  stl:2,  sv:0, blk:6} },
     'Giannis Skliras': { '2025': {gp:0,  g:63, a:34, sh:0,   exd:43, stl:24, sv:0, blk:3} },
     'Will Matthews':   { '2025': {gp:30, g:54, a:16, sh:118, exd:8,  stl:51, sv:0, blk:16} },
+  },
+  // Bucknell bios are also prose, and several internally-stated "points" totals don't add up to
+  // their own goals+assists for that same season (e.g. Jack Dillane 2025: "68 points on 33 goals
+  // and two assists" is only 35, not 68) -- rather than guess which number is the typo, only the
+  // individually-named stats (goals, assists, steals, saves) are used here, never a derived or
+  // reported point total. No games-played figures are published on these bios at all, so gp is 0
+  // throughout despite real stat lines being present. Kai Johnson's bio already covers 2026 (his
+  // first year), the only Bucknell player whose bio has been updated past 2025 so far.
+  'Bucknell': {
+    'David Dumitru':   { '2024': {gp:0, g:0,  a:0,  sh:0, exd:0, stl:19, sv:207},
+                         '2025': {gp:0, g:0,  a:0,  sh:0, exd:0, stl:38, sv:244} },
+    'Aidan Stone':     { '2025': {gp:0, g:1,  a:0,  sh:0, exd:0, stl:0,  sv:5} },
+    'Sean Tunnicliff': { '2023': {gp:0, g:20, a:0,  sh:0, exd:0, stl:8,  sv:0},
+                         '2024': {gp:0, g:32, a:0,  sh:0, exd:0, stl:11, sv:0},
+                         '2025': {gp:0, g:29, a:6,  sh:0, exd:0, stl:15, sv:0} },
+    'Jake Wedding':    { '2024': {gp:0, g:2,  a:0,  sh:0, exd:0, stl:1,  sv:0},
+                         '2025': {gp:0, g:0,  a:4,  sh:0, exd:0, stl:2,  sv:0} },
+    'Ori Raz':         { '2025': {gp:0, g:26, a:22, sh:0, exd:0, stl:12, sv:0} },
+    'Jack Dillane':    { '2024': {gp:0, g:9,  a:0,  sh:0, exd:0, stl:0,  sv:0},
+                         '2025': {gp:0, g:33, a:2,  sh:0, exd:0, stl:14, sv:0} },
+    'Kai Johnson':     { '2026': {gp:0, g:11, a:6,  sh:0, exd:0, stl:4,  sv:0} },
+    'Jovan Udovicic':  { '2024': {gp:0, g:38, a:0,  sh:0, exd:0, stl:12, sv:0},
+                         '2025': {gp:0, g:30, a:13, sh:0, exd:0, stl:13, sv:0} },
+    'Andrew Hunyady':  { '2025': {gp:0, g:9,  a:0,  sh:0, exd:0, stl:0,  sv:3} },
+    'Greg Nordheim':   { '2023': {gp:0, g:8,  a:1,  sh:0, exd:0, stl:0,  sv:0},
+                         '2024': {gp:0, g:10, a:0,  sh:0, exd:0, stl:7,  sv:0},
+                         '2025': {gp:0, g:10, a:1,  sh:0, exd:0, stl:22, sv:0} },
+    'Tyler Hedblad':   { '2024': {gp:0, g:47, a:0,  sh:0, exd:0, stl:12, sv:0},
+                         '2025': {gp:0, g:58, a:0,  sh:0, exd:0, stl:0,  sv:0} },
   },
 };
 function blankSeasonRow(year){ return { year, gpSet:new Set(), g:0, gWithShotData:0, a:0, sh:0, hasShotData:false, exd:0, exg:0, stl:0, to:0, blk:0, sv:0, pd:0 }; }
