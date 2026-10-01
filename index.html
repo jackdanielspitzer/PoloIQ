@@ -4236,7 +4236,32 @@ const CURRENT_ROSTERS = {
     {cap:'25',name:'Declan Murphy',wpPosition:'UT'},
     {cap:'26',name:'JB Bergstedt',wpPosition:'A'},
   ] },
-  fordham: { label:'Fordham', players:[] },
+  fordham: { label:'Fordham', players:[
+    {cap:'1',name:'Kristof Magony',wpPosition:'GK'},
+    {cap:'1A',name:'Matthew Bonello DuPuis',wpPosition:'GK'},
+    {cap:'1B',name:'Viktor Savic',wpPosition:'GK'},
+    {cap:'1C',name:'Alejandro Cheline',wpPosition:'GK'},
+    {cap:'2',name:'Reid Thorson',wpPosition:'C'},
+    {cap:'3',name:'Andras Toth',wpPosition:'A'},
+    {cap:'4',name:'Laszlo Strasser',wpPosition:'A'},
+    {cap:'5',name:'Vuk Kojic',wpPosition:'A'},
+    {cap:'6',name:'Kyle Thomas',wpPosition:'A'},
+    {cap:'7',name:'Mark Dyck',wpPosition:'UT'},
+    {cap:'8',name:'Christopher Gray',wpPosition:'UT'},
+    {cap:'9',name:'Diego Tresa',wpPosition:'UT'},
+    {cap:'10',name:'Barnabas Eppel',wpPosition:'UT'},
+    {cap:'11',name:'Alessandro Salipante',wpPosition:'A'},
+    {cap:'12',name:'Gianni Farrugia',wpPosition:'UT'},
+    {cap:'13',name:'Bern Kent',wpPosition:'UT'},
+    {cap:'14',name:'Oktavian Veklyuk',wpPosition:'A'},
+    {cap:'15',name:'Soren Jessen',wpPosition:'UT'},
+    {cap:'16',name:'Charlie Martin',wpPosition:'A'},
+    {cap:'17',name:'Balazs Bathory',wpPosition:'D'},
+    {cap:'18',name:'Luca Provenziani',wpPosition:'UT'},
+    {cap:'19',name:'Petar Kulas',wpPosition:'A'},
+    {cap:'20',name:'Karlo Dragosevic',wpPosition:'C'},
+    {cap:'21',name:'Liam Rogers',wpPosition:'D'},
+  ] },
   iona: { label:'Iona', players:[] },
   mountstmarys: { label:"Mount St. Mary's", players:[] },
   bucknell: { label:'Bucknell', players:[] },
@@ -5016,15 +5041,56 @@ const SEED_SCHOOL_PLAYER_STATS = {
     'Declan Murphy':  { '2026': {gp:11, g:8,  a:2,  sh:13, exd:10, stl:1,  sv:0} },
     'JB Bergstedt':   { '2026': {gp:4,  g:1,  a:1,  sh:7,  exd:6,  stl:3,  sv:0} },
   },
+  // Fordham's site publishes Blocks instead of Shots/Exclusions-drawn, so those fields are 0 here
+  // and blk is populated instead — same "use exactly what the site shows" rule as Navy above.
+  // 2026 is not yet reflected in any season-stats page or PDF Fordham has published (unlike Navy),
+  // so these players don't have a 2026 row yet; flagged in the commit rather than left unexplained.
+  'Fordham': {
+    'Kristof Magony':  { '2024': {gp:23, g:0, a:4,  sh:0, exd:0, stl:8,  sv:49,  blk:2},
+                         '2025': {gp:17, g:0, a:7,  sh:0, exd:0, stl:8,  sv:65,  blk:4} },
+    'Matthew Bonello DuPuis': { '2025': {gp:26, g:0, a:22, sh:0, exd:0, stl:27, sv:174, blk:5} },
+    'Reid Thorson':    { '2023': {gp:27, g:11, a:3,  sh:0, exd:0, stl:6,  sv:0, blk:3},
+                         '2024': {gp:31, g:13, a:2,  sh:0, exd:0, stl:7,  sv:0, blk:6},
+                         '2025': {gp:29, g:11, a:0,  sh:0, exd:0, stl:6,  sv:0, blk:4} },
+    'Andras Toth':     { '2024': {gp:33, g:84, a:35, sh:0, exd:0, stl:47, sv:0, blk:7},
+                         '2025': {gp:30, g:134,a:58, sh:0, exd:0, stl:72, sv:0, blk:31} },
+    'Kyle Thomas':     { '2025': {gp:25, g:7,  a:12, sh:0, exd:0, stl:9,  sv:0, blk:6} },
+    'Mark Dyck':       { '2025': {gp:30, g:17, a:29, sh:0, exd:0, stl:26, sv:0, blk:9} },
+    'Christopher Gray':{ '2023': {gp:20, g:7,  a:8,  sh:0, exd:0, stl:13, sv:0, blk:1},
+                         '2024': {gp:25, g:6,  a:10, sh:0, exd:0, stl:12, sv:0, blk:2},
+                         '2025': {gp:26, g:11, a:4,  sh:0, exd:0, stl:13, sv:0, blk:1} },
+    'Diego Tresa':     { '2025': {gp:30, g:45, a:18, sh:0, exd:0, stl:24, sv:0, blk:9} },
+    'Barnabas Eppel':  { '2023': {gp:32, g:63, a:13, sh:0, exd:0, stl:28, sv:0, blk:12},
+                         '2024': {gp:33, g:39, a:15, sh:0, exd:0, stl:10, sv:0, blk:4},
+                         '2025': {gp:27, g:48, a:9,  sh:0, exd:0, stl:11, sv:0, blk:16} },
+    'Alessandro Salipante': { '2025': {gp:30, g:39, a:62, sh:0, exd:0, stl:23, sv:0, blk:4} },
+    'Gianni Farrugia': { '2025': {gp:26, g:11, a:12, sh:0, exd:0, stl:10, sv:0, blk:4} },
+    'Soren Jessen':    { '2025': {gp:30, g:13, a:6,  sh:0, exd:0, stl:4,  sv:0, blk:4} },
+    'Charlie Martin':  { '2025': {gp:14, g:5,  a:9,  sh:0, exd:0, stl:3,  sv:0, blk:1} },
+    'Luca Provenziani':{ '2024': {gp:33, g:93, a:67, sh:0, exd:0, stl:29, sv:0, blk:1},
+                         '2025': {gp:30, g:90, a:103,sh:0, exd:0, stl:54, sv:0, blk:14} },
+  },
 };
 function blankSeasonRow(year){ return { year, gpSet:new Set(), g:0, gWithShotData:0, a:0, sh:0, hasShotData:false, exd:0, exg:0, stl:0, to:0, blk:0, sv:0, pd:0 }; }
 function buildPlayerSeasonStats(player){
   const seasons = {};
   const ensureYear = y => seasons[y] || (seasons[y] = blankSeasonRow(y));
+  // Real per-season cumulative stats sourced directly from the player's own school's site (see
+  // SEED_SCHOOL_PLAYER_STATS above) — scoped to this player's own team so same-named players on
+  // different schools never bleed into each other, unlike the name-only HISTORICAL_MATCHUPS match
+  // below (safe there only because that data is Cal-only). Looked up first because its presence
+  // gates the two event-log-based passes below: those seasons' official totals already include
+  // every game (some schools, like Fordham, have real per-game SEED_SCHOOL_PLAYBYPLAY for a few
+  // dates that would otherwise double-count against this authoritative season total).
+  const team = findTeam(player.teamId);
+  const schoolStats = team && SEED_SCHOOL_PLAYER_STATS[team.name];
+  const playerSeasonSource = schoolStats && schoolStats[player.name];
+  const seedYears = playerSeasonSource ? new Set(Object.keys(playerSeasonSource)) : null;
   app.games.filter(g=>g.teamId===player.teamId).forEach(game=>{
+    const year = (game.date||'').slice(0,4) || 'Unknown';
+    if(seedYears && seedYears.has(year)) return; // this year's official total already covers this game
     const events = getGameEvents(game).filter(ev=>ev.playerId===player.id);
     if(events.length===0) return;
-    const year = (game.date||'').slice(0,4) || 'Unknown';
     const s = ensureYear(year);
     s.gpSet.add(game.id);
     // Shots/Sh% are a 2026-and-forward stat, full stop — every 2024/2025 game on record is an
@@ -5048,23 +5114,21 @@ function buildPlayerSeasonStats(player){
       else if(def.key==='penalty_drawn') s.pd += count;
     });
   });
-  // Real per-season cumulative stats sourced directly from the player's own school's site (see
-  // SEED_SCHOOL_PLAYER_STATS above) — scoped to this player's own team so same-named players on
-  // different schools never bleed into each other, unlike the name-only HISTORICAL_MATCHUPS match
-  // below (safe there only because that data is Cal-only).
-  const team = findTeam(player.teamId);
-  const schoolStats = team && SEED_SCHOOL_PLAYER_STATS[team.name];
-  const playerSeasonSource = schoolStats && schoolStats[player.name];
   if(playerSeasonSource){
     Object.keys(playerSeasonSource).forEach(year=>{
       const row = playerSeasonSource[year];
       const s = ensureYear(year);
       for(let i=0;i<(row.gp||0);i++) s.gpSet.add('seed-'+year+'-'+i);
-      s.g += row.g||0; s.a += row.a||0; s.exd += row.exd||0; s.stl += row.stl||0; s.sv += row.sv||0;
+      s.g += row.g||0; s.a += row.a||0; s.exd += row.exd||0; s.stl += row.stl||0; s.sv += row.sv||0; s.blk += row.blk||0;
       if((row.sh||0)>0){ s.sh += row.sh; s.hasShotData = true; s.gWithShotData += row.g||0; }
     });
   }
-  const nameLower = (player.name||'').trim().toLowerCase();
+  // A player with authoritative SEED_SCHOOL_PLAYER_STATS season totals is already fully accounted
+  // for above — those totals already include any Cal-vs-their-school game HISTORICAL_MATCHUPS might
+  // also log in per-game detail (e.g. a Fordham player's official season total already covers the
+  // Cal-Fordham game that's separately logged below). Running both would double-count that game, so
+  // skip the name-matched HISTORICAL_MATCHUPS pass entirely whenever this player has a seed source.
+  const nameLower = !playerSeasonSource && (player.name||'').trim().toLowerCase();
   if(nameLower){
     Object.values(HISTORICAL_MATCHUPS).forEach(riv=>{
       (riv.games||[]).forEach(g=>{
