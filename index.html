@@ -944,7 +944,16 @@
           <div id="tacticsRecArea" class="rec-empty">Set player positions on the pool, then request a recommendation.</div>
           <div class="data-row" style="margin-top:12px;">
             <button class="primary-btn action-btn" id="tacticsRecBtn" onclick="getRecommendation()">Who should be in / what play?</button>
-            <button class="ghost-btn" id="tacticsLogBtn" onclick="logTacticalOutcome()" style="display:none">Log this to history</button>
+            <button class="ghost-btn" id="tacticsLogBtn" onclick="toggleTacticsOutcomeBtns()" style="display:none">Did it work? Log it</button>
+          </div>
+          <div id="tacticsOutcomeBtns" class="data-row" style="display:none;margin-top:10px;gap:8px;flex-wrap:wrap;">
+            <button class="ghost-btn" onclick="logTacticalOutcome('good','Scored')">Scored</button>
+            <button class="ghost-btn" onclick="logTacticalOutcome('good','Exclusion drawn')">Exclusion drawn</button>
+            <button class="ghost-btn" onclick="logTacticalOutcome('good','Stopped them')">Stopped them</button>
+            <button class="ghost-btn" onclick="logTacticalOutcome('bad','Turnover')">Turnover</button>
+            <button class="ghost-btn" onclick="logTacticalOutcome('bad','Missed / blocked')">Missed / blocked</button>
+            <button class="ghost-btn" onclick="logTacticalOutcome('bad','Scored on')">Scored on</button>
+            <button class="ghost-btn" onclick="logTacticalOutcome('neutral','Nothing came of it')">Nothing</button>
           </div>
         </div>
         <div class="panel">
@@ -7993,7 +8002,9 @@ function renderTacticsHistory(game){
 // structured "did this work" field, so this is a pattern-spotting aid once a few dozen are
 // logged, not a precise stat. Bad-sounding words win ties (e.g. "goal" inside "scored on" for the
 // other side) since a coach is more likely to under- than over-describe a bad outcome.
-function classifyOutcomeSentiment(outcome){
+function classifyOutcomeSentiment(outcome, result){
+  if(result==='good' || result==='bad') return result;
+  if(result==='neutral') return 'neutral';
   if(!outcome || !outcome.trim()) return 'unlogged';
   const o = outcome.toLowerCase();
   const bad = /turnover|missed|miss\b|blocked|exclude[d]?(?!\s*drawn)|exclusion(?!\s*drawn)|scored on|beaten|lost|bad/.test(o);
@@ -8009,9 +8020,9 @@ function classifyOutcomeSentiment(outcome){
 function renderTacticsOutcomes(game){
   const el = document.getElementById('tacticsOutcomesPanel'); if(!el) return;
   const allLogs = app.games.filter(g=>g.teamId===game.teamId).flatMap(g=>g.tacticalLog||[]);
-  if(allLogs.length===0){ el.innerHTML = '<div style="color:var(--text-faint);font-size:12px;">No outcomes logged yet — after a recommendation, hit "Log this to history" and note what happened. Patterns show up here once a few are logged.</div>'; return; }
+  if(allLogs.length===0){ el.innerHTML = '<div style="color:var(--text-faint);font-size:12px;">No outcomes logged yet — after a recommendation, hit "Did it work? Log it" and tap what happened. Patterns show up here once a few are logged.</div>'; return; }
 
-  const withSentiment = allLogs.map(h=>({...h, sentiment: classifyOutcomeSentiment(h.outcome)}));
+  const withSentiment = allLogs.map(h=>({...h, sentiment: classifyOutcomeSentiment(h.outcome, h.result)}));
   const logged = withSentiment.filter(h=>h.sentiment!=='unlogged');
 
   const summarize = (rows) => {
@@ -8513,6 +8524,19 @@ function buildTacticsSituation(game){
 // urgency sit at the top, ambient season-series context sits at the bottom. tacticsRuleEngine sorts
 // by weight and the caller decides how many to actually show, which is what makes the output
 // "picky" instead of a flat wall of everything that happened to match.
+const PLAY_RECORD_MIN_SAMPLES = 4;
+// good/bad results this team has logged for a play in a given man-state, across all its games
+// (neutral and unlogged outcomes are ignored — they say nothing about whether the play worked).
+function playTrackRecord(teamId, playName, manstate){
+  let good=0, bad=0;
+  app.games.filter(g=>g.teamId===teamId).forEach(g=>(g.tacticalLog||[]).forEach(h=>{
+    if(h.play!==playName || h.manstate!==manstate) return;
+    const s = classifyOutcomeSentiment(h.outcome, h.result);
+    if(s==='good') good++; else if(s==='bad') bad++;
+  }));
+  return {good, bad, n:good+bad};
+}
+function shrunkPlayRate(r){ const K=4; return (r.good + 0.5*K)/(r.n + K); }
 function tacticsRuleEngine(sit, game){
   const reasons=[]; const lineupNotes=[];
   // capRef tags a reason to a specific on-field/bench player's cap number so independent signals
@@ -8541,7 +8565,20 @@ function tacticsRuleEngine(sit, game){
   let candidatePlays = crunch ? app.plays.filter(p=>/last-minute|clutch/i.test(p.tags)) : [];
   if(candidatePlays.length===0) candidatePlays = app.plays.filter(p=>p.tags.toLowerCase().includes(sit.manstate));
   if(candidatePlays.length===0) candidatePlays = app.plays;
+  // Re-rank candidates by what has actually worked for this team in this man-state. Shrinkage toward
+  // 50% means a 2-for-2 play doesn't leapfrog the default order; a play only overrides it once it has
+  // PLAY_RECORD_MIN_SAMPLES decided results and a clearly better shrunk rate. Ties keep library order.
+  const playRecords = new Map(candidatePlays.map(p=>[p.name, playTrackRecord(game.teamId, p.name, sit.manstate)]));
+  if(candidatePlays.length>1){
+    const order = candidatePlays.map((p,i)=>({p, i, sc: shrunkPlayRate(playRecords.get(p.name)), n: playRecords.get(p.name).n}));
+    order.sort((a,b)=>b.sc-a.sc || a.i-b.i);
+    if(order[0].n>=PLAY_RECORD_MIN_SAMPLES && order[0].sc>=order.find(o=>o.i===0).sc+0.05) candidatePlays = order.map(o=>o.p);
+  }
   const chosenPlay = candidatePlays[0] || {name:'No play matched', desc:'Add plays to the library for this situation.'};
+  const chosenRecord = playRecords.get(chosenPlay.name) || null;
+  if(chosenRecord && chosenRecord.n>0){
+    push(`"${chosenPlay.name}" worked ${chosenRecord.good} of ${chosenRecord.n} logged time(s) when we were ${sit.manstate.replace('-',' ')}${chosenRecord.n<PLAY_RECORD_MIN_SAMPLES?' — small sample, not weighing it heavily yet':''}.`, chosenRecord.n>=PLAY_RECORD_MIN_SAMPLES?5:2, 'Track record');
+  }
 
   if(crunch) push(`${periodLabel(sit.quarter)}, margin of ${Math.abs(sit.diff)} — this is crunch time. Proven late-game production and discipline matter more here than a normal-time read would suggest.`, 9, 'Crunch time');
   if(sit.manstate==='man-up') push('We have an extra player in the water — run a set 6v5 rather than free-lancing.', 6, 'Man-state');
@@ -8676,7 +8713,7 @@ function tacticsRuleEngine(sit, game){
   stacked.sort((a,b)=>b.weight-a.weight);
   const totalWeight = stacked.reduce((s,r)=>s+r.weight, 0);
   const confidence = totalWeight>=30 ? 'High' : totalWeight>=14 ? 'Medium' : stacked.length ? 'Low' : 'None';
-  return {play:chosenPlay, reasons:stacked, lineupNotes, confidence, totalWeight};
+  return {play:chosenPlay, reasons:stacked, lineupNotes, confidence, totalWeight, record:chosenRecord};
 }
 // When 2+ independent signals land on the same player (e.g. hot AND a favorable matchup edge AND
 // a proven history vs this opponent), that's a materially stronger case than any one alone — don't
@@ -8728,6 +8765,7 @@ async function getRecommendation(){
   window._lastTacticsSituation = sit; window._lastTacticsRec = rec;
   btn.disabled=false; btn.textContent='Who should be in / what play?';
   document.getElementById('tacticsLogBtn').style.display='inline-block';
+  const ob = document.getElementById('tacticsOutcomeBtns'); if(ob) ob.style.display='none';
 }
 
 function renderTacticsRecommendation(rec, reasons, sit, hiddenCount){
@@ -8763,6 +8801,7 @@ function renderTacticsRecommendation(rec, reasons, sit, hiddenCount){
       <div>
         <div class="rec-play">${rec.play.name}</div>
         <div class="rec-sub">${rec.play.desc||''}</div>
+        ${rec.record && rec.record.n>0 ? `<div class="rec-sub" style="margin-top:4px;">Worked ${rec.record.good} of ${rec.record.n} logged time${rec.record.n===1?'':'s'} in this situation</div>` : ''}
       </div>
       <div class="conf-badge ${confClass}"><span class="conf-dot"></span>${rec.confidence} confidence</div>
     </div>
@@ -8776,14 +8815,20 @@ function renderTacticsRecommendation(rec, reasons, sit, hiddenCount){
   `;
 }
 
-function logTacticalOutcome(){
+function toggleTacticsOutcomeBtns(){
+  const el = document.getElementById('tacticsOutcomeBtns'); if(!el) return;
+  el.style.display = el.style.display==='none' ? 'flex' : 'none';
+}
+// One tap records a structured result ('good' | 'bad' | 'neutral') plus a label, so the outcome no
+// longer depends on keyword-guessing free text and can feed back into play selection.
+function logTacticalOutcome(result, label){
   const game = findGame(app.selectedGameId); if(!game || !window._lastTacticsSituation) return;
-  const outcome = prompt('Outcome? (e.g. "goal scored", "turnover", "exclusion drawn")') || '';
   const sit = window._lastTacticsSituation, rec = window._lastTacticsRec;
   ensureGameTacticalFields(game);
-  game.tacticalLog.push({quarter: sit.quarter, manstate: sit.manstate, play: rec.play.name, outcome, confidence: rec.confidence});
+  game.tacticalLog.push({quarter: sit.quarter, manstate: sit.manstate, play: rec.play.name, outcome: label||'', result: result||null, confidence: rec.confidence});
   saveState(); renderTacticsHistory(game); renderTacticsOutcomes(game);
   document.getElementById('tacticsLogBtn').style.display='none';
+  document.getElementById('tacticsOutcomeBtns').style.display='none';
 }
 
 /* ---------------- Data page ---------------- */
