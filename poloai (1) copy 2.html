@@ -3624,6 +3624,23 @@ const SEED_SCHOOL_RESULTS = {
     {date:'2026-09-20', opponent:'USC', teamScore:12, oppScore:13},
     {date:'2026-09-24', opponent:"Saint Mary's", teamScore:22, oppScore:8},
   ],
+  // Saint Mary's started a varsity program in 2026 (first game 2026-08-28; recaps call its 8/30 wins the
+  // first in program history), so there are no 2024/2025 games. From smcgaels.com's schedule and recaps.
+  "Saint Mary's": [
+    {date:'2026-08-28', opponent:'UC Santa Barbara', teamScore:14, oppScore:16},
+    {date:'2026-08-28', opponent:'USC', teamScore:9, oppScore:22},
+    {date:'2026-08-29', opponent:'UCLA', teamScore:5, oppScore:23},
+    {date:'2026-08-29', opponent:'Long Beach State', teamScore:10, oppScore:15},
+    {date:'2026-08-30', opponent:'Bucknell', teamScore:12, oppScore:9},
+    {date:'2026-08-30', opponent:'Mercyhurst', teamScore:26, oppScore:9},
+    {date:'2026-09-06', opponent:'Whittier', teamScore:20, oppScore:11},
+    {date:'2026-09-11', opponent:'Princeton', teamScore:8, oppScore:15},
+    {date:'2026-09-12', opponent:'Wagner', teamScore:19, oppScore:11},
+    {date:'2026-09-12', opponent:"Mount St. Mary's", teamScore:16, oppScore:6},
+    {date:'2026-09-13', opponent:'Bucknell', teamScore:9, oppScore:14},
+    {date:'2026-09-24', opponent:'California', teamScore:8, oppScore:22},
+    {date:'2026-09-26', opponent:'Diablo Valley College', teamScore:23, oppScore:4, note:'exhibition'},
+  ],
 };
 
 // Each opponent school's OWN real 2026 schedule (their full season, not just games vs Cal) — same
@@ -4275,6 +4292,7 @@ function buildSeedTeam(key){
   team.players = src.players.map(sp=>{
     const p = blankPlayer(team.id);
     p.cap = sp.cap; p.name = sp.name; p.wpPosition = sp.wpPosition; p.role='player'; p.aliases = deriveAliases(sp.name);
+    if(sp.active===false){ p.active = false; p.seedInactiveDone = true; }
     return p;
   });
   applyBrandingIfKnown(team);
@@ -4305,7 +4323,8 @@ function ensureSeedTeamsAndSchedule(){
 // Rosters for these five schools were corrected after their teams had already been created (and
 // saved/synced) from an earlier, partly wrong scrape. ensureSeedTeamsAndSchedule() deliberately never
 // touches a team that already exists, so without this the corrections would only ever reach a
-// brand-new browser. Deliberately narrow: only these named school teams, never removes anyone except
+// brand-new browser. Deliberately narrow: only these named school teams (California is keepExisting: it only
+// adds missing players and corrects numbers still at their old seeded value), never removes anyone except
 // an explicitly listed phantom (hidden if a game references it), adds missing players with a deterministic id
 // (so two browsers reconciling at once can't create duplicates), and syncs cap/position by name.
 const SEED_ROSTER_FIXES = {
@@ -4313,7 +4332,12 @@ const SEED_ROSTER_FIXES = {
   'Pepperdine':{},
   'Pacific':   { rename:[['Kiss Gergely','Gergely Kiss'],['Marc Cives','Marc Comabella'],['Gabor Hall','Gabor Holl']] },
   'UCLA':      {},
-  'USC':       {}
+  'USC':       {},
+  "Saint Mary's": {},
+  'California': { keepExisting:true, capFixes:{
+    'Riley Clansen':['1','1A'], 'James Peace III':['26','1B'], 'Aran Pina':['27','1'],
+    'Kai Inoue':['3','5'], 'Maddox Arlett':['4','10'], 'Dominic Brown':['5','3'],
+    'Chase Wilson':['6','12'], 'Loui Schuler':['10','15'] } }
 };
 function reconcileSeedRosters(){
   const norm = s => (s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/\s+/g,' ').trim();
@@ -4336,13 +4360,23 @@ function reconcileSeedRosters(){
     });
     CURRENT_ROSTERS[key].players.forEach(sp=>{
       let p = team.players.find(x=>norm(x.name)===norm(sp.name));
+      const isNew = !p;
       if(!p){
         p = blankPlayer(team.id);
         p.id = 'pseed-'+slug(teamName)+'-'+slug(sp.name);
         p.name = sp.name; p.role = 'player'; p.aliases = deriveAliases(sp.name);
+        p.cap = sp.cap; p.wpPosition = sp.wpPosition;
         team.players.push(p);
+      } else if(!fix.keepExisting){
+        p.cap = sp.cap; p.wpPosition = sp.wpPosition;
+      } else if(fix.capFixes && fix.capFixes[sp.name] && String(p.cap)===String(fix.capFixes[sp.name][0])){
+        // keepExisting teams (e.g. California, where coaches edit the roster): a number is only corrected
+        // while it still holds the old seeded value, so a hand-edited one is never overwritten.
+        p.cap = fix.capFixes[sp.name][1];
       }
-      p.cap = sp.cap; p.wpPosition = sp.wpPosition;
+      // Seed-marked inactive (e.g. graduated) players are hidden once; a coach can re-activate them and
+      // the marker keeps this from hiding them again on the next load.
+      if(sp.active===false && !p.seedInactiveDone){ p.active = false; p.seedInactiveDone = true; }
     });
   });
 }
@@ -4554,31 +4588,36 @@ const CURRENT_ROSTERS = {
     {cap:'25',name:'William Ewald',wpPosition:'A'},
   ] },
   cal: { label:'California (2026)', players:[
-    {cap:'1',name:'Riley Clansen',wpPosition:'GK'},
-    {cap:'26',name:'James Peace III',wpPosition:'GK'},
-    {cap:'27',name:'Aran Pina',wpPosition:'GK'},
+    {cap:'1A',name:'Riley Clansen',wpPosition:'GK'},
+    {cap:'1B',name:'James Peace III',wpPosition:'GK'},
+    {cap:'1',name:'Aran Pina',wpPosition:'GK'},
     {cap:'2',name:'Tomas Perrone',wpPosition:'A'},
-    {cap:'3',name:'Kai Inoue',wpPosition:'A'},
-    {cap:'4',name:'Maddox Arlett',wpPosition:'D'},
-    {cap:'5',name:'Dominic Brown',wpPosition:'C'},
-    {cap:'6',name:'Chase Wilson',wpPosition:'C'},
-    {cap:'7',name:'Albert Ponferrada',wpPosition:'A'},
+    {cap:'5',name:'Kai Inoue',wpPosition:'A'},
+    {cap:'10',name:'Maddox Arlett',wpPosition:'D'},
+    {cap:'3',name:'Dominic Brown',wpPosition:'C'},
+    {cap:'12',name:'Chase Wilson',wpPosition:'C'},
+    {cap:'7',name:'Albert Ponferrada',wpPosition:'A',active:false},
     {cap:'8',name:'Beso Akhvlediani',wpPosition:'A'},
     {cap:'9',name:'Milan Sumich',wpPosition:'D'},
-    {cap:'10',name:'Loui Schuler',wpPosition:'UT'},
+    {cap:'15',name:'Loui Schuler',wpPosition:'UT'},
     {cap:'11',name:'Alex Oprea',wpPosition:'A'},
-    {cap:'12',name:'Marci Szatmary',wpPosition:'A'},
+    {cap:'12',name:'Marci Szatmary',wpPosition:'A',active:false},
     {cap:'13',name:'Patrik Kolak',wpPosition:'UT'},
     {cap:'14',name:'Brennan Fuchslin',wpPosition:'A'},
-    {cap:'15',name:'Nik Mirkovic',wpPosition:'A'},
+    {cap:'15',name:'Nik Mirkovic',wpPosition:'A',active:false},
     {cap:'16',name:'Gigo Sarimsakci',wpPosition:'C'},
     {cap:'17',name:'Ryder Hagan',wpPosition:'A'},
-    {cap:'19',name:'Patrick Stice',wpPosition:'UT'},
+    {cap:'19',name:'Patrick Stice',wpPosition:'UT',active:false},
     {cap:'20',name:'Luke Bachler',wpPosition:'A'},
-    {cap:'21',name:'Bende Pardi',wpPosition:'A'},
+    {cap:'21',name:'Bende Pardi',wpPosition:'A',active:false},
     {cap:'22',name:'Seth Bousfield',wpPosition:'D'},
-    {cap:'25',name:'William Kelly',wpPosition:'A'},
-  ], note:'3 goalkeepers all show cap #1 on the official site (likely a display quirk for backups) — fix cap numbers by hand once you know who\'s starting.' },
+    {cap:'25',name:'William Kelly',wpPosition:'A',active:false},
+    {cap:'4',name:'Ilias Angelopoulos',wpPosition:'C'},
+    {cap:'6',name:'Amir Shafrir',wpPosition:'D'},
+    {cap:'7',name:'Wyatt Williamson',wpPosition:'A'},
+    {cap:'21',name:'João Leme',wpPosition:'UT'},
+    {cap:'24',name:'Mason Netzer',wpPosition:'A'},
+  ], note:'Goalkeeper caps follow the 2026 box scores (Pina #1, Clansen #1A, Peace #1B); the official roster page lists all three as #1. Players marked inactive are not on the 2026 roster (graduated) and are kept only for their 2024-2025 stats.' },
   stanford: { label:'Stanford (2026)', players:[
     {cap:'1',name:'Bernardo Herzer',wpPosition:'GK'},
     {cap:'1A',name:'Cormac Mulloy',wpPosition:'GK'},
@@ -4813,7 +4852,11 @@ const CURRENT_ROSTERS = {
     {cap:"17",name:"Jacob Carlson",wpPosition:"UT"},
     {cap:"18",name:"Ferran de Witt",wpPosition:"A"},
     {cap:"19",name:"Domenico Barill\u00e0",wpPosition:"A"},
-    {cap:"21",name:"Christian Renzuto",wpPosition:"C"}
+    {cap:"21",name:"Christian Renzuto",wpPosition:"C"},
+    {cap:"20",name:"Alessandro Fumo",wpPosition:"A"},
+    {cap:"23",name:"Kyle Stilinovich",wpPosition:"A"},
+    {cap:"24",name:"Stryder Stelck",wpPosition:"A"},
+    {cap:"—",name:"Oier Aguirre",wpPosition:"A"}
   ] },
   // West Valley College's athletics site (athletics.westvalley.edu) blocks automated access with a
   // CAPTCHA — no roster could be verified from an official source, so this intentionally ships with
@@ -5305,7 +5348,76 @@ function buildPlayerNoteTally(player, recentGames){
 //   Pacific            2026-09-27
 //   UC Davis           2026-09-27
 //   Pepperdine         2026-09-26
+//   California         2026-09-24
+//   Saint Mary's       2026-09-26 (exhibition 9/26 not counted in stats; last counted game 2026-09-24)
 const SEED_SCHOOL_PLAYER_STATS = {
+  // California: 2025 and 2026 come from calbears.com's cumulative stats tables (box-score player sums match
+  // the table for every player and column; 2026 goals total 176 and 2025 goals 357). The tables' goalie
+  // column is garbled, so saves are the sums of the goalie rows in each season's box scores (11 games in
+  // 2026, 23 in 2025). Brown 2025 uses gp 23 (the site's 27 double-counts a duplicate zero-line row in 4-5
+  // box scores) and Bousfield 2025 merges the site's two split rows. 2024 has no published table at all
+  // (the site says there are no stats), so those rows are only the explicit season totals stated in player
+  // bios (goals-only lines have gp:0 and zeros elsewhere); Clansen's 15 games / 93 saves is stated outright.
+  // Players not on the 2026 roster (graduated) have no 2026 key.
+  'California': {
+    'Riley Clansen':     { '2024': {gp:15, g:0, a:0, sh:0, exd:0, stl:0, sv:93}, '2025': {gp:7, g:0, a:2, sh:0, exd:0, stl:5, sv:37}, '2026': {gp:8, g:0, a:2, sh:1, exd:0, stl:5, sv:48} },
+    'James Peace III':   { '2025': {gp:1, g:0, a:0, sh:0, exd:0, stl:0, sv:6}, '2026': {gp:0, g:0, a:0, sh:0, exd:0, stl:0, sv:0} },
+    'Aran Pina':         { '2025': {gp:21, g:0, a:2, sh:4, exd:0, stl:29, sv:166, blk:1}, '2026': {gp:7, g:0, a:0, sh:3, exd:0, stl:11, sv:48} },
+    'Tomas Perrone':     { '2025': {gp:23, g:29, a:16, sh:81, exd:7, stl:18, sv:0}, '2026': {gp:7, g:15, a:6, sh:32, exd:1, stl:6, sv:0, blk:1} },
+    'Kai Inoue':         { '2025': {gp:23, g:23, a:17, sh:43, exd:2, stl:6, sv:0, blk:1}, '2026': {gp:10, g:13, a:13, sh:24, exd:0, stl:2, sv:0} },
+    'Maddox Arlett':     { '2025': {gp:23, g:19, a:1, sh:34, exd:4, stl:4, sv:0, blk:7}, '2026': {gp:10, g:3, a:2, sh:8, exd:0, stl:1, sv:0, blk:2} },
+    'Dominic Brown':     { '2025': {gp:23, g:30, a:3, sh:47, exd:41, stl:5, sv:0, blk:1}, '2026': {gp:11, g:13, a:0, sh:21, exd:15, stl:3, sv:0, blk:1} },
+    'Chase Wilson':      { '2025': {gp:23, g:30, a:2, sh:47, exd:43, stl:8, sv:0, blk:2}, '2026': {gp:11, g:4, a:2, sh:5, exd:4, stl:1, sv:0} },
+    'Albert Ponferrada': { '2024': {gp:0, g:19, a:48, sh:0, exd:0, stl:0, sv:0}, '2025': {gp:23, g:17, a:25, sh:49, exd:6, stl:17, sv:0, blk:13} },
+    'Beso Akhvlediani':  { '2025': {gp:23, g:59, a:23, sh:117, exd:10, stl:9, sv:0, blk:9}, '2026': {gp:11, g:29, a:20, sh:56, exd:5, stl:10, sv:0, blk:1} },
+    'Milan Sumich':      { '2025': {gp:23, g:5, a:1, sh:15, exd:4, stl:3, sv:0}, '2026': {gp:11, g:4, a:2, sh:6, exd:2, stl:1, sv:0} },
+    'Loui Schuler':      { '2025': {gp:23, g:2, a:2, sh:5, exd:0, stl:2, sv:0, blk:1}, '2026': {gp:11, g:8, a:7, sh:13, exd:3, stl:3, sv:0, blk:1} },
+    'Alex Oprea':        { '2025': {gp:23, g:12, a:9, sh:26, exd:1, stl:8, sv:0, blk:3}, '2026': {gp:11, g:11, a:5, sh:18, exd:3, stl:2, sv:0, blk:1} },
+    'Marci Szatmary':    { '2024': {gp:0, g:17, a:0, sh:0, exd:0, stl:0, sv:0}, '2025': {gp:23, g:10, a:15, sh:26, exd:0, stl:3, sv:0, blk:2} },
+    'Patrik Kolak':      { '2024': {gp:0, g:10, a:0, sh:0, exd:0, stl:0, sv:0}, '2025': {gp:23, g:18, a:27, sh:42, exd:2, stl:6, sv:0, blk:5}, '2026': {gp:11, g:14, a:6, sh:24, exd:2, stl:8, sv:0, blk:4} },
+    'Brennan Fuchslin':  { '2024': {gp:0, g:5, a:0, sh:0, exd:0, stl:0, sv:0}, '2025': {gp:23, g:9, a:9, sh:18, exd:2, stl:6, sv:0, blk:1}, '2026': {gp:11, g:2, a:4, sh:5, exd:0, stl:3, sv:0, blk:1} },
+    'Nik Mirkovic':      { '2024': {gp:0, g:25, a:0, sh:0, exd:0, stl:0, sv:0}, '2025': {gp:23, g:16, a:15, sh:36, exd:7, stl:12, sv:0, blk:9} },
+    'Gigo Sarimsakci':   { '2025': {gp:23, g:9, a:1, sh:15, exd:7, stl:2, sv:0, blk:1}, '2026': {gp:11, g:5, a:0, sh:5, exd:3, stl:1, sv:0, blk:1} },
+    'Ryder Hagan':       { '2024': {gp:0, g:7, a:0, sh:0, exd:0, stl:0, sv:0}, '2025': {gp:23, g:7, a:6, sh:12, exd:3, stl:8, sv:0, blk:5}, '2026': {gp:11, g:3, a:3, sh:6, exd:5, stl:2, sv:0, blk:2} },
+    'Patrick Stice':     { '2025': {gp:23, g:4, a:1, sh:7, exd:0, stl:1, sv:0} },
+    'Luke Bachler':      { '2025': {gp:23, g:11, a:10, sh:23, exd:3, stl:5, sv:0}, '2026': {gp:11, g:13, a:5, sh:20, exd:1, stl:8, sv:0} },
+    'Bende Pardi':       { '2024': {gp:0, g:25, a:0, sh:0, exd:0, stl:0, sv:0}, '2025': {gp:23, g:15, a:8, sh:27, exd:5, stl:5, sv:0, blk:3} },
+    'Seth Bousfield':    { '2025': {gp:23, g:9, a:5, sh:17, exd:2, stl:4, sv:0, blk:11}, '2026': {gp:10, g:7, a:1, sh:11, exd:1, stl:1, sv:0} },
+    'William Kelly':     { '2024': {gp:0, g:26, a:0, sh:0, exd:0, stl:0, sv:0}, '2025': {gp:23, g:23, a:16, sh:39, exd:3, stl:18, sv:0, blk:5} },
+    'Ilias Angelopoulos': { '2026': {gp:11, g:13, a:1, sh:25, exd:11, stl:1, sv:0, blk:1} },
+    'Amir Shafrir':      { '2026': {gp:11, g:0, a:4, sh:5, exd:1, stl:1, sv:0, blk:1} },
+    'Wyatt Williamson':  { '2026': {gp:11, g:7, a:4, sh:12, exd:3, stl:4, sv:0, blk:2} },
+    'João Leme':         { '2026': {gp:11, g:5, a:4, sh:5, exd:5, stl:4, sv:0} },
+    'Mason Netzer':      { '2026': {gp:11, g:7, a:10, sh:16, exd:1, stl:4, sv:0, blk:2} },
+  },
+  // Saint Mary's: first varsity season is 2026, so 2026 only. smcgaels.com's own stats page is empty; its
+  // recaps link to the FOSH stats platform, and this is that platform's real cumulative table (as of
+  // 2026-10-02): exd = FOSH "dko" (exclusions drawn), blk = field blocks. Player goals (156) equal the sum
+  // of Saint Mary's scores in the 12 counted games and goals against (173) equal opponents' scores. The
+  // 9/26 Diablo Valley exhibition is NOT in these totals (e.g. McKay's exhibition hat trick isn't counted).
+  "Saint Mary's": {
+    'Federico Castrucci': { '2026': {gp:10, g:0,  a:8,  sh:2,  exd:0,  stl:12, sv:58} },
+    'Griffin Lagsdin':    { '2026': {gp:6,  g:0,  a:0,  sh:1,  exd:0,  stl:3,  sv:31} },
+    'Jake Nielsen':       { '2026': {gp:1,  g:0,  a:1,  sh:0,  exd:0,  stl:1,  sv:2} },
+    'Noah Bigara':        { '2026': {gp:12, g:15, a:3,  sh:28, exd:44, stl:6,  sv:0, blk:2} },
+    'Mason Black':        { '2026': {gp:12, g:17, a:4,  sh:35, exd:4,  stl:9,  sv:0, blk:4} },
+    'Hugo Riley':         { '2026': {gp:10, g:7,  a:1,  sh:12, exd:10, stl:2,  sv:0} },
+    'Leo Hachem':         { '2026': {gp:12, g:26, a:7,  sh:53, exd:15, stl:12, sv:0, blk:1} },
+    'Rocco Di Rosa':      { '2026': {gp:12, g:10, a:6,  sh:25, exd:2,  stl:13, sv:0, blk:1} },
+    'Donovan Swann':      { '2026': {gp:12, g:10, a:3,  sh:18, exd:2,  stl:6,  sv:0, blk:2} },
+    'Ethan Klerck':       { '2026': {gp:11, g:6,  a:9,  sh:22, exd:6,  stl:5,  sv:0, blk:1} },
+    'Harry Irwin':        { '2026': {gp:12, g:11, a:4,  sh:29, exd:12, stl:12, sv:0, blk:10} },
+    'Hamish Ellison':     { '2026': {gp:12, g:9,  a:9,  sh:30, exd:7,  stl:4,  sv:0} },
+    'Mateo McKay':        { '2026': {gp:1,  g:0,  a:0,  sh:0,  exd:0,  stl:0,  sv:0} },
+    'Andrew Donlin':      { '2026': {gp:11, g:12, a:12, sh:26, exd:3,  stl:2,  sv:0, blk:4} },
+    'Nicholas Valente':   { '2026': {gp:11, g:3,  a:7,  sh:7,  exd:6,  stl:2,  sv:0} },
+    'Jacob Carlson':      { '2026': {gp:5,  g:1,  a:0,  sh:1,  exd:1,  stl:0,  sv:0} },
+    'Ferran de Witt':     { '2026': {gp:12, g:8,  a:6,  sh:10, exd:2,  stl:3,  sv:0, blk:2} },
+    'Domenico Barillà':   { '2026': {gp:12, g:9,  a:16, sh:33, exd:8,  stl:7,  sv:0, blk:3} },
+    'Kyle Stilinovich':   { '2026': {gp:12, g:8,  a:8,  sh:13, exd:2,  stl:0,  sv:0, blk:1} },
+    'Stryder Stelck':     { '2026': {gp:12, g:2,  a:7,  sh:6,  exd:3,  stl:2,  sv:0, blk:2} },
+    'Alessandro Fumo':    { '2026': {gp:5,  g:2,  a:5,  sh:11, exd:3,  stl:1,  sv:0} },
+  },
   // UCLA: 2024/2025 come from the "YEAR GP GOALS SHOTS PCT AST STL FB EE" career table on each
   // uclabruins.com bio (FB -> blk, EE -> exd); only seasons actually played at UCLA are included.
   // 2026 is built from two sources because UCLA's own site publishes no live stats table: goals, saves
