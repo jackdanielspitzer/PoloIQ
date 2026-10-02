@@ -1199,7 +1199,7 @@ async function reconcileWithIndexedDb(){
   if(!stored) return;
   Object.assign(app, { page: app.page, selectedTeamId: app.selectedTeamId, selectedGameId: app.selectedGameId, selectedPlayerId: app.selectedPlayerId, manageMode: app.manageMode, currentQ: app.currentQ, listening:false, recognition:null, pendingBuffer:'', pendingTimer:null, lastVoiceActor:null, lastVoiceActorAt:0 }, stored);
   if(!Array.isArray(app.opponents)) app.opponents = [];
-  ensureSeedTeamsAndSchedule(); ensurePastSeasonResults(); ensureOpponentSchoolResults(); ensureSchoolSeed2026Schedule();
+  ensureSeedTeamsAndSchedule(); reconcileSeedRosters(); ensurePastSeasonResults(); ensureOpponentSchoolResults(); ensureSchoolSeed2026Schedule();
   (app.teams||[]).forEach(applyBrandingIfKnown);
   renderAll();
 }
@@ -1507,6 +1507,7 @@ function loadState(){ try{ const raw = localStorage.getItem('poloai-app-state');
   if(!Array.isArray(app.opponents)) app.opponents = [];
   (app.games||[]).forEach(g=>{ if(g.opponent) addOpponent(g.opponent, false); });
   ensureSeedTeamsAndSchedule();
+  reconcileSeedRosters();
   ensurePastSeasonResults();
   ensureOpponentSchoolResults();
   ensureSchoolSeed2026Schedule();
@@ -4261,6 +4262,48 @@ function ensureSeedTeamsAndSchedule(){
       cal.games.push(game.id);
     });
   }
+}
+
+// Rosters for these five schools were corrected after their teams had already been created (and
+// saved/synced) from an earlier, partly wrong scrape. ensureSeedTeamsAndSchedule() deliberately never
+// touches a team that already exists, so without this the corrections would only ever reach a
+// brand-new browser. Deliberately narrow: only these named school teams, never removes anyone except
+// an explicitly listed phantom that no game references, adds missing players with a deterministic id
+// (so two browsers reconciling at once can't create duplicates), and syncs cap/position by name.
+const SEED_ROSTER_FIXES = {
+  'UC Davis':  { remove:['JT Doughty'] },
+  'Pepperdine':{},
+  'Pacific':   { rename:[['Kiss Gergely','Gergely Kiss'],['Marc Cives','Marc Comabella'],['Gabor Hall','Gabor Holl']] },
+  'UCLA':      {},
+  'USC':       {}
+};
+function reconcileSeedRosters(){
+  const norm = s => (s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/\s+/g,' ').trim();
+  const slug = s => norm(s).replace(/[^a-z0-9]+/g,'-');
+  Object.keys(SEED_ROSTER_FIXES).forEach(teamName=>{
+    const key = Object.keys(CURRENT_ROSTERS).find(k=>CURRENT_ROSTERS[k].label.replace(/\s*\(\d{4}\)\s*$/,'')===teamName);
+    const team = app.teams.find(t=>t.name===teamName);
+    if(!key || !team) return;
+    const fix = SEED_ROSTER_FIXES[teamName];
+    (fix.rename||[]).forEach(([from,to])=>{
+      const p = team.players.find(x=>norm(x.name)===norm(from));
+      if(p && !team.players.some(x=>norm(x.name)===norm(to))){ p.name = to; p.aliases = deriveAliases(to); }
+    });
+    (fix.remove||[]).forEach(n=>{
+      const i = team.players.findIndex(x=>norm(x.name)===norm(n));
+      if(i>=0 && !JSON.stringify(app.games).includes(team.players[i].id)) team.players.splice(i,1);
+    });
+    CURRENT_ROSTERS[key].players.forEach(sp=>{
+      let p = team.players.find(x=>norm(x.name)===norm(sp.name));
+      if(!p){
+        p = blankPlayer(team.id);
+        p.id = 'pseed-'+slug(teamName)+'-'+slug(sp.name);
+        p.name = sp.name; p.role = 'player'; p.aliases = deriveAliases(sp.name);
+        team.players.push(p);
+      }
+      p.cap = sp.cap; p.wpPosition = sp.wpPosition;
+    });
+  });
 }
 
 // Real current-season rosters, pulled from calbears.com / gostanford.com. Refresh by asking in chat when a season changes.
