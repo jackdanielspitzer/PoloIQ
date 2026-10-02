@@ -1199,7 +1199,7 @@ async function reconcileWithIndexedDb(){
   if(!stored) return;
   Object.assign(app, { page: app.page, selectedTeamId: app.selectedTeamId, selectedGameId: app.selectedGameId, selectedPlayerId: app.selectedPlayerId, manageMode: app.manageMode, currentQ: app.currentQ, listening:false, recognition:null, pendingBuffer:'', pendingTimer:null, lastVoiceActor:null, lastVoiceActorAt:0 }, stored);
   if(!Array.isArray(app.opponents)) app.opponents = [];
-  ensureSeedTeamsAndSchedule(); reconcileSeedRosters(); ensurePastSeasonResults(); ensureOpponentSchoolResults(); ensureSchoolSeed2026Schedule();
+  ensureSeedTeamsAndSchedule(); reconcileSeedRosters(); ensurePastSeasonResults(); ensureOpponentSchoolResults(); ensureSchoolSeed2026Schedule(); stripFabricatedSeedVsCap();
   (app.teams||[]).forEach(applyBrandingIfKnown);
   renderAll();
 }
@@ -1511,6 +1511,7 @@ function loadState(){ try{ const raw = localStorage.getItem('poloai-app-state');
   ensurePastSeasonResults();
   ensureOpponentSchoolResults();
   ensureSchoolSeed2026Schedule();
+  stripFabricatedSeedVsCap();
   // applyBrandingIfKnown only ever ran once, at team creation — a team made before its school was
   // added to TEAM_BRANDING (or before this feature existed at all) was frozen on the generic
   // default colors forever. Re-running it here is a no-op for any team with real custom colors
@@ -2266,7 +2267,7 @@ function buildPlaceholderQuarterEvents(teamScore, oppScore){
     slots.sort((a,b)=>a.ms-b.ms);
     slots.forEach(({side, ms})=>{
       if(side==='team') teamCt++; else oppCt++;
-      out.push({ q, event: { playerId:null, playerCap:null, stat_type:'goal', side, wall_time_offset_ms:ms, raw_phrase:'(imported result)', scoreAfter:[teamCt,oppCt], vsCap:'1' } });
+      out.push({ q, event: { playerId:null, playerCap:null, stat_type:'goal', side, wall_time_offset_ms:ms, raw_phrase:'(imported result)', scoreAfter:[teamCt,oppCt] } });
     });
   });
   return out;
@@ -2300,7 +2301,7 @@ function ensurePastSeasonResults(){
           stat_type:'goal', side, wall_time_offset_ms: ms,
           raw_phrase: (side==='team' ? `${label} — ${name}` : `${label} — ${name} (opponent)`) + ` (${scoreAfter[0]}-${scoreAfter[1]})`,
           manState: /man-up/.test(label) ? (side==='team' ? 'team_up' : 'opp_up') : null,
-          scoreAfter, vsCap: '1',
+          scoreAfter,
         });
       });
     } else {
@@ -3607,6 +3608,22 @@ const SEED_SCHOOL_RESULTS = {
     {date:'2026-09-25', opponent:'San Jose State', teamScore:16, oppScore:10},
     {date:'2026-09-27', opponent:'UC Davis', teamScore:15, oppScore:8},
   ],
+  // California's own 2026 results (calbears.com schedule + box scores). 2024/2025 come from SEED_PAST_RESULTS
+  // and the exhibitions/scrimmages with no published score (UCLA 8/28, Cuesta and American River 9/6, West
+  // Valley 9/24) are intentionally left out. Pacific, UC Davis, UCLA and USC scores agree with those schools' sites.
+  'California': [
+    {date:'2026-08-29', opponent:'UC Santa Barbara', teamScore:14, oppScore:9},
+    {date:'2026-08-29', opponent:'UC San Diego', teamScore:15, oppScore:11},
+    {date:'2026-09-05', opponent:'Harvard', teamScore:16, oppScore:6},
+    {date:'2026-09-05', opponent:'San Jose State', teamScore:14, oppScore:10},
+    {date:'2026-09-11', opponent:'Pacific', teamScore:18, oppScore:7},
+    {date:'2026-09-13', opponent:'UC Davis', teamScore:19, oppScore:7},
+    {date:'2026-09-18', opponent:'LMU', teamScore:20, oppScore:9},
+    {date:'2026-09-19', opponent:'UC Irvine', teamScore:16, oppScore:8},
+    {date:'2026-09-19', opponent:'UCLA', teamScore:10, oppScore:11},
+    {date:'2026-09-20', opponent:'USC', teamScore:12, oppScore:13},
+    {date:'2026-09-24', opponent:"Saint Mary's", teamScore:22, oppScore:8},
+  ],
 };
 
 // Each opponent school's OWN real 2026 schedule (their full season, not just games vs Cal) — same
@@ -4239,7 +4256,7 @@ function ensureOpponentSchoolResults(){
             stat_type:'goal', side, wall_time_offset_ms: ms,
             raw_phrase: (side==='team' ? `${label} — ${name}` : `${label} — ${name} (opponent)`) + ` (${scoreAfter[0]}-${scoreAfter[1]})`,
             manState: /man-up/.test(label) ? (side==='team' ? 'team_up' : 'opp_up') : null,
-            scoreAfter, vsCap: '1',
+            scoreAfter,
           });
         });
       } else {
@@ -5044,14 +5061,18 @@ function renderGameQuarterTabs(game){ const container=document.getElementById('g
   }
 }
 
-function renderGameFeed(game){ const el=document.getElementById('gameFeed'); const events = game.quarters[app.currentQ] || [];
-  if(events.length===0){ el.innerHTML='<div class="feed-empty">No events yet this quarter.</div>'; document.getElementById('undoBtn').disabled=true; return; }
-  el.innerHTML=''; events.forEach((ev,idx)=>{
+function renderGameFeed(game){ const el=document.getElementById('gameFeed'); const allEvents = game.quarters[app.currentQ] || [];
+  // Placeholder (final-score-only) events are not a game log: a game with nothing real to show stays blank.
+  const events = allEvents.map((ev,idx)=>({ev,idx})).filter(x=>!isPlaceholderSeedEvent(x.ev));
+  if(events.length===0){ el.innerHTML = allEvents.length ? '' : '<div class="feed-empty">No events yet this quarter.</div>'; document.getElementById('undoBtn').disabled=true; return; }
+  el.innerHTML=''; events.forEach(({ev,idx})=>{
     const row=document.createElement('div'); const info=eventLabelInfo(ev);
     row.className='ev'+(ev.stat_type==='unmatched'?' unmatched':'');
+    // Imported 6-8 / box-score events name the scorer in their text and have no cap number to show.
+    const imported = isImportedSeedEvent(ev);
     const capHtml = ev.side==='opponent'
-      ? `<span class="cap team-light">Opp ${ev.playerCap || '?'}</span>`
-      : `<span class="cap team-dark">#${ev.playerCap || '?'}</span>`;
+      ? `<span class="cap team-light">Opp${imported && !ev.playerCap ? '' : ' '+(ev.playerCap || '?')}</span>`
+      : `<span class="cap team-dark">${imported && !ev.playerCap ? 'Us' : '#'+(ev.playerCap || '?')}</span>`;
     row.innerHTML = `${capHtml}<span class="label ${info.tone}">${info.text}</span><span class="t">${eventClockLabel(game, app.currentQ, ev)}</span><button class="del">✕</button>`;
     row.querySelector('.del').onclick = ()=>{ game.quarters[app.currentQ].splice(idx,1); saveState(); renderGame(); };
     el.appendChild(row);
@@ -6914,10 +6935,27 @@ function expandShotAttempts(events){ const extra=[]; events.forEach(ev=>{
   if(ev.stat_type==='sprint_won' || ev.stat_type==='sprint_lost') extra.push({...ev, stat_type:'sprint_attempt'});
 }); return events.concat(extra); }
 
+// Events written by the result seeders (never by live tracking) are the only ones carrying scoreAfter.
+// Placeholder events are synthetic goals spread across the quarters just so a final-only game still has
+// a score; they are not a game log and must never be shown as one.
+function isImportedSeedEvent(ev){ return !!ev && Array.isArray(ev.scoreAfter); }
+function isPlaceholderSeedEvent(ev){ return !!ev && ev.raw_phrase==='(imported result)'; }
+// Older builds stamped every imported goal with vsCap '1' (an arbitrary goalie cap) which showed up as
+// "Goal (vs #1)" plus a guessed goalie name and fed the tactics history. Strip it from saved state.
+function stripFabricatedSeedVsCap(){
+  (app.games||[]).forEach(g=>{
+    Object.values(g.quarters||{}).forEach(arr=>{
+      (arr||[]).forEach(ev=>{ if(ev && ev.vsCap==='1' && isImportedSeedEvent(ev)) delete ev.vsCap; });
+    });
+  });
+}
 function eventLabelInfo(ev){
   if(ev.stat_type==='unmatched'){ return {text:`"${ev.raw_phrase}" — not recognized`, tone:'', cap:'—'}; }
   if(ev.stat_type==='note'){ const cap=ev.playerCap ? `#${ev.playerCap}` : '?'; return {text:`Note: ${ev.note||ev.raw_phrase}`, tone:'note', cap}; }
   const def=statDef(ev.stat_type); const cap=ev.playerCap ? `#${ev.playerCap}` : '?';
+  // An event imported from 6-8 Sports / a school box score carries the real scorer and running score in
+  // raw_phrase ("Goal (man-up) — Andras Toth (3-1)"), so show that as-is: it is the actual game log.
+  if(isImportedSeedEvent(ev) && ev.raw_phrase) return {text:ev.raw_phrase, tone:def.tone, cap};
   const tags=[]; if(ev.manState) tags.push(ev.manState); if(ev.vsCap) tags.push(`vs #${ev.vsCap}`); if(ev.passQuality) tags.push(`${ev.passQuality} pass`); if(ev.missReason) tags.push(ev.missReason); if(ev.assistTo) tags.push(`to #${ev.assistTo}`);
   return {text:def.label+(tags.length?` (${tags.join(', ')})`:''), tone:def.tone, cap};
 }
