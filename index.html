@@ -4391,7 +4391,24 @@ const CURRENT_ROSTERS = {
     {cap:'23',name:'Luke Weichert',wpPosition:'A'},
     {cap:'27',name:'Taylor Bell',wpPosition:'A'},
   ] },
-  harvard: { label:'Harvard', players:[] },
+  harvard: { label:'Harvard', players:[
+    {cap:'1',name:'Oliver Price',wpPosition:'GK'},
+    {cap:'1A',name:'Jonas Ransford',wpPosition:'GK'},
+    {cap:'3',name:'Clay Carrington',wpPosition:'A'},
+    {cap:'5',name:'Tyler Hogan',wpPosition:'D'},
+    {cap:'7',name:'Lukas Peabody',wpPosition:'A'},
+    {cap:'8',name:'Connor Kim',wpPosition:'A'},
+    {cap:'9',name:'Bradford Dickson',wpPosition:'A'},
+    {cap:'10',name:'Vilas Sogaard-Srikrishnan',wpPosition:'A'},
+    {cap:'11',name:'Dean Strauser',wpPosition:'A'},
+    {cap:'12',name:'Jacob Tsotadze',wpPosition:'A'},
+    {cap:'13',name:'Mason Cruz-Abrams',wpPosition:'UT'},
+    {cap:'14',name:'Felix Pal',wpPosition:'A'},
+    {cap:'15',name:'Geoff Slutzky',wpPosition:'C'},
+    {cap:'16',name:'Rigby Snapp',wpPosition:'C'},
+    {cap:'18',name:'Jack Burghardt',wpPosition:'UT'},
+    {cap:'20',name:'Emil Sogaard-Srikrishnan',wpPosition:'A'},
+  ] },
   brown: { label:'Brown', players:[] },
   mit: { label:'MIT', players:[] },
   cal: { label:'California (2026)', players:[
@@ -5349,6 +5366,30 @@ const SEED_SCHOOL_PLAYER_STATS = {
     'Teddy Rountree-Shtulman':{ '2024': {gp:7,  g:3,  a:1,  sh:8,  exd:0,  stl:0,  sv:0, blk:0},  '2025': {gp:5,  g:0,  a:1,  sh:3,   exd:1,  stl:0,  sv:0, blk:0} },
     'Andrew Tu':             { '2025': {gp:6,  g:1,  a:0,  sh:2,  exd:0,  stl:0,  sv:0, blk:0} },
     'Taylor Bell':           { '2025': {gp:33, g:58, a:43, sh:124,exd:12, stl:29, sv:0, blk:4} },
+  },
+  // Harvard's gocrimson.com "Cumulative Statistics" page only has a 2024 season archive in its
+  // year selector (no 2025 option exists), and the separate per-player bio "Player Stats" widget
+  // independently returns an empty game log for every 2025 query tried -- so 2025 totals simply
+  // aren't published on Harvard's own site and are omitted entirely rather than guessed at.
+  // The 2024 Individual Scoring/Goalkeeping tables' own "GP" column is bugged (it shows 3 for
+  // nearly every player, home and away, even though every OTHER column -- SH/G/A/PTS/EX/STL/etc --
+  // sums exactly across all players to the page's own season-long team totals, confirmed by cross-
+  // checking against the "Overall Team Statistics" summary on the same page), so gp is left at 0
+  // throughout rather than publish that bugged value. The table's "EX"/"DEX" columns are also not
+  // used here: both run far smaller (0-3 per player) than the "drawn exclusions" scale seen at
+  // every other school in this file (which runs into the dozens or hundreds per season), so neither
+  // reliably maps onto this app's exclusion-drawn stat and both are left out to avoid mislabeling.
+  // Only the 8 players from the 2024 table who are still on the current (2026) roster are included;
+  // the rest graduated and are out of scope.
+  'Harvard': {
+    'Oliver Price':                { '2024': {gp:0, g:0, a:0, sh:0,  exd:0, stl:5, sv:15} },
+    'Dean Strauser':                { '2024': {gp:0, g:7, a:1, sh:11, exd:0, stl:1, sv:0} },
+    'Vilas Sogaard-Srikrishnan':    { '2024': {gp:0, g:5, a:3, sh:6,  exd:0, stl:1, sv:0} },
+    'Tyler Hogan':                  { '2024': {gp:0, g:5, a:1, sh:5,  exd:0, stl:1, sv:0} },
+    'Jack Burghardt':               { '2024': {gp:0, g:4, a:1, sh:6,  exd:0, stl:1, sv:0} },
+    'Jacob Tsotadze':               { '2024': {gp:0, g:3, a:1, sh:4,  exd:0, stl:3, sv:0} },
+    'Bradford Dickson':             { '2024': {gp:0, g:0, a:0, sh:1,  exd:0, stl:0, sv:0} },
+    'Lukas Peabody':                { '2024': {gp:0, g:0, a:0, sh:0,  exd:0, stl:0, sv:0} },
   },
 };
 function blankSeasonRow(year){ return { year, gpSet:new Set(), g:0, gWithShotData:0, a:0, sh:0, hasShotData:false, exd:0, exg:0, stl:0, to:0, blk:0, sv:0, pd:0 }; }
