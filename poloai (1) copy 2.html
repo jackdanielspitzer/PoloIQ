@@ -2874,6 +2874,8 @@ const SEED_SCHOOL_RESULTS = {
     {date:'2026-08-29', opponent:'Air Force', teamScore:18, oppScore:17},
     {date:'2026-08-30', opponent:'Pacific', teamScore:11, oppScore:12},
     {date:'2026-08-30', opponent:'Wagner', teamScore:18, oppScore:6},
+    {date:'2026-09-05', opponent:'California', teamScore:7, oppScore:16},
+    {date:'2026-09-05', opponent:'San Jose State', teamScore:8, oppScore:14},
     {date:'2026-09-06', opponent:'UC Davis', teamScore:13, oppScore:17},
     {date:'2026-09-12', opponent:'San Jose State', teamScore:9, oppScore:13},
     {date:'2026-09-12', opponent:'Santa Clara', teamScore:11, oppScore:13},
@@ -5232,6 +5234,11 @@ const SEED_SCHOOL_PLAYER_STATS = {
   // and blk is populated instead — same "use exactly what the site shows" rule as Navy above.
   // 2026 is not yet reflected in any season-stats page or PDF Fordham has published (unlike Navy),
   // so these players don't have a 2026 row yet; flagged in the commit rather than left unexplained.
+  // 2026 rows added from 8 recap articles (no mid-season bio/cumulative page exists, and no
+  // structured box score or goal-by-goal play-by-play was found for any 2026 game -- unlike the
+  // pre-existing 2024/2025 PBP data above for a few opponents). Goalkeeper Viktor Savic himself
+  // scored a goal against Long Beach State, included below. Tracked goals run well short of
+  // Fordham's actual season total since several recaps only name "N other Rams" without listing them.
   'Fordham': {
     'Kristof Magony':  { '2024': {gp:23, g:0, a:4,  sh:0, exd:0, stl:8,  sv:49,  blk:2},
                          '2025': {gp:17, g:0, a:7,  sh:0, exd:0, stl:8,  sv:65,  blk:4} },
@@ -5240,22 +5247,40 @@ const SEED_SCHOOL_PLAYER_STATS = {
                          '2024': {gp:31, g:13, a:2,  sh:0, exd:0, stl:7,  sv:0, blk:6},
                          '2025': {gp:29, g:11, a:0,  sh:0, exd:0, stl:6,  sv:0, blk:4} },
     'Andras Toth':     { '2024': {gp:33, g:84, a:35, sh:0, exd:0, stl:47, sv:0, blk:7},
-                         '2025': {gp:30, g:134,a:58, sh:0, exd:0, stl:72, sv:0, blk:31} },
+                         '2025': {gp:30, g:134,a:58, sh:0, exd:0, stl:72, sv:0, blk:31},
+                         '2026': {gp:0,  g:31, a:7,  sh:0, exd:0, stl:0,  sv:0} },
     'Kyle Thomas':     { '2025': {gp:25, g:7,  a:12, sh:0, exd:0, stl:9,  sv:0, blk:6} },
-    'Mark Dyck':       { '2025': {gp:30, g:17, a:29, sh:0, exd:0, stl:26, sv:0, blk:9} },
+    'Mark Dyck':       { '2025': {gp:30, g:17, a:29, sh:0, exd:0, stl:26, sv:0, blk:9},
+                         '2026': {gp:0,  g:4,  a:1,  sh:0, exd:0, stl:0,  sv:0} },
     'Christopher Gray':{ '2023': {gp:20, g:7,  a:8,  sh:0, exd:0, stl:13, sv:0, blk:1},
                          '2024': {gp:25, g:6,  a:10, sh:0, exd:0, stl:12, sv:0, blk:2},
                          '2025': {gp:26, g:11, a:4,  sh:0, exd:0, stl:13, sv:0, blk:1} },
-    'Diego Tresa':     { '2025': {gp:30, g:45, a:18, sh:0, exd:0, stl:24, sv:0, blk:9} },
+    'Diego Tresa':     { '2025': {gp:30, g:45, a:18, sh:0, exd:0, stl:24, sv:0, blk:9},
+                         '2026': {gp:0,  g:18, a:1,  sh:0, exd:0, stl:0,  sv:0} },
     'Barnabas Eppel':  { '2023': {gp:32, g:63, a:13, sh:0, exd:0, stl:28, sv:0, blk:12},
                          '2024': {gp:33, g:39, a:15, sh:0, exd:0, stl:10, sv:0, blk:4},
-                         '2025': {gp:27, g:48, a:9,  sh:0, exd:0, stl:11, sv:0, blk:16} },
-    'Alessandro Salipante': { '2025': {gp:30, g:39, a:62, sh:0, exd:0, stl:23, sv:0, blk:4} },
-    'Gianni Farrugia': { '2025': {gp:26, g:11, a:12, sh:0, exd:0, stl:10, sv:0, blk:4} },
-    'Soren Jessen':    { '2025': {gp:30, g:13, a:6,  sh:0, exd:0, stl:4,  sv:0, blk:4} },
-    'Charlie Martin':  { '2025': {gp:14, g:5,  a:9,  sh:0, exd:0, stl:3,  sv:0, blk:1} },
+                         '2025': {gp:27, g:48, a:9,  sh:0, exd:0, stl:11, sv:0, blk:16},
+                         '2026': {gp:0,  g:2,  a:0,  sh:0, exd:0, stl:0,  sv:0} },
+    'Alessandro Salipante': { '2025': {gp:30, g:39, a:62, sh:0, exd:0, stl:23, sv:0, blk:4},
+                              '2026': {gp:0,  g:6,  a:1,  sh:0, exd:0, stl:0,  sv:0} },
+    'Gianni Farrugia': { '2025': {gp:26, g:11, a:12, sh:0, exd:0, stl:10, sv:0, blk:4},
+                         '2026': {gp:0,  g:4,  a:0,  sh:0, exd:0, stl:0,  sv:0} },
+    'Soren Jessen':    { '2025': {gp:30, g:13, a:6,  sh:0, exd:0, stl:4,  sv:0, blk:4},
+                         '2026': {gp:0,  g:3,  a:0,  sh:0, exd:0, stl:0,  sv:0} },
+    'Charlie Martin':  { '2025': {gp:14, g:5,  a:9,  sh:0, exd:0, stl:3,  sv:0, blk:1},
+                         '2026': {gp:0,  g:11, a:1,  sh:0, exd:0, stl:2,  sv:0} },
     'Luca Provenziani':{ '2024': {gp:33, g:93, a:67, sh:0, exd:0, stl:29, sv:0, blk:1},
-                         '2025': {gp:30, g:90, a:103,sh:0, exd:0, stl:54, sv:0, blk:14} },
+                         '2025': {gp:30, g:90, a:103,sh:0, exd:0, stl:54, sv:0, blk:14},
+                         '2026': {gp:0,  g:4,  a:0,  sh:0, exd:0, stl:0,  sv:0} },
+    'Oktavian Veklyuk':  { '2026': {gp:0, g:18, a:1, sh:0, exd:0, stl:0, sv:0} },
+    'Karlo Dragosevic':  { '2026': {gp:0, g:14, a:0, sh:0, exd:0, stl:0, sv:0} },
+    'Petar Kulas':       { '2026': {gp:0, g:11, a:0, sh:0, exd:0, stl:0, sv:0} },
+    'Vuk Kojic':         { '2026': {gp:0, g:10, a:4, sh:0, exd:0, stl:0, sv:0} },
+    'Laszlo Strasser':   { '2026': {gp:0, g:7,  a:5, sh:0, exd:0, stl:0, sv:0} },
+    'Balazs Bathory':    { '2026': {gp:0, g:2,  a:0, sh:0, exd:0, stl:0, sv:0} },
+    'Liam Rogers':       { '2026': {gp:0, g:1,  a:0, sh:0, exd:0, stl:0, sv:0} },
+    'Viktor Savic':      { '2026': {gp:0, g:1,  a:0, sh:0, exd:0, stl:4, sv:76} },
+    'Alejandro Cheline': { '2026': {gp:0, g:0,  a:2, sh:0, exd:0, stl:0, sv:8} },
   },
   // Iona's roster pages don't publish a tabular "Career Statistics" page like Navy/Fordham — these
   // are hand-transcribed from each player's own prose biography (e.g. "Appeared in 26 games...
@@ -5263,28 +5288,51 @@ const SEED_SCHOOL_PLAYER_STATS = {
   // which is why coverage is uneven: several bios only cover one of their two seasons, and true
   // freshmen (2026) with a blank bio have no entry at all rather than a guessed one. No 2026 data
   // is available yet for anyone (season in progress, bios not updated).
+  // 2026 rows added from Iona's own real per-game box scores (ionagaels.com/boxscore.aspx), one of
+  // the few schools in this file where mid-season box scores are actually published -- so unlike
+  // the recap-based 2026 data elsewhere, these goals/assists/steals/saves are the site's own
+  // official per-game counts, summed across all 15 games played so far, not a prose reconstruction.
+  // Sanity-checked against each game's own final score; matched exactly for 14 of 15 games (the one
+  // mismatch, Air Force, is a 2-goal discrepancy baked into Iona's own box score page, not ours).
   'Iona': {
     'PJ Bartzen':      { '2024': {gp:10, g:0,  a:0, sh:0,  exd:0, stl:8, sv:0},
-                         '2025': {gp:14, g:1,  a:3, sh:0,  exd:0, stl:9, sv:67} },
+                         '2025': {gp:14, g:1,  a:3, sh:0,  exd:0, stl:9, sv:67},
+                         '2026': {gp:0,  g:0,  a:3, sh:0,  exd:0, stl:11,sv:64} },
     'Eric Caplener':   { '2024': {gp:7,  g:0,  a:0, sh:0,  exd:0, stl:8, sv:34},
-                         '2025': {gp:0,  g:0,  a:0, sh:0,  exd:0, stl:0, sv:0} },
-    'Kyle Chin Lee':   { '2025': {gp:0,  g:0,  a:0, sh:0,  exd:0, stl:0, sv:0} },
+                         '2025': {gp:0,  g:0,  a:0, sh:0,  exd:0, stl:0, sv:0},
+                         '2026': {gp:0,  g:0,  a:2, sh:0,  exd:0, stl:4, sv:19} },
+    'Kyle Chin Lee':   { '2025': {gp:0,  g:0,  a:0, sh:0,  exd:0, stl:0, sv:0},
+                         '2026': {gp:0,  g:0,  a:1, sh:0,  exd:0, stl:8, sv:42} },
     'Pavle Musikic':   { '2024': {gp:23, g:66, a:14,sh:0,  exd:91,stl:0, sv:0},
-                         '2025': {gp:26, g:84, a:9, sh:0,  exd:90,stl:9, sv:0} },
+                         '2025': {gp:26, g:84, a:9, sh:0,  exd:90,stl:9, sv:0},
+                         '2026': {gp:0,  g:56, a:16,sh:0,  exd:0, stl:15,sv:0} },
     'Zayden Garner':   { '2025': {gp:9,  g:1,  a:0, sh:0,  exd:0, stl:0, sv:0} },
-    'Toni Vlasic':     { '2025': {gp:11, g:2,  a:0, sh:5,  exd:0, stl:0, sv:0} },
+    'Toni Vlasic':     { '2025': {gp:11, g:2,  a:0, sh:5,  exd:0, stl:0, sv:0},
+                         '2026': {gp:0,  g:8,  a:7, sh:0,  exd:0, stl:1, sv:0} },
     'Carter Williamson':{ '2025': {gp:17,g:4,  a:8, sh:0,  exd:4, stl:4, sv:0} },
     'Brett Grady':     { '2024': {gp:16, g:3,  a:0, sh:10, exd:0, stl:0, sv:0},
-                         '2025': {gp:25, g:8,  a:11,sh:0,  exd:7, stl:15,sv:0} },
+                         '2025': {gp:25, g:8,  a:11,sh:0,  exd:7, stl:15,sv:0},
+                         '2026': {gp:0,  g:15, a:16,sh:0,  exd:0, stl:16,sv:0} },
     'Hugh Coyle':      { '2024': {gp:27, g:13, a:14,sh:29, exd:0, stl:9, sv:0},
-                         '2025': {gp:26, g:19, a:13,sh:0,  exd:6, stl:6, sv:0} },
+                         '2025': {gp:26, g:19, a:13,sh:0,  exd:6, stl:6, sv:0},
+                         '2026': {gp:0,  g:16, a:16,sh:0,  exd:0, stl:9, sv:0} },
     'John Barrett':    { '2024': {gp:22, g:5,  a:0, sh:13, exd:0, stl:0, sv:0},
                          '2025': {gp:6,  g:0,  a:0, sh:0,  exd:0, stl:0, sv:0} },
-    'Samson Williams': { '2025': {gp:25, g:17, a:2, sh:0,  exd:22,stl:3, sv:0} },
-    'Ryan Tannus':     { '2024': {gp:17, g:4,  a:5, sh:0,  exd:0, stl:0, sv:0} },
-    'Colin Minehan':   { '2025': {gp:15, g:2,  a:2, sh:0,  exd:0, stl:2, sv:0} },
+    'Samson Williams': { '2025': {gp:25, g:17, a:2, sh:0,  exd:22,stl:3, sv:0},
+                         '2026': {gp:0,  g:4,  a:0, sh:0,  exd:0, stl:4, sv:0} },
+    'Ryan Tannus':     { '2024': {gp:17, g:4,  a:5, sh:0,  exd:0, stl:0, sv:0},
+                         '2026': {gp:0,  g:17, a:13,sh:0,  exd:0, stl:11,sv:0} },
+    'Colin Minehan':   { '2025': {gp:15, g:2,  a:2, sh:0,  exd:0, stl:2, sv:0},
+                         '2026': {gp:0,  g:2,  a:2, sh:0,  exd:0, stl:5, sv:0} },
     'Daniel Raz':      { '2024': {gp:22, g:6,  a:0, sh:11, exd:7, stl:2, sv:0},
-                         '2025': {gp:25, g:12, a:9, sh:0,  exd:21,stl:2, sv:0} },
+                         '2025': {gp:25, g:12, a:9, sh:0,  exd:21,stl:2, sv:0},
+                         '2026': {gp:0,  g:25, a:9, sh:0,  exd:0, stl:3, sv:0} },
+    'Christian Couch': { '2026': {gp:0,  g:28, a:7, sh:0,  exd:0, stl:8, sv:0} },
+    'Charlie Harbour': { '2026': {gp:0,  g:26, a:7, sh:0,  exd:0, stl:16,sv:0} },
+    'Jack Robison':    { '2026': {gp:0,  g:11, a:17,sh:0,  exd:0, stl:3, sv:0} },
+    'Logan Hardel':    { '2026': {gp:0,  g:7,  a:10,sh:0,  exd:0, stl:5, sv:0} },
+    'Tate Wilson':     { '2026': {gp:0,  g:4,  a:9, sh:0,  exd:0, stl:3, sv:0} },
+    'Sage Mack':       { '2026': {gp:0,  g:1,  a:1, sh:0,  exd:0, stl:0, sv:0} },
   },
   // Mount St. Mary's bios are prose, same as Iona, and several players explicitly don't give a
   // games-played number for a season even while giving full stat lines (e.g. Aaron Tarr's 2023 and
@@ -5292,83 +5340,139 @@ const SEED_SCHOOL_PLAYER_STATS = {
   // real stat line can show up with gp:0 for a player who clearly played; that's a direct
   // reflection of what the site omits, not a data error. Several players have no Mount stats yet
   // (true freshmen, or only high-school/other-college history mentioned).
+  // 2026 rows added from game recap articles (no mid-season bio/cumulative page exists). Several
+  // recaps embed plain-text stat lines ("Goals: Radosavljevic 6, Urosevic 5...") rather than pure
+  // prose -- used those where available, cross-checked goal sums against each game's final score
+  // (matched for all 15 games except one unattributed team goal in a single game, out of ~200 total
+  // season goals). Assists/steals/saves only recorded where a recap gave an explicit number.
   'Mount St. Mary\'s': {
-    'Nikos Agritelis': { '2025': {gp:30, g:22, a:2,  sh:0,   exd:37, stl:8,  sv:0, blk:8} },
+    'Nikos Agritelis': { '2025': {gp:30, g:22, a:2,  sh:0,   exd:37, stl:8,  sv:0, blk:8},
+                         '2026': {gp:0,  g:4,  a:2,  sh:0,   exd:0,  stl:0,  sv:0} },
     'Max Economy':     { '2024': {gp:7,  g:0,  a:0,  sh:0,   exd:1,  stl:0,  sv:0, blk:0},
-                         '2025': {gp:20, g:5,  a:0,  sh:11,  exd:5,  stl:4,  sv:0, blk:1} },
+                         '2025': {gp:20, g:5,  a:0,  sh:11,  exd:5,  stl:4,  sv:0, blk:1},
+                         '2026': {gp:0,  g:2,  a:0,  sh:0,   exd:0,  stl:0,  sv:0} },
     'Aaron Tarr':      { '2023': {gp:0,  g:65, a:50, sh:0,   exd:41, stl:38, sv:0, blk:8},
                          '2024': {gp:32, g:62, a:63, sh:0,   exd:42, stl:40, sv:0, blk:21},
-                         '2025': {gp:0,  g:83, a:84, sh:0,   exd:60, stl:54, sv:0, blk:30} },
+                         '2025': {gp:0,  g:83, a:84, sh:0,   exd:60, stl:54, sv:0, blk:30},
+                         '2026': {gp:0,  g:18, a:4,  sh:0,   exd:0,  stl:0,  sv:0} },
     'Nathan Valentine':{ '2023': {gp:26, g:15, a:15, sh:0,   exd:11, stl:8,  sv:0, blk:5},
                          '2024': {gp:30, g:16, a:16, sh:0,   exd:15, stl:11, sv:0, blk:5},
-                         '2025': {gp:34, g:31, a:20, sh:0,   exd:29, stl:21, sv:0, blk:4} },
+                         '2025': {gp:34, g:31, a:20, sh:0,   exd:29, stl:21, sv:0, blk:4},
+                         '2026': {gp:0,  g:4,  a:3,  sh:0,   exd:0,  stl:0,  sv:0} },
     'Jack Fox':        { '2023': {gp:26, g:2,  a:4,  sh:0,   exd:5,  stl:4,  sv:0, blk:0},
                          '2024': {gp:35, g:17, a:16, sh:0,   exd:14, stl:20, sv:0, blk:7},
-                         '2025': {gp:33, g:16, a:24, sh:0,   exd:18, stl:34, sv:0, blk:11} },
+                         '2025': {gp:33, g:16, a:24, sh:0,   exd:18, stl:34, sv:0, blk:11},
+                         '2026': {gp:0,  g:12, a:1,  sh:0,   exd:0,  stl:0,  sv:0} },
     'Ivan Morales':    { '2023': {gp:10, g:0,  a:0,  sh:0,   exd:0,  stl:0,  sv:0, blk:0},
                          '2024': {gp:15, g:1,  a:2,  sh:0,   exd:1,  stl:1,  sv:0, blk:2},
-                         '2025': {gp:20, g:2,  a:9,  sh:0,   exd:7,  stl:2,  sv:0, blk:6} },
-    'Giannis Skliras': { '2025': {gp:0,  g:63, a:34, sh:0,   exd:43, stl:24, sv:0, blk:3} },
-    'Will Matthews':   { '2025': {gp:30, g:54, a:16, sh:118, exd:8,  stl:51, sv:0, blk:16} },
+                         '2025': {gp:20, g:2,  a:9,  sh:0,   exd:7,  stl:2,  sv:0, blk:6},
+                         '2026': {gp:0,  g:1,  a:1,  sh:0,   exd:0,  stl:0,  sv:8} },
+    'Giannis Skliras': { '2025': {gp:0,  g:63, a:34, sh:0,   exd:43, stl:24, sv:0, blk:3},
+                         '2026': {gp:0,  g:16, a:1,  sh:0,   exd:0,  stl:0,  sv:0} },
+    'Will Matthews':   { '2025': {gp:30, g:54, a:16, sh:118, exd:8,  stl:51, sv:0, blk:16},
+                         '2026': {gp:0,  g:13, a:2,  sh:0,   exd:0,  stl:0,  sv:0} },
+    'Aleksandar Radosavljevic': { '2026': {gp:0, g:44, a:5, sh:0, exd:0, stl:1, sv:0} },
+    'Luka Urosevic':            { '2026': {gp:0, g:52, a:2, sh:0, exd:0, stl:1, sv:0} },
+    'Neven Cerkez':             { '2026': {gp:0, g:12, a:2, sh:0, exd:0, stl:0, sv:0} },
+    'Nick Harper':              { '2026': {gp:0, g:2,  a:0, sh:0, exd:0, stl:0, sv:0} },
+    'Matias Miranda':           { '2026': {gp:0, g:8,  a:1, sh:0, exd:0, stl:0, sv:0} },
+    'Giacomo Graff':            { '2026': {gp:0, g:3,  a:1, sh:0, exd:0, stl:0, sv:0} },
+    'Darrion Phelps':           { '2026': {gp:0, g:5,  a:0, sh:0, exd:0, stl:0, sv:0} },
+    'Israel Bratton':           { '2026': {gp:0, g:2,  a:0, sh:0, exd:0, stl:0, sv:0} },
+    'AJ Waldfogel':             { '2026': {gp:0, g:1,  a:0, sh:0, exd:0, stl:0, sv:0} },
+    'Milan Miskolczi':          { '2026': {gp:0, g:0,  a:0, sh:0, exd:0, stl:0, sv:15} },
+    'Linc Smith':               { '2026': {gp:0, g:0,  a:0, sh:0, exd:0, stl:0, sv:19} },
   },
   // Bucknell bios are also prose, and several internally-stated "points" totals don't add up to
   // their own goals+assists for that same season (e.g. Jack Dillane 2025: "68 points on 33 goals
   // and two assists" is only 35, not 68) -- rather than guess which number is the typo, only the
   // individually-named stats (goals, assists, steals, saves) are used here, never a derived or
   // reported point total. No games-played figures are published on these bios at all, so gp is 0
-  // throughout despite real stat lines being present. Kai Johnson's bio already covers 2026 (his
-  // first year), the only Bucknell player whose bio has been updated past 2025 so far.
+  // throughout despite real stat lines being present. 2026 rows: a 10/1 season-preview article
+  // happened to state real cumulative season-to-date totals in prose for 5 players (Hedblad,
+  // Dillane, Cicchetti, Tunnicliff, Dumitru) -- used those directly since they're far more complete
+  // than summing named mentions across individual game recaps (e.g. Hedblad's recap-only sum was
+  // just 17 goals vs. the official 37). Remaining players use recap-summed goals as usual.
   'Bucknell': {
     'David Dumitru':   { '2024': {gp:0, g:0,  a:0,  sh:0, exd:0, stl:19, sv:207},
-                         '2025': {gp:0, g:0,  a:0,  sh:0, exd:0, stl:38, sv:244} },
+                         '2025': {gp:0, g:0,  a:0,  sh:0, exd:0, stl:38, sv:244},
+                         '2026': {gp:0, g:0,  a:0,  sh:0, exd:0, stl:0,  sv:106} },
     'Aidan Stone':     { '2025': {gp:0, g:1,  a:0,  sh:0, exd:0, stl:0,  sv:5} },
     'Sean Tunnicliff': { '2023': {gp:0, g:20, a:0,  sh:0, exd:0, stl:8,  sv:0},
                          '2024': {gp:0, g:32, a:0,  sh:0, exd:0, stl:11, sv:0},
-                         '2025': {gp:0, g:29, a:6,  sh:0, exd:0, stl:15, sv:0} },
+                         '2025': {gp:0, g:29, a:6,  sh:0, exd:0, stl:15, sv:0},
+                         '2026': {gp:0, g:23, a:0,  sh:0, exd:0, stl:0,  sv:0} },
     'Jake Wedding':    { '2024': {gp:0, g:2,  a:0,  sh:0, exd:0, stl:1,  sv:0},
                          '2025': {gp:0, g:0,  a:4,  sh:0, exd:0, stl:2,  sv:0} },
-    'Ori Raz':         { '2025': {gp:0, g:26, a:22, sh:0, exd:0, stl:12, sv:0} },
+    'Ori Raz':         { '2025': {gp:0, g:26, a:22, sh:0, exd:0, stl:12, sv:0},
+                         '2026': {gp:0, g:4,  a:0,  sh:0, exd:0, stl:0,  sv:0} },
     'Jack Dillane':    { '2024': {gp:0, g:9,  a:0,  sh:0, exd:0, stl:0,  sv:0},
-                         '2025': {gp:0, g:33, a:2,  sh:0, exd:0, stl:14, sv:0} },
+                         '2025': {gp:0, g:33, a:2,  sh:0, exd:0, stl:14, sv:0},
+                         '2026': {gp:0, g:35, a:0,  sh:0, exd:0, stl:3,  sv:0} },
     'Kai Johnson':     { '2026': {gp:0, g:11, a:6,  sh:0, exd:0, stl:4,  sv:0} },
     'Jovan Udovicic':  { '2024': {gp:0, g:38, a:0,  sh:0, exd:0, stl:12, sv:0},
-                         '2025': {gp:0, g:30, a:13, sh:0, exd:0, stl:13, sv:0} },
+                         '2025': {gp:0, g:30, a:13, sh:0, exd:0, stl:13, sv:0},
+                         '2026': {gp:0, g:3,  a:0,  sh:0, exd:0, stl:0,  sv:0} },
     'Andrew Hunyady':  { '2025': {gp:0, g:9,  a:0,  sh:0, exd:0, stl:0,  sv:3} },
     'Greg Nordheim':   { '2023': {gp:0, g:8,  a:1,  sh:0, exd:0, stl:0,  sv:0},
                          '2024': {gp:0, g:10, a:0,  sh:0, exd:0, stl:7,  sv:0},
                          '2025': {gp:0, g:10, a:1,  sh:0, exd:0, stl:22, sv:0} },
     'Tyler Hedblad':   { '2024': {gp:0, g:47, a:0,  sh:0, exd:0, stl:12, sv:0},
-                         '2025': {gp:0, g:58, a:0,  sh:0, exd:0, stl:0,  sv:0} },
+                         '2025': {gp:0, g:58, a:0,  sh:0, exd:0, stl:0,  sv:0},
+                         '2026': {gp:0, g:37, a:0,  sh:0, exd:0, stl:0,  sv:0} },
+    'Pier Giorgio Cicchetti': { '2026': {gp:0, g:27, a:36, sh:0, exd:0, stl:0, sv:0} },
+    'Hudson Tweed':           { '2026': {gp:0, g:7,  a:0,  sh:0, exd:0, stl:0, sv:0} },
   },
   // Johns Hopkins bios use a clean "Totaled X goals, Y assists, Z drawn ejections, W steals and
   // V blocks" season-summary line per year (distinct from the pure-prose style above), so these
   // numbers are high-confidence transcriptions. GP is only stated for goalies (injury/workload
   // context) and otherwise left at 0, same convention as the sites that never publish it.
+  // 2026 rows added from real structured box scores at hopkinssports.com (every completed game has
+  // a full per-player table -- SH/G/A/PTS/EX/DEX/STL/FB plus a separate goalie table -- linked from
+  // each game's recap article, not from the schedule page directly). This is the most reliable 2026
+  // source found anywhere in this file; goal sums matched JHU's actual final score for 14 of 15
+  // games, with one single-game 1-goal discrepancy baked into the box score's own totals row.
   'Johns Hopkins': {
     'Chris Poisler':    { '2023': {gp:11, g:0,  a:0,  sh:0, exd:0,  stl:0,  sv:0},
                           '2024': {gp:20, g:0,  a:0,  sh:0, exd:0,  stl:34, sv:157},
-                          '2025': {gp:16, g:0,  a:0,  sh:0, exd:0,  stl:0,  sv:128} },
-    'Sebastian Isaacs': { '2025': {gp:4,  g:0,  a:3,  sh:0, exd:0,  stl:2,  sv:50} },
+                          '2025': {gp:16, g:0,  a:0,  sh:0, exd:0,  stl:0,  sv:128},
+                          '2026': {gp:0,  g:1,  a:1,  sh:0, exd:0,  stl:7,  sv:40} },
+    'Sebastian Isaacs': { '2025': {gp:4,  g:0,  a:3,  sh:0, exd:0,  stl:2,  sv:50},
+                          '2026': {gp:0,  g:0,  a:3,  sh:0, exd:0,  stl:6,  sv:83} },
     'Owen Bartlett':    { '2024': {gp:0,  g:37, a:32, sh:0, exd:36, stl:35, sv:0},
-                          '2025': {gp:0,  g:38, a:27, sh:0, exd:16, stl:26, sv:0} },
-    'Mason Hofmann':    { '2025': {gp:0,  g:68, a:34, sh:0, exd:13, stl:31, sv:0} },
+                          '2025': {gp:0,  g:38, a:27, sh:0, exd:16, stl:26, sv:0},
+                          '2026': {gp:0,  g:19, a:15, sh:0, exd:0,  stl:17, sv:0} },
+    'Mason Hofmann':    { '2025': {gp:0,  g:68, a:34, sh:0, exd:13, stl:31, sv:0},
+                          '2026': {gp:0,  g:37, a:16, sh:0, exd:0,  stl:17, sv:0} },
     'Max Blecher':      { '2023': {gp:0,  g:20, a:6,  sh:0, exd:5,  stl:16, sv:0, blk:0},
                           '2024': {gp:0,  g:18, a:9,  sh:0, exd:0,  stl:23, sv:0, blk:6},
-                          '2025': {gp:0,  g:29, a:19, sh:0, exd:0,  stl:29, sv:0, blk:14} },
+                          '2025': {gp:0,  g:29, a:19, sh:0, exd:0,  stl:29, sv:0, blk:14},
+                          '2026': {gp:0,  g:19, a:10, sh:0, exd:0,  stl:15, sv:0} },
+    'Jasper Hirt':      { '2026': {gp:0,  g:16, a:4,  sh:0, exd:0,  stl:5,  sv:0} },
     'Alec Baker':       { '2023': {gp:0,  g:22, a:21, sh:0, exd:37, stl:45, sv:0, blk:8},
                           '2024': {gp:0,  g:51, a:23, sh:0, exd:41, stl:60, sv:0, blk:16},
-                          '2025': {gp:0,  g:18, a:49, sh:0, exd:12, stl:37, sv:0, blk:10} },
+                          '2025': {gp:0,  g:18, a:49, sh:0, exd:12, stl:37, sv:0, blk:10},
+                          '2026': {gp:0,  g:18, a:14, sh:0, exd:0,  stl:19, sv:0} },
     'Patrick Rooney':   { '2024': {gp:0,  g:31, a:20, sh:0, exd:34, stl:16, sv:0},
-                          '2025': {gp:0,  g:30, a:20, sh:0, exd:22, stl:10, sv:0} },
+                          '2025': {gp:0,  g:30, a:20, sh:0, exd:22, stl:10, sv:0},
+                          '2026': {gp:0,  g:8,  a:5,  sh:0, exd:0,  stl:7,  sv:0} },
     'Ethan Babel':      { '2023': {gp:0,  g:18, a:22, sh:0, exd:21, stl:16, sv:0},
                           '2024': {gp:0,  g:15, a:52, sh:0, exd:27, stl:21, sv:0, blk:11},
-                          '2025': {gp:0,  g:10, a:20, sh:0, exd:7,  stl:3,  sv:0, blk:1} },
-    'Matthieu Giauque': { '2025': {gp:0,  g:32, a:2,  sh:0, exd:19, stl:12, sv:0} },
-    'Luke Mendelsohn':  { '2025': {gp:0,  g:58, a:44, sh:0, exd:29, stl:55, sv:0, blk:11} },
+                          '2025': {gp:0,  g:10, a:20, sh:0, exd:7,  stl:3,  sv:0, blk:1},
+                          '2026': {gp:0,  g:1,  a:12, sh:0, exd:0,  stl:4,  sv:0} },
+    'Matthieu Giauque': { '2025': {gp:0,  g:32, a:2,  sh:0, exd:19, stl:12, sv:0},
+                          '2026': {gp:0,  g:20, a:2,  sh:0, exd:0,  stl:6,  sv:0} },
+    'Luke Mendelsohn':  { '2025': {gp:0,  g:58, a:44, sh:0, exd:29, stl:55, sv:0, blk:11},
+                          '2026': {gp:0,  g:23, a:22, sh:0, exd:0,  stl:26, sv:0} },
     'Phillip Long':     { '2024': {gp:0,  g:60, a:34, sh:0, exd:34, stl:34, sv:0, blk:19},
-                          '2025': {gp:0,  g:46, a:25, sh:0, exd:0,  stl:16, sv:0, blk:17} },
-    'Ben Lucas':        { '2025': {gp:0,  g:11, a:31, sh:0, exd:0,  stl:16, sv:0, blk:21} },
-    'Brody Mars':       { '2025': {gp:0,  g:22, a:9,  sh:0, exd:0,  stl:7,  sv:0} },
+                          '2025': {gp:0,  g:46, a:25, sh:0, exd:0,  stl:16, sv:0, blk:17},
+                          '2026': {gp:0,  g:21, a:11, sh:0, exd:0,  stl:13, sv:0} },
+    'Ben Lucas':        { '2025': {gp:0,  g:11, a:31, sh:0, exd:0,  stl:16, sv:0, blk:21},
+                          '2026': {gp:0,  g:14, a:4,  sh:0, exd:0,  stl:12, sv:0} },
+    'Brody Mars':       { '2025': {gp:0,  g:22, a:9,  sh:0, exd:0,  stl:7,  sv:0},
+                          '2026': {gp:0,  g:4,  a:1,  sh:0, exd:0,  stl:1,  sv:0} },
+    'David Edelman':    { '2026': {gp:0,  g:6,  a:0,  sh:0, exd:0,  stl:9,  sv:0} },
+    'Simon Burtnyk':    { '2026': {gp:0,  g:3,  a:4,  sh:0, exd:0,  stl:6,  sv:0} },
     'Andrew Lee':       { '2024': {gp:0,  g:67, a:13, sh:0, exd:93, stl:21, sv:0, blk:6},
                           '2025': {gp:0,  g:47, a:6,  sh:0, exd:61, stl:15, sv:0} },
   },
@@ -5378,17 +5482,28 @@ const SEED_SCHOOL_PLAYER_STATS = {
   // number, not "scored 4 goals this season". Only players whose bio gives an unambiguous
   // season-total framing (e.g. "Finished with X points... Y goals... Z assists" or "Collected
   // X points in his rookie season") are included; the rest are left out rather than risk counting
-  // a career-high as a season total. Everyone here is 2025-only -- 2026 bios aren't updated yet.
+  // a career-high as a season total. 2026 rows (added separately below, see comment) come from
+  // recap-article prose instead, since bios don't get a 2026 row until the season ends.
   'George Washington': {
     'Connor Jermain':  { '2025': {gp:13, g:0,  a:0,  sh:0, exd:0,  stl:0,  sv:35} },
-    'Yam Kabakov':     { '2025': {gp:0,  g:50, a:44, sh:0, exd:0,  stl:0,  sv:0, blk:18} },
-    'Gabriele Molfino':{ '2025': {gp:0,  g:25, a:25, sh:0, exd:0,  stl:0,  sv:0} },
-    'Antonio Florena': { '2025': {gp:0,  g:59, a:0,  sh:0, exd:0,  stl:36, sv:0} },
-    'Anthony Ferneini':{ '2025': {gp:0,  g:18, a:1,  sh:0, exd:0,  stl:0,  sv:0} },
+    'Yam Kabakov':     { '2025': {gp:0,  g:50, a:44, sh:0, exd:0,  stl:0,  sv:0, blk:18},
+                         '2026': {gp:0,  g:15, a:3,  sh:0, exd:0,  stl:0,  sv:0} },
+    'Gabriele Molfino':{ '2025': {gp:0,  g:25, a:25, sh:0, exd:0,  stl:0,  sv:0},
+                         '2026': {gp:0,  g:3,  a:3,  sh:0, exd:0,  stl:0,  sv:0} },
+    'Antonio Florena': { '2025': {gp:0,  g:59, a:0,  sh:0, exd:0,  stl:36, sv:0},
+                         '2026': {gp:0,  g:14, a:7,  sh:0, exd:0,  stl:0,  sv:0} },
+    'Anthony Ferneini':{ '2025': {gp:0,  g:18, a:1,  sh:0, exd:0,  stl:0,  sv:0},
+                         '2026': {gp:0,  g:4,  a:1,  sh:0, exd:0,  stl:0,  sv:0} },
     'Ben McDade':      { '2025': {gp:0,  g:0,  a:0,  sh:0, exd:18, stl:13, sv:0, blk:11} },
-    'Joseph McCreary': { '2025': {gp:0,  g:0,  a:0,  sh:0, exd:63, stl:0,  sv:0} },
-    'Austin Nelson':   { '2025': {gp:0,  g:0,  a:26, sh:0, exd:0,  stl:0,  sv:0} },
-    'Andrea Forno':    { '2025': {gp:0,  g:69, a:11, sh:0, exd:104,stl:0,  sv:0} },
+    'Joseph McCreary': { '2025': {gp:0,  g:0,  a:0,  sh:0, exd:63, stl:0,  sv:0},
+                         '2026': {gp:0,  g:2,  a:0,  sh:0, exd:0,  stl:0,  sv:0} },
+    'Austin Nelson':   { '2025': {gp:0,  g:0,  a:26, sh:0, exd:0,  stl:0,  sv:0},
+                         '2026': {gp:0,  g:6,  a:15, sh:0, exd:0,  stl:0,  sv:0} },
+    'Andrea Forno':    { '2025': {gp:0,  g:69, a:11, sh:0, exd:104,stl:0,  sv:0},
+                         '2026': {gp:0,  g:8,  a:0,  sh:0, exd:0,  stl:0,  sv:0} },
+    // 2026-only players (transfer now actually playing, or no clean 2025 season-total framing):
+    'Konstantinos Kapragkos': { '2026': {gp:0, g:31, a:6, sh:0, exd:0, stl:0, sv:0} },
+    'Solt Horvath':           { '2026': {gp:0, g:0,  a:0, sh:0, exd:0, stl:5, sv:66} },
   },
   // Princeton's bios have clean "Career Statistics" tables (same format as Navy/Fordham) with one
   // row per season plus a Career row (the Career row is never used -- only individual season rows).
@@ -5397,22 +5512,44 @@ const SEED_SCHOOL_PLAYER_STATS = {
   // but are out of this app's 2024-2026 scope and are omitted. Players with no table at all (Oliver
   // Marcin, Tibi Cojocariu, Andrew Li, Boti Kovács, Joseph Hwang, Luke Weichert) are true freshmen
   // with no prior collegiate stats and are left out entirely rather than given a zero row.
+  // 2026 rows added from 8 recap articles (goprincetontigers.com never got a 2026 bio-table row, so
+  // recap prose was the only source). Each recap ends with a clean "Goals: Name (N), Name..." tally
+  // line, used as primary source; assists/steals only recorded where a recap named an individual
+  // player's count (most assist/steal mentions were team totals, not attributed). Total goals
+  // tracked (187) ties exactly to the sum of Princeton's 12 known final scores.
   'Princeton': {
-    'Kristóf Kovács':        { '2024': {gp:32, g:0,  a:27, sh:0,  exd:0,  stl:34, sv:376}, '2025': {gp:26, g:0,  a:23, sh:0,  exd:0,  stl:22, sv:270} },
-    'Pierre du Plessis':     { '2025': {gp:14, g:0,  a:1,  sh:0,  exd:0,  stl:5,  sv:84} },
-    'Gavin Appeldorn':       { '2024': {gp:32, g:52, a:17, sh:95, exd:61, stl:31, sv:0, blk:6},  '2025': {gp:31, g:42, a:24, sh:85,  exd:47, stl:17, sv:0, blk:7} },
-    'Otto Stothart':         { '2025': {gp:26, g:42, a:2,  sh:89, exd:56, stl:11, sv:0, blk:0} },
+    'Kristóf Kovács':        { '2024': {gp:32, g:0,  a:27, sh:0,  exd:0,  stl:34, sv:376}, '2025': {gp:26, g:0,  a:23, sh:0,  exd:0,  stl:22, sv:270},
+                               '2026': {gp:0,  g:0,  a:0,  sh:0,  exd:0,  stl:0,  sv:145} },
+    'Pierre du Plessis':     { '2025': {gp:14, g:0,  a:1,  sh:0,  exd:0,  stl:5,  sv:84},
+                               '2026': {gp:0,  g:0,  a:0,  sh:0,  exd:0,  stl:0,  sv:8} },
+    'Gavin Appeldorn':       { '2024': {gp:32, g:52, a:17, sh:95, exd:61, stl:31, sv:0, blk:6},  '2025': {gp:31, g:42, a:24, sh:85,  exd:47, stl:17, sv:0, blk:7},
+                               '2026': {gp:0,  g:7,  a:0,  sh:0,  exd:0,  stl:0,  sv:0} },
+    'Otto Stothart':         { '2025': {gp:26, g:42, a:2,  sh:89, exd:56, stl:11, sv:0, blk:0},
+                               '2026': {gp:0,  g:21, a:0,  sh:0,  exd:0,  stl:0,  sv:0} },
     'Luka Franulovic':       { '2025': {gp:33, g:15, a:16, sh:37, exd:9,  stl:4,  sv:0, blk:7} },
-    'Finn LeSieur':          { '2024': {gp:32, g:39, a:26, sh:63, exd:39, stl:10, sv:0, blk:13}, '2025': {gp:33, g:51, a:36, sh:96,  exd:31, stl:19, sv:0, blk:8} },
-    'Tigran Sennett':        { '2024': {gp:17, g:10, a:13, sh:18, exd:3,  stl:2,  sv:0, blk:1},  '2025': {gp:24, g:12, a:7,  sh:22,  exd:7,  stl:7,  sv:0, blk:7} },
-    'Ádám Peocz':            { '2024': {gp:29, g:28, a:35, sh:69, exd:21, stl:10, sv:0, blk:2},  '2025': {gp:32, g:56, a:58, sh:111, exd:16, stl:26, sv:0, blk:11} },
-    'Enrique Nuño':          { '2024': {gp:28, g:23, a:25, sh:40, exd:11, stl:8,  sv:0, blk:4},  '2025': {gp:33, g:55, a:28, sh:86,  exd:11, stl:21, sv:0, blk:13} },
-    'Tas Palcza':            { '2024': {gp:31, g:38, a:20, sh:70, exd:29, stl:13, sv:0, blk:7},  '2025': {gp:30, g:24, a:33, sh:70,  exd:15, stl:13, sv:0, blk:7} },
-    'William Swart':         { '2024': {gp:20, g:16, a:22, sh:22, exd:3,  stl:4,  sv:0, blk:2},  '2025': {gp:31, g:22, a:27, sh:35,  exd:11, stl:14, sv:0, blk:10} },
-    'Nathan Banos':          { '2024': {gp:32, g:22, a:32, sh:29, exd:18, stl:5,  sv:0, blk:5},  '2025': {gp:23, g:13, a:26, sh:23,  exd:6,  stl:8,  sv:0, blk:5} },
-    'Teddy Rountree-Shtulman':{ '2024': {gp:7,  g:3,  a:1,  sh:8,  exd:0,  stl:0,  sv:0, blk:0},  '2025': {gp:5,  g:0,  a:1,  sh:3,   exd:1,  stl:0,  sv:0, blk:0} },
+    'Finn LeSieur':          { '2024': {gp:32, g:39, a:26, sh:63, exd:39, stl:10, sv:0, blk:13}, '2025': {gp:33, g:51, a:36, sh:96,  exd:31, stl:19, sv:0, blk:8},
+                               '2026': {gp:0,  g:13, a:0,  sh:0,  exd:0,  stl:0,  sv:0} },
+    'Tigran Sennett':        { '2024': {gp:17, g:10, a:13, sh:18, exd:3,  stl:2,  sv:0, blk:1},  '2025': {gp:24, g:12, a:7,  sh:22,  exd:7,  stl:7,  sv:0, blk:7},
+                               '2026': {gp:0,  g:2,  a:0,  sh:0,  exd:0,  stl:0,  sv:0} },
+    'Ádám Peocz':            { '2024': {gp:29, g:28, a:35, sh:69, exd:21, stl:10, sv:0, blk:2},  '2025': {gp:32, g:56, a:58, sh:111, exd:16, stl:26, sv:0, blk:11},
+                               '2026': {gp:0,  g:29, a:9,  sh:0,  exd:0,  stl:0,  sv:0} },
+    'Enrique Nuño':          { '2024': {gp:28, g:23, a:25, sh:40, exd:11, stl:8,  sv:0, blk:4},  '2025': {gp:33, g:55, a:28, sh:86,  exd:11, stl:21, sv:0, blk:13},
+                               '2026': {gp:0,  g:22, a:3,  sh:0,  exd:0,  stl:0,  sv:0} },
+    'Tas Palcza':            { '2024': {gp:31, g:38, a:20, sh:70, exd:29, stl:13, sv:0, blk:7},  '2025': {gp:30, g:24, a:33, sh:70,  exd:15, stl:13, sv:0, blk:7},
+                               '2026': {gp:0,  g:18, a:0,  sh:0,  exd:0,  stl:0,  sv:0} },
+    'William Swart':         { '2024': {gp:20, g:16, a:22, sh:22, exd:3,  stl:4,  sv:0, blk:2},  '2025': {gp:31, g:22, a:27, sh:35,  exd:11, stl:14, sv:0, blk:10},
+                               '2026': {gp:0,  g:7,  a:0,  sh:0,  exd:0,  stl:0,  sv:0} },
+    'Nathan Banos':          { '2024': {gp:32, g:22, a:32, sh:29, exd:18, stl:5,  sv:0, blk:5},  '2025': {gp:23, g:13, a:26, sh:23,  exd:6,  stl:8,  sv:0, blk:5},
+                               '2026': {gp:0,  g:4,  a:0,  sh:0,  exd:0,  stl:0,  sv:0} },
+    'Teddy Rountree-Shtulman':{ '2024': {gp:7,  g:3,  a:1,  sh:8,  exd:0,  stl:0,  sv:0, blk:0},  '2025': {gp:5,  g:0,  a:1,  sh:3,   exd:1,  stl:0,  sv:0, blk:0},
+                               '2026': {gp:0,  g:3,  a:0,  sh:0,  exd:0,  stl:0,  sv:0} },
     'Andrew Tu':             { '2025': {gp:6,  g:1,  a:0,  sh:2,  exd:0,  stl:0,  sv:0, blk:0} },
-    'Taylor Bell':           { '2025': {gp:33, g:58, a:43, sh:124,exd:12, stl:29, sv:0, blk:4} },
+    'Taylor Bell':           { '2025': {gp:33, g:58, a:43, sh:124,exd:12, stl:29, sv:0, blk:4},
+                               '2026': {gp:0,  g:25, a:0,  sh:0,  exd:0,  stl:0,  sv:0} },
+    'Oliver Marcin':         { '2026': {gp:0, g:14, a:0, sh:0, exd:0, stl:0, sv:0} },
+    'Boti Kovács':           { '2026': {gp:0, g:5,  a:0, sh:0, exd:0, stl:0, sv:0} },
+    'Luke Weichert':         { '2026': {gp:0, g:6,  a:0, sh:0, exd:0, stl:0, sv:0} },
+    'Tibi Cojocariu':        { '2026': {gp:0, g:11, a:0, sh:0, exd:0, stl:0, sv:0} },
   },
   // Harvard's gocrimson.com "Cumulative Statistics" page only has a 2024 season archive in its
   // year selector (no 2025 option exists), and the separate per-player bio "Player Stats" widget
@@ -5428,15 +5565,35 @@ const SEED_SCHOOL_PLAYER_STATS = {
   // reliably maps onto this app's exclusion-drawn stat and both are left out to avoid mislabeling.
   // Only the 8 players from the 2024 table who are still on the current (2026) roster are included;
   // the rest graduated and are out of scope.
+  // 2026 rows added from recap-article prose (gocrimson.com never exposed a structured box score --
+  // just an Angular "Final Stats" widget at scores.6-8sports.com that needs live JS to read, out of
+  // scope for a curl-only pass). Goal sums only matched the final score exactly for 3 of 12 games
+  // (Wagner, Concordia, Johns Hopkins) -- most recaps only name the top scorer or two, so these
+  // 2026 totals are a lower bound, more partial than other schools' recap-based data.
   'Harvard': {
-    'Oliver Price':                { '2024': {gp:0, g:0, a:0, sh:0,  exd:0, stl:5, sv:15} },
-    'Dean Strauser':                { '2024': {gp:0, g:7, a:1, sh:11, exd:0, stl:1, sv:0} },
-    'Vilas Sogaard-Srikrishnan':    { '2024': {gp:0, g:5, a:3, sh:6,  exd:0, stl:1, sv:0} },
-    'Tyler Hogan':                  { '2024': {gp:0, g:5, a:1, sh:5,  exd:0, stl:1, sv:0} },
-    'Jack Burghardt':               { '2024': {gp:0, g:4, a:1, sh:6,  exd:0, stl:1, sv:0} },
-    'Jacob Tsotadze':               { '2024': {gp:0, g:3, a:1, sh:4,  exd:0, stl:3, sv:0} },
-    'Bradford Dickson':             { '2024': {gp:0, g:0, a:0, sh:1,  exd:0, stl:0, sv:0} },
-    'Lukas Peabody':                { '2024': {gp:0, g:0, a:0, sh:0,  exd:0, stl:0, sv:0} },
+    'Oliver Price':                { '2024': {gp:0, g:0, a:0, sh:0,  exd:0, stl:5, sv:15},
+                                      '2026': {gp:0, g:0, a:0, sh:0,  exd:0, stl:3, sv:40} },
+    'Dean Strauser':                { '2024': {gp:0, g:7, a:1, sh:11, exd:0, stl:1, sv:0},
+                                      '2026': {gp:0, g:13,a:1, sh:0,  exd:0, stl:0, sv:0} },
+    'Vilas Sogaard-Srikrishnan':    { '2024': {gp:0, g:5, a:3, sh:6,  exd:0, stl:1, sv:0},
+                                      '2026': {gp:0, g:3, a:6, sh:0,  exd:0, stl:0, sv:0} },
+    'Tyler Hogan':                  { '2024': {gp:0, g:5, a:1, sh:5,  exd:0, stl:1, sv:0},
+                                      '2026': {gp:0, g:5, a:0, sh:0,  exd:0, stl:0, sv:0} },
+    'Jack Burghardt':               { '2024': {gp:0, g:4, a:1, sh:6,  exd:0, stl:1, sv:0},
+                                      '2026': {gp:0, g:25,a:1, sh:0,  exd:0, stl:0, sv:0} },
+    'Jacob Tsotadze':               { '2024': {gp:0, g:3, a:1, sh:4,  exd:0, stl:3, sv:0},
+                                      '2026': {gp:0, g:8, a:0, sh:0,  exd:0, stl:0, sv:0} },
+    'Bradford Dickson':             { '2024': {gp:0, g:0, a:0, sh:1,  exd:0, stl:0, sv:0},
+                                      '2026': {gp:0, g:1, a:0, sh:0,  exd:0, stl:0, sv:0} },
+    'Lukas Peabody':                { '2024': {gp:0, g:0, a:0, sh:0,  exd:0, stl:0, sv:0},
+                                      '2026': {gp:0, g:9, a:1, sh:0,  exd:0, stl:0, sv:0} },
+    'Clay Carrington':              { '2026': {gp:0, g:32,a:6, sh:0,  exd:0, stl:0, sv:0} },
+    'Connor Kim':                   { '2026': {gp:0, g:10,a:3, sh:0,  exd:0, stl:0, sv:0} },
+    'Geoff Slutzky':                { '2026': {gp:0, g:5, a:0, sh:0,  exd:0, stl:0, sv:0} },
+    'Rigby Snapp':                  { '2026': {gp:0, g:5, a:0, sh:0,  exd:0, stl:0, sv:0} },
+    'Felix Pal':                    { '2026': {gp:0, g:2, a:0, sh:0,  exd:0, stl:0, sv:0} },
+    'Emil Sogaard-Srikrishnan':     { '2026': {gp:0, g:1, a:0, sh:0,  exd:0, stl:0, sv:0} },
+    'Jonas Ransford':               { '2026': {gp:0, g:0, a:0, sh:0,  exd:0, stl:2, sv:47} },
   },
   // Brown's bios have a clean "Career Stats" table (Year/G/A/PTS/STL/EJD/FB for field players,
   // Year/SV/AST/STL for goalkeepers) with one row per season -- no games-played or shots column is
@@ -5446,23 +5603,50 @@ const SEED_SCHOOL_PLAYER_STATS = {
   // year shown as "--" means the player didn't play that season and is skipped (e.g. Tymcyna's
   // 2025, Vranesh's 2024, Tierney's 2024); Trey Rogers' table omits 2025 outright, same meaning.
   // True freshmen and others with no Career Stats section at all (Corr, Kittredge, Soza, Meleney,
-  // Csendes, Chu, Yechiely, Anton, Bell, Gao, Norell) are left out entirely.
+  // Csendes, Chu, Yechiely, Anton, Bell, Gao, Norell) are left out entirely in 2024/2025 -- several
+  // get a 2026-only row below from recap prose instead, since bios never got a 2026 row at all (one
+  // even still shows "--" for 2025). No recap ever gave a numeric assist or steal for any Brown
+  // player, so those stay 0 throughout 2026; goals-only data, verified where possible against final
+  // scores (close but short of the true total most games, since recaps don't name every scorer).
   'Brown': {
-    'Ryan Miele':           { '2024': {gp:0, g:0,  a:3,  sh:0, exd:0,  stl:13, sv:48}, '2025': {gp:0, g:0,  a:1,  sh:0, exd:0,  stl:7,  sv:46} },
-    'Dimitrios Kratimenos': { '2024': {gp:0, g:0,  a:11, sh:0, exd:0,  stl:12, sv:162},'2025': {gp:0, g:0,  a:8,  sh:0, exd:0,  stl:10, sv:169} },
+    'Ryan Miele':           { '2024': {gp:0, g:0,  a:3,  sh:0, exd:0,  stl:13, sv:48}, '2025': {gp:0, g:0,  a:1,  sh:0, exd:0,  stl:7,  sv:46},
+                              '2026': {gp:0, g:0,  a:0,  sh:0, exd:0,  stl:0,  sv:32} },
+    'Dimitrios Kratimenos': { '2024': {gp:0, g:0,  a:11, sh:0, exd:0,  stl:12, sv:162},'2025': {gp:0, g:0,  a:8,  sh:0, exd:0,  stl:10, sv:169},
+                              '2026': {gp:0, g:4,  a:0,  sh:0, exd:0,  stl:0,  sv:85} },
     'Brody Paine':          { '2025': {gp:0, g:14, a:10, sh:0, exd:17, stl:12, sv:0} },
-    'Filip Josipovic':      { '2025': {gp:0, g:27, a:13, sh:0, exd:13, stl:8,  sv:0} },
-    'Trey Rogers':          { '2024': {gp:0, g:18, a:25, sh:0, exd:6,  stl:17, sv:0} },
-    'Mac Berry':            { '2024': {gp:0, g:40, a:19, sh:0, exd:22, stl:14, sv:0}, '2025': {gp:0, g:26, a:44, sh:0, exd:59, stl:20, sv:0} },
-    'William Vranesh':      { '2025': {gp:0, g:15, a:10, sh:0, exd:2,  stl:5,  sv:0} },
-    'Hugo Molnar':          { '2025': {gp:0, g:24, a:26, sh:0, exd:16, stl:21, sv:0} },
-    'Máté Tymcyna':         { '2024': {gp:0, g:84, a:54, sh:0, exd:11, stl:18, sv:0} },
-    'Ramzi Megalli':        { '2024': {gp:0, g:30, a:19, sh:0, exd:11, stl:24, sv:0}, '2025': {gp:0, g:42, a:8,  sh:0, exd:17, stl:16, sv:0} },
+    'Filip Josipovic':      { '2025': {gp:0, g:27, a:13, sh:0, exd:13, stl:8,  sv:0},
+                              '2026': {gp:0, g:6,  a:0,  sh:0, exd:0,  stl:0,  sv:0} },
+    'Trey Rogers':          { '2024': {gp:0, g:18, a:25, sh:0, exd:6,  stl:17, sv:0},
+                              '2026': {gp:0, g:3,  a:0,  sh:0, exd:0,  stl:0,  sv:0} },
+    'Mac Berry':            { '2024': {gp:0, g:40, a:19, sh:0, exd:22, stl:14, sv:0}, '2025': {gp:0, g:26, a:44, sh:0, exd:59, stl:20, sv:0},
+                              '2026': {gp:0, g:14, a:0,  sh:0, exd:0,  stl:0,  sv:0} },
+    'William Vranesh':      { '2025': {gp:0, g:15, a:10, sh:0, exd:2,  stl:5,  sv:0},
+                              '2026': {gp:0, g:2,  a:0,  sh:0, exd:0,  stl:0,  sv:0} },
+    'Hugo Molnar':          { '2025': {gp:0, g:24, a:26, sh:0, exd:16, stl:21, sv:0},
+                              '2026': {gp:0, g:1,  a:0,  sh:0, exd:0,  stl:0,  sv:0} },
+    'Máté Tymcyna':         { '2024': {gp:0, g:84, a:54, sh:0, exd:11, stl:18, sv:0},
+                              '2026': {gp:0, g:22, a:0,  sh:0, exd:0,  stl:0,  sv:0} },
+    'Ramzi Megalli':        { '2024': {gp:0, g:30, a:19, sh:0, exd:11, stl:24, sv:0}, '2025': {gp:0, g:42, a:8,  sh:0, exd:17, stl:16, sv:0},
+                              '2026': {gp:0, g:7,  a:0,  sh:0, exd:0,  stl:0,  sv:0} },
     'Theo Pliner':          { '2024': {gp:0, g:6,  a:6,  sh:0, exd:0,  stl:7,  sv:0}, '2025': {gp:0, g:3,  a:5,  sh:0, exd:1,  stl:2,  sv:0} },
-    'Jaxson Tierney':       { '2025': {gp:0, g:65, a:22, sh:0, exd:6,  stl:13, sv:0} },
-    'Jeremy Tachiki':       { '2024': {gp:0, g:1,  a:4,  sh:0, exd:0,  stl:6,  sv:0}, '2025': {gp:0, g:3,  a:2,  sh:0, exd:0,  stl:1,  sv:0} },
-    'Griffin Tunney':       { '2025': {gp:0, g:43, a:55, sh:0, exd:21, stl:29, sv:0} },
-    'Dominik Balla':        { '2024': {gp:0, g:28, a:11, sh:0, exd:37, stl:7,  sv:0}, '2025': {gp:0, g:51, a:11, sh:0, exd:81, stl:14, sv:0} },
+    'Jaxson Tierney':       { '2025': {gp:0, g:65, a:22, sh:0, exd:6,  stl:13, sv:0},
+                              '2026': {gp:0, g:15, a:0,  sh:0, exd:0,  stl:0,  sv:0} },
+    'Jeremy Tachiki':       { '2024': {gp:0, g:1,  a:4,  sh:0, exd:0,  stl:6,  sv:0}, '2025': {gp:0, g:3,  a:2,  sh:0, exd:0,  stl:1,  sv:0},
+                              '2026': {gp:0, g:3,  a:0,  sh:0, exd:0,  stl:0,  sv:0} },
+    'Griffin Tunney':       { '2025': {gp:0, g:43, a:55, sh:0, exd:21, stl:29, sv:0},
+                              '2026': {gp:0, g:16, a:0,  sh:0, exd:0,  stl:0,  sv:0} },
+    'Dominik Balla':        { '2024': {gp:0, g:28, a:11, sh:0, exd:37, stl:7,  sv:0}, '2025': {gp:0, g:51, a:11, sh:0, exd:81, stl:14, sv:0},
+                              '2026': {gp:0, g:23, a:0,  sh:0, exd:0,  stl:0,  sv:0} },
+    'Roland Csendes':       { '2026': {gp:0, g:26, a:0, sh:0, exd:0, stl:0, sv:0} },
+    'Willem Anton':         { '2026': {gp:0, g:7,  a:0, sh:0, exd:0, stl:0, sv:0} },
+    'Colton Bell':          { '2026': {gp:0, g:6,  a:0, sh:0, exd:0, stl:0, sv:0} },
+    'Andrew Gao':           { '2026': {gp:0, g:3,  a:0, sh:0, exd:0, stl:0, sv:0} },
+    'Robert Norell':        { '2026': {gp:0, g:5,  a:0, sh:0, exd:0, stl:0, sv:0} },
+    'Neveh Yechiely':       { '2026': {gp:0, g:1,  a:0, sh:0, exd:0, stl:0, sv:0} },
+    'Oliver Chu':           { '2026': {gp:0, g:5,  a:0, sh:0, exd:0, stl:0, sv:0} },
+    'Will Corr':            { '2026': {gp:0, g:1,  a:0, sh:0, exd:0, stl:0, sv:2} },
+    'Ethan Kittredge':      { '2026': {gp:0, g:1,  a:0, sh:0, exd:0, stl:0, sv:0} },
+    'Santiago Soza':        { '2026': {gp:0, g:1,  a:0, sh:0, exd:0, stl:0, sv:0} },
   },
   // MIT's bios have a plain-text "Career Stats:" block (one line per season, inconsistently
   // wrapped in <ul><li> on some bios and plain <br>-separated lines on others, hence the two-stage
@@ -5470,23 +5654,45 @@ const SEED_SCHOOL_PLAYER_STATS = {
   // and others "Ejections Drawn" for the same stat -- both map onto this app's exclusion-drawn
   // field; the separate unlabeled "Ejections" field (exclusions the player themselves committed)
   // is not used. No games-played figure is published, so gp is 0 throughout. 2023 rows are out of
-  // this app's 2024-2026 scope and omitted. True freshmen with no Career Stats block at all
-  // (Schweizer, Morocco, Wykoff, Baker, Armeet Gill) are left out entirely.
+  // this app's 2024-2026 scope and omitted. 2026 rows below come from a mix of real PDF box scores
+  // (7 of 11 games had a genuine FINA-style scoresheet on mitathletics.com, goals verified exactly
+  // against each game's final score) and recap-prose goal tallies for the rest; no bio has a 2026
+  // row yet. Armaan Gill's 14 saves is the only save number any source stated. True freshmen with no
+  // stats anywhere this season (Jackson Kay had none despite a bio) are omitted; Schweizer, Morocco,
+  // Wykoff, Baker, Armeet Gill now have 2026-only rows despite no 2024/2025 bio data.
   'MIT': {
-    'Joshua Woren':     { '2024': {gp:0, g:0,  a:5,  sh:0,   exd:0,  stl:6,  sv:123}, '2025': {gp:0, g:0,  a:2,  sh:0,   exd:0,  stl:31, sv:158} },
-    'Armaan Gill':      { '2024': {gp:0, g:0,  a:0,  sh:0,   exd:0,  stl:6,  sv:103}, '2025': {gp:0, g:0,  a:1,  sh:0,   exd:0,  stl:12, sv:109} },
-    'David Ranaudo':    { '2025': {gp:0, g:5,  a:2,  sh:11,  exd:11, stl:4,  sv:0} },
-    'Jackson Kay':      { '2024': {gp:0, g:13, a:2,  sh:35,  exd:6,  stl:5,  sv:0}, '2025': {gp:0, g:15, a:10, sh:58,  exd:6,  stl:26, sv:0} },
-    'Caspar Lightner':  { '2025': {gp:0, g:80, a:19, sh:194, exd:23, stl:20, sv:0} },
-    'Kunal Rajadhyax':  { '2024': {gp:0, g:21, a:44, sh:68,  exd:19, stl:24, sv:0}, '2025': {gp:0, g:28, a:32, sh:90,  exd:16, stl:23, sv:0} },
-    'Andras Beleznay':  { '2024': {gp:0, g:25, a:5,  sh:51,  exd:30, stl:6,  sv:0}, '2025': {gp:0, g:24, a:1,  sh:62,  exd:20, stl:4,  sv:0} },
-    'Kieran Kearns':    { '2024': {gp:0, g:25, a:70, sh:67,  exd:19, stl:57, sv:0}, '2025': {gp:0, g:0,  a:1,  sh:0,   exd:0,  stl:1,  sv:0} },
-    'Rick Lundh':       { '2024': {gp:0, g:63, a:26, sh:136, exd:16, stl:34, sv:0}, '2025': {gp:0, g:55, a:35, sh:151, exd:29, stl:45, sv:0} },
-    'Nicholas Soule':   { '2025': {gp:0, g:5,  a:7,  sh:14,  exd:3,  stl:8,  sv:0} },
-    'Derek Schaffer':   { '2024': {gp:0, g:11, a:23, sh:30,  exd:2,  stl:12, sv:0}, '2025': {gp:0, g:26, a:59, sh:100, exd:3,  stl:25, sv:0} },
+    'Joshua Woren':     { '2024': {gp:0, g:0,  a:5,  sh:0,   exd:0,  stl:6,  sv:123}, '2025': {gp:0, g:0,  a:2,  sh:0,   exd:0,  stl:31, sv:158},
+                          '2026': {gp:0, g:1,  a:0,  sh:0,   exd:0,  stl:0,  sv:0} },
+    'Armaan Gill':      { '2024': {gp:0, g:0,  a:0,  sh:0,   exd:0,  stl:6,  sv:103}, '2025': {gp:0, g:0,  a:1,  sh:0,   exd:0,  stl:12, sv:109},
+                          '2026': {gp:0, g:0,  a:0,  sh:0,   exd:0,  stl:0,  sv:14} },
+    'David Ranaudo':    { '2025': {gp:0, g:5,  a:2,  sh:11,  exd:11, stl:4,  sv:0},
+                          '2026': {gp:0, g:4,  a:0,  sh:0,   exd:0,  stl:0,  sv:0} },
+    'Jackson Kay':      { '2024': {gp:0, g:13, a:2,  sh:35,  exd:6,  stl:5,  sv:0}, '2025': {gp:0, g:15, a:10, sh:58,  exd:6,  stl:26, sv:0},
+                          '2026': {gp:0, g:7,  a:0,  sh:0,   exd:0,  stl:0,  sv:0} },
+    'Caspar Lightner':  { '2025': {gp:0, g:80, a:19, sh:194, exd:23, stl:20, sv:0},
+                          '2026': {gp:0, g:28, a:0,  sh:0,   exd:0,  stl:0,  sv:0} },
+    'Kunal Rajadhyax':  { '2024': {gp:0, g:21, a:44, sh:68,  exd:19, stl:24, sv:0}, '2025': {gp:0, g:28, a:32, sh:90,  exd:16, stl:23, sv:0},
+                          '2026': {gp:0, g:6,  a:0,  sh:0,   exd:0,  stl:0,  sv:0} },
+    'Andras Beleznay':  { '2024': {gp:0, g:25, a:5,  sh:51,  exd:30, stl:6,  sv:0}, '2025': {gp:0, g:24, a:1,  sh:62,  exd:20, stl:4,  sv:0},
+                          '2026': {gp:0, g:26, a:0,  sh:0,   exd:0,  stl:0,  sv:0} },
+    'Kieran Kearns':    { '2024': {gp:0, g:25, a:70, sh:67,  exd:19, stl:57, sv:0}, '2025': {gp:0, g:0,  a:1,  sh:0,   exd:0,  stl:1,  sv:0},
+                          '2026': {gp:0, g:5,  a:0,  sh:0,   exd:0,  stl:0,  sv:0} },
+    'Rick Lundh':       { '2024': {gp:0, g:63, a:26, sh:136, exd:16, stl:34, sv:0}, '2025': {gp:0, g:55, a:35, sh:151, exd:29, stl:45, sv:0},
+                          '2026': {gp:0, g:17, a:0,  sh:0,   exd:0,  stl:0,  sv:0} },
+    'Nicholas Soule':   { '2025': {gp:0, g:5,  a:7,  sh:14,  exd:3,  stl:8,  sv:0},
+                          '2026': {gp:0, g:1,  a:0,  sh:0,   exd:0,  stl:0,  sv:0} },
+    'Derek Schaffer':   { '2024': {gp:0, g:11, a:23, sh:30,  exd:2,  stl:12, sv:0}, '2025': {gp:0, g:26, a:59, sh:100, exd:3,  stl:25, sv:0},
+                          '2026': {gp:0, g:5,  a:0,  sh:0,   exd:0,  stl:0,  sv:0} },
     'Ethan Kim':        { '2025': {gp:0, g:2,  a:1,  sh:8,   exd:3,  stl:4,  sv:0} },
-    'Victor Perez':     { '2024': {gp:0, g:7,  a:10, sh:20,  exd:2,  stl:13, sv:0}, '2025': {gp:0, g:6,  a:11, sh:23,  exd:2,  stl:11, sv:0} },
-    'William Ewald':    { '2024': {gp:0, g:30, a:20, sh:93,  exd:37, stl:36, sv:0}, '2025': {gp:0, g:23, a:16, sh:54,  exd:31, stl:24, sv:0} },
+    'Victor Perez':     { '2024': {gp:0, g:7,  a:10, sh:20,  exd:2,  stl:13, sv:0}, '2025': {gp:0, g:6,  a:11, sh:23,  exd:2,  stl:11, sv:0},
+                          '2026': {gp:0, g:1,  a:0,  sh:0,   exd:0,  stl:0,  sv:0} },
+    'William Ewald':    { '2024': {gp:0, g:30, a:20, sh:93,  exd:37, stl:36, sv:0}, '2025': {gp:0, g:23, a:16, sh:54,  exd:31, stl:24, sv:0},
+                          '2026': {gp:0, g:9,  a:0,  sh:0,   exd:0,  stl:0,  sv:0} },
+    'Jake Schweizer':   { '2026': {gp:0, g:13, a:0, sh:0, exd:0, stl:0, sv:0} },
+    'Luca Morocco':     { '2026': {gp:0, g:5,  a:0, sh:0, exd:0, stl:0, sv:0} },
+    'Jae Wykoff':       { '2026': {gp:0, g:1,  a:0, sh:0, exd:0, stl:0, sv:0} },
+    'Charlie Baker':    { '2026': {gp:0, g:2,  a:0, sh:0, exd:0, stl:0, sv:0} },
+    'Armeet Gill':      { '2026': {gp:0, g:7,  a:0, sh:0, exd:0, stl:0, sv:0} },
   },
 };
 function blankSeasonRow(year){ return { year, gpSet:new Set(), g:0, gWithShotData:0, a:0, sh:0, hasShotData:false, exd:0, exg:0, stl:0, to:0, blk:0, sv:0, pd:0 }; }
