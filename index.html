@@ -1301,7 +1301,7 @@ function dedupeGamesByMatchup(games){
   const bestByKey = new Map(); const order = [];
   games.forEach(g=>{
     if(!g) return;
-    const key = g.teamId+'|'+g.date+'|'+g.opponent;
+    const key = g.teamId+'|'+g.date+'|'+g.opponent+'|'+(g.gameNumber||1);
     const eventCount = g.quarters ? Object.values(g.quarters).reduce((s,arr)=>s+(Array.isArray(arr)?arr.length:0),0) : 0;
     const existing = bestByKey.get(key);
     if(!existing){ bestByKey.set(key, {g, eventCount}); order.push(key); }
@@ -4212,16 +4212,23 @@ function ensureOpponentSchoolResults(){
     if(!team) return;
     const findRosterPlayer = (name) => team.players.find(p=>p.name===name);
     const pbpForTeam = SEED_SCHOOL_PLAYBYPLAY[teamName];
+    const nthSeen = {};
     SEED_SCHOOL_RESULTS[teamName].forEach(s=>{
+      // Same-day doubleheaders against one opponent are separate games: the nth seed entry for a
+      // date+opponent matches the game whose gameNumber (default 1) is n, so none gets collapsed.
+      const key = s.date+'|'+s.opponent;
+      const nth = nthSeen[key] = (nthSeen[key]||0)+1;
       // A schedule-seed placeholder for this exact game may already be saved from an earlier build
       // (status 'upcoming', nothing tracked). Upgrade it in place to the real result instead of
       // skipping it, otherwise results added after the schedule was first seeded never show up.
-      const existing = app.games.find(g=>g.teamId===team.id && g.date===s.date && g.opponent===s.opponent);
+      const existing = app.games.find(g=>g.teamId===team.id && g.date===s.date && g.opponent===s.opponent && (g.gameNumber||1)===nth);
       if(existing && (existing.status!=='upcoming' || Object.values(existing.quarters||{}).some(q=>q && q.length))) return;
       const game = existing || blankGame(team.id);
       game.opponent = s.opponent; game.date = s.date; game.status = 'final';
+      if(nth>1) game.gameNumber = nth;
       if(s.note) game.notes = s.note;
-      const pbp = pbpForTeam && pbpForTeam[s.date+'|'+s.opponent];
+      if(nth>1) game.notes = (game.notes ? game.notes+' · ' : '') + 'Game '+nth;
+      const pbp = nth===1 && pbpForTeam && pbpForTeam[s.date+'|'+s.opponent];
       if(pbp){
         pbp.forEach(([q, ms, side, name, label, scoreAfter])=>{
           if(typeof q === 'string' && !game.quarters[q]){ game.quarters[q] = []; game.extraPeriods.push(q); }
