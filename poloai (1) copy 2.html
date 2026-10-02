@@ -4409,7 +4409,34 @@ const CURRENT_ROSTERS = {
     {cap:'18',name:'Jack Burghardt',wpPosition:'UT'},
     {cap:'20',name:'Emil Sogaard-Srikrishnan',wpPosition:'A'},
   ] },
-  brown: { label:'Brown', players:[] },
+  brown: { label:'Brown', players:[
+    {cap:'1',name:'Ryan Miele',wpPosition:'GK'},
+    {cap:'1A',name:'Will Corr',wpPosition:'GK'},
+    {cap:'1B',name:'Ethan Kittredge',wpPosition:'GK'},
+    {cap:'1C',name:'Santiago Soza',wpPosition:'GK'},
+    {cap:'1D',name:'Dimitrios Kratimenos',wpPosition:'GK'},
+    {cap:'2',name:'Brody Paine',wpPosition:'UT'},
+    {cap:'3',name:'Filip Josipovic',wpPosition:'UT'},
+    {cap:'4',name:'Trey Rogers',wpPosition:'UT'},
+    {cap:'5',name:'Mac Berry',wpPosition:'A'},
+    {cap:'6',name:'William Vranesh',wpPosition:'A'},
+    {cap:'7',name:'Jackson Meleney',wpPosition:'UT'},
+    {cap:'8',name:'Hugo Molnar',wpPosition:'A'},
+    {cap:'9',name:'Roland Csendes',wpPosition:'UT'},
+    {cap:'10',name:'Máté Tymcyna',wpPosition:'UT'},
+    {cap:'11',name:'Ramzi Megalli',wpPosition:'UT'},
+    {cap:'12',name:'Theo Pliner',wpPosition:'A'},
+    {cap:'13',name:'Jaxson Tierney',wpPosition:'UT'},
+    {cap:'14',name:'Oliver Chu',wpPosition:'UT'},
+    {cap:'15',name:'Neveh Yechiely',wpPosition:'UT'},
+    {cap:'17',name:'Willem Anton',wpPosition:'A'},
+    {cap:'18',name:'Jeremy Tachiki',wpPosition:'A'},
+    {cap:'19',name:'Colton Bell',wpPosition:'UT'},
+    {cap:'21',name:'Andrew Gao',wpPosition:'A'},
+    {cap:'22',name:'Griffin Tunney',wpPosition:'A'},
+    {cap:'23',name:'Dominik Balla',wpPosition:'UT'},
+    {cap:'24',name:'Robert Norell',wpPosition:'UT'},
+  ] },
   mit: { label:'MIT', players:[] },
   cal: { label:'California (2026)', players:[
     {cap:'1',name:'Riley Clansen',wpPosition:'GK'},
@@ -5390,6 +5417,32 @@ const SEED_SCHOOL_PLAYER_STATS = {
     'Jacob Tsotadze':               { '2024': {gp:0, g:3, a:1, sh:4,  exd:0, stl:3, sv:0} },
     'Bradford Dickson':             { '2024': {gp:0, g:0, a:0, sh:1,  exd:0, stl:0, sv:0} },
     'Lukas Peabody':                { '2024': {gp:0, g:0, a:0, sh:0,  exd:0, stl:0, sv:0} },
+  },
+  // Brown's bios have a clean "Career Stats" table (Year/G/A/PTS/STL/EJD/FB for field players,
+  // Year/SV/AST/STL for goalkeepers) with one row per season -- no games-played or shots column is
+  // published at all, so gp and sh are left at 0 throughout. EJD ("Ejections Drawn") maps directly
+  // onto this app's exclusion-drawn stat. FB is not used -- on a water-polo stat sheet this reads as
+  // "fast breaks", not "blocks", so it's left out rather than mapped to this app's blk field. A
+  // year shown as "--" means the player didn't play that season and is skipped (e.g. Tymcyna's
+  // 2025, Vranesh's 2024, Tierney's 2024); Trey Rogers' table omits 2025 outright, same meaning.
+  // True freshmen and others with no Career Stats section at all (Corr, Kittredge, Soza, Meleney,
+  // Csendes, Chu, Yechiely, Anton, Bell, Gao, Norell) are left out entirely.
+  'Brown': {
+    'Ryan Miele':           { '2024': {gp:0, g:0,  a:3,  sh:0, exd:0,  stl:13, sv:48}, '2025': {gp:0, g:0,  a:1,  sh:0, exd:0,  stl:7,  sv:46} },
+    'Dimitrios Kratimenos': { '2024': {gp:0, g:0,  a:11, sh:0, exd:0,  stl:12, sv:162},'2025': {gp:0, g:0,  a:8,  sh:0, exd:0,  stl:10, sv:169} },
+    'Brody Paine':          { '2025': {gp:0, g:14, a:10, sh:0, exd:17, stl:12, sv:0} },
+    'Filip Josipovic':      { '2025': {gp:0, g:27, a:13, sh:0, exd:13, stl:8,  sv:0} },
+    'Trey Rogers':          { '2024': {gp:0, g:18, a:25, sh:0, exd:6,  stl:17, sv:0} },
+    'Mac Berry':            { '2024': {gp:0, g:40, a:19, sh:0, exd:22, stl:14, sv:0}, '2025': {gp:0, g:26, a:44, sh:0, exd:59, stl:20, sv:0} },
+    'William Vranesh':      { '2025': {gp:0, g:15, a:10, sh:0, exd:2,  stl:5,  sv:0} },
+    'Hugo Molnar':          { '2025': {gp:0, g:24, a:26, sh:0, exd:16, stl:21, sv:0} },
+    'Máté Tymcyna':         { '2024': {gp:0, g:84, a:54, sh:0, exd:11, stl:18, sv:0} },
+    'Ramzi Megalli':        { '2024': {gp:0, g:30, a:19, sh:0, exd:11, stl:24, sv:0}, '2025': {gp:0, g:42, a:8,  sh:0, exd:17, stl:16, sv:0} },
+    'Theo Pliner':          { '2024': {gp:0, g:6,  a:6,  sh:0, exd:0,  stl:7,  sv:0}, '2025': {gp:0, g:3,  a:5,  sh:0, exd:1,  stl:2,  sv:0} },
+    'Jaxson Tierney':       { '2025': {gp:0, g:65, a:22, sh:0, exd:6,  stl:13, sv:0} },
+    'Jeremy Tachiki':       { '2024': {gp:0, g:1,  a:4,  sh:0, exd:0,  stl:6,  sv:0}, '2025': {gp:0, g:3,  a:2,  sh:0, exd:0,  stl:1,  sv:0} },
+    'Griffin Tunney':       { '2025': {gp:0, g:43, a:55, sh:0, exd:21, stl:29, sv:0} },
+    'Dominik Balla':        { '2024': {gp:0, g:28, a:11, sh:0, exd:37, stl:7,  sv:0}, '2025': {gp:0, g:51, a:11, sh:0, exd:81, stl:14, sv:0} },
   },
 };
 function blankSeasonRow(year){ return { year, gpSet:new Set(), g:0, gWithShotData:0, a:0, sh:0, hasShotData:false, exd:0, exg:0, stl:0, to:0, blk:0, sv:0, pd:0 }; }
