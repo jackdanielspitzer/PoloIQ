@@ -4437,7 +4437,27 @@ const CURRENT_ROSTERS = {
     {cap:'23',name:'Dominik Balla',wpPosition:'UT'},
     {cap:'24',name:'Robert Norell',wpPosition:'UT'},
   ] },
-  mit: { label:'MIT', players:[] },
+  mit: { label:'MIT', players:[
+    {cap:'1',name:'Joshua Woren',wpPosition:'GK'},
+    {cap:'1A',name:'Armaan Gill',wpPosition:'GK'},
+    {cap:'2',name:'David Ranaudo',wpPosition:'UT'},
+    {cap:'3',name:'Jackson Kay',wpPosition:'D'},
+    {cap:'4',name:'Jake Schweizer',wpPosition:'D'},
+    {cap:'5',name:'Caspar Lightner',wpPosition:'A'},
+    {cap:'6',name:'Luca Morocco',wpPosition:'D'},
+    {cap:'7',name:'Kunal Rajadhyax',wpPosition:'A'},
+    {cap:'9',name:'Andras Beleznay',wpPosition:'C'},
+    {cap:'10',name:'Kieran Kearns',wpPosition:'A'},
+    {cap:'11',name:'Rick Lundh',wpPosition:'UT'},
+    {cap:'12',name:'Nicholas Soule',wpPosition:'A'},
+    {cap:'16',name:'Jae Wykoff',wpPosition:'D'},
+    {cap:'17',name:'Derek Schaffer',wpPosition:'A'},
+    {cap:'18',name:'Ethan Kim',wpPosition:'A'},
+    {cap:'20',name:'Charlie Baker',wpPosition:'D'},
+    {cap:'23',name:'Victor Perez',wpPosition:'A'},
+    {cap:'24',name:'Armeet Gill',wpPosition:'UT'},
+    {cap:'25',name:'William Ewald',wpPosition:'A'},
+  ] },
   cal: { label:'California (2026)', players:[
     {cap:'1',name:'Riley Clansen',wpPosition:'GK'},
     {cap:'26',name:'James Peace III',wpPosition:'GK'},
@@ -5443,6 +5463,30 @@ const SEED_SCHOOL_PLAYER_STATS = {
     'Jeremy Tachiki':       { '2024': {gp:0, g:1,  a:4,  sh:0, exd:0,  stl:6,  sv:0}, '2025': {gp:0, g:3,  a:2,  sh:0, exd:0,  stl:1,  sv:0} },
     'Griffin Tunney':       { '2025': {gp:0, g:43, a:55, sh:0, exd:21, stl:29, sv:0} },
     'Dominik Balla':        { '2024': {gp:0, g:28, a:11, sh:0, exd:37, stl:7,  sv:0}, '2025': {gp:0, g:51, a:11, sh:0, exd:81, stl:14, sv:0} },
+  },
+  // MIT's bios have a plain-text "Career Stats:" block (one line per season, inconsistently
+  // wrapped in <ul><li> on some bios and plain <br>-separated lines on others, hence the two-stage
+  // parser used to pull this data) with explicit labeled fields. Some years say "Ejections Earned"
+  // and others "Ejections Drawn" for the same stat -- both map onto this app's exclusion-drawn
+  // field; the separate unlabeled "Ejections" field (exclusions the player themselves committed)
+  // is not used. No games-played figure is published, so gp is 0 throughout. 2023 rows are out of
+  // this app's 2024-2026 scope and omitted. True freshmen with no Career Stats block at all
+  // (Schweizer, Morocco, Wykoff, Baker, Armeet Gill) are left out entirely.
+  'MIT': {
+    'Joshua Woren':     { '2024': {gp:0, g:0,  a:5,  sh:0,   exd:0,  stl:6,  sv:123}, '2025': {gp:0, g:0,  a:2,  sh:0,   exd:0,  stl:31, sv:158} },
+    'Armaan Gill':      { '2024': {gp:0, g:0,  a:0,  sh:0,   exd:0,  stl:6,  sv:103}, '2025': {gp:0, g:0,  a:1,  sh:0,   exd:0,  stl:12, sv:109} },
+    'David Ranaudo':    { '2025': {gp:0, g:5,  a:2,  sh:11,  exd:11, stl:4,  sv:0} },
+    'Jackson Kay':      { '2024': {gp:0, g:13, a:2,  sh:35,  exd:6,  stl:5,  sv:0}, '2025': {gp:0, g:15, a:10, sh:58,  exd:6,  stl:26, sv:0} },
+    'Caspar Lightner':  { '2025': {gp:0, g:80, a:19, sh:194, exd:23, stl:20, sv:0} },
+    'Kunal Rajadhyax':  { '2024': {gp:0, g:21, a:44, sh:68,  exd:19, stl:24, sv:0}, '2025': {gp:0, g:28, a:32, sh:90,  exd:16, stl:23, sv:0} },
+    'Andras Beleznay':  { '2024': {gp:0, g:25, a:5,  sh:51,  exd:30, stl:6,  sv:0}, '2025': {gp:0, g:24, a:1,  sh:62,  exd:20, stl:4,  sv:0} },
+    'Kieran Kearns':    { '2024': {gp:0, g:25, a:70, sh:67,  exd:19, stl:57, sv:0}, '2025': {gp:0, g:0,  a:1,  sh:0,   exd:0,  stl:1,  sv:0} },
+    'Rick Lundh':       { '2024': {gp:0, g:63, a:26, sh:136, exd:16, stl:34, sv:0}, '2025': {gp:0, g:55, a:35, sh:151, exd:29, stl:45, sv:0} },
+    'Nicholas Soule':   { '2025': {gp:0, g:5,  a:7,  sh:14,  exd:3,  stl:8,  sv:0} },
+    'Derek Schaffer':   { '2024': {gp:0, g:11, a:23, sh:30,  exd:2,  stl:12, sv:0}, '2025': {gp:0, g:26, a:59, sh:100, exd:3,  stl:25, sv:0} },
+    'Ethan Kim':        { '2025': {gp:0, g:2,  a:1,  sh:8,   exd:3,  stl:4,  sv:0} },
+    'Victor Perez':     { '2024': {gp:0, g:7,  a:10, sh:20,  exd:2,  stl:13, sv:0}, '2025': {gp:0, g:6,  a:11, sh:23,  exd:2,  stl:11, sv:0} },
+    'William Ewald':    { '2024': {gp:0, g:30, a:20, sh:93,  exd:37, stl:36, sv:0}, '2025': {gp:0, g:23, a:16, sh:54,  exd:31, stl:24, sv:0} },
   },
 };
 function blankSeasonRow(year){ return { year, gpSet:new Set(), g:0, gWithShotData:0, a:0, sh:0, hasShotData:false, exd:0, exg:0, stl:0, to:0, blk:0, sv:0, pd:0 }; }
