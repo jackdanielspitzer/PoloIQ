@@ -2473,6 +2473,7 @@ const SEED_SCHOOL_RESULTS = {
     {date:'2026-09-05', opponent:'Austin College', teamScore:19, oppScore:13},
     {date:'2026-09-05', opponent:'George Washington', teamScore:10, oppScore:18},
     {date:'2026-09-06', opponent:'Johns Hopkins', teamScore:13, oppScore:18},
+    {date:'2026-09-06', opponent:'Salem', teamScore:18, oppScore:12},
     {date:'2026-09-12', opponent:'Brown', teamScore:10, oppScore:14},
     {date:'2026-09-13', opponent:'Mount St. Mary\'s', teamScore:16, oppScore:17},
     {date:'2026-09-13', opponent:'Bucknell', teamScore:13, oppScore:16},
@@ -5255,6 +5256,27 @@ function buildPlayerNoteTally(player, recentGames){
 // a=assists, sh=shot attempts, exd=exclusions drawn, stl=steals, sv=saves (goalies). Categories the
 // source site doesn't publish (exclusions committed, blocks, turnovers) are simply left at 0 rather
 // than guessed. gp (games played) is taken verbatim from the site's own per-year games-played count.
+// 2026 STATS-THROUGH TRACKER -- maintained by the daily update task (see its SKILL.md). For each school,
+// the date of the latest completed 2026 game already reflected in SEED_SCHOOL_RESULTS AND counted in the
+// 2026 rows below. A game can be in RESULTS but missing from stats only where noted in that team's comment
+// (e.g. Pacific: 4 of 10 games have no published box score).
+//   Navy               2026-09-27
+//   Fordham            2026-09-28
+//   Iona               2026-09-30
+//   Mount St. Mary's   2026-10-01
+//   Bucknell           2026-09-26
+//   Johns Hopkins      2026-09-27
+//   George Washington  2026-09-19
+//   Princeton          2026-09-20
+//   Harvard            2026-09-26
+//   Brown              2026-09-27
+//   MIT                2026-09-27
+//   UCLA               2026-09-26
+//   USC                2026-09-27
+//   Stanford           2026-09-27
+//   Pacific            2026-09-27
+//   UC Davis           2026-09-27
+//   Pepperdine         2026-09-26
 const SEED_SCHOOL_PLAYER_STATS = {
   // UCLA: 2024/2025 come from the "YEAR GP GOALS SHOTS PCT AST STL FB EE" career table on each
   // uclabruins.com bio (FB -> blk, EE -> exd); only seasons actually played at UCLA are included.
