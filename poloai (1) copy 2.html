@@ -4349,7 +4349,25 @@ const CURRENT_ROSTERS = {
     {cap:'18',name:'Simon Burtnyk',wpPosition:'A'},
     {cap:'20',name:'Dom Simopoulos',wpPosition:'A'},
   ] },
-  georgewashington: { label:'George Washington', players:[] },
+  georgewashington: { label:'George Washington', players:[
+    {cap:'1',name:'Solt Horvath',wpPosition:'GK'},
+    {cap:'1A',name:'Connor Jermain',wpPosition:'GK'},
+    {cap:'2',name:'Yam Kabakov',wpPosition:'A'},
+    {cap:'3',name:'Gabriele Molfino',wpPosition:'D'},
+    {cap:'4',name:'Alec Posluszny',wpPosition:'D'},
+    {cap:'5',name:'Antonio Florena',wpPosition:'A'},
+    {cap:'6',name:'Anthony Ferneini',wpPosition:'A'},
+    {cap:'7',name:'Rowan Keane',wpPosition:'D'},
+    {cap:'8',name:'Ben McDade',wpPosition:'UT'},
+    {cap:'9',name:'Konstantinos Kapragkos',wpPosition:'UT'},
+    {cap:'10',name:'Griffin Yamaoka',wpPosition:'A'},
+    {cap:'11',name:'Joseph McCreary',wpPosition:'C'},
+    {cap:'12',name:'Austin Nelson',wpPosition:'A'},
+    {cap:'13',name:'Andrei Khudiakov',wpPosition:'UT'},
+    {cap:'14',name:'Evan Agapiou',wpPosition:'A'},
+    {cap:'15',name:'David Sambolin',wpPosition:'A'},
+    {cap:'17',name:'Andrea Forno',wpPosition:'C'},
+  ] },
   princeton: { label:'Princeton', players:[] },
   harvard: { label:'Harvard', players:[] },
   brown: { label:'Brown', players:[] },
@@ -5267,6 +5285,24 @@ const SEED_SCHOOL_PLAYER_STATS = {
     'Brody Mars':       { '2025': {gp:0,  g:22, a:9,  sh:0, exd:0,  stl:7,  sv:0} },
     'Andrew Lee':       { '2024': {gp:0,  g:67, a:13, sh:0, exd:93, stl:21, sv:0, blk:6},
                           '2025': {gp:0,  g:47, a:6,  sh:0, exd:61, stl:15, sv:0} },
+  },
+  // George Washington's bios mix real season totals with "career highs" (often single-game or
+  // season-best marks, not cumulative totals) without always distinguishing which is which --
+  // e.g. "Set career highs in goals (4), assists (8)..." reads like a per-game or season-best
+  // number, not "scored 4 goals this season". Only players whose bio gives an unambiguous
+  // season-total framing (e.g. "Finished with X points... Y goals... Z assists" or "Collected
+  // X points in his rookie season") are included; the rest are left out rather than risk counting
+  // a career-high as a season total. Everyone here is 2025-only -- 2026 bios aren't updated yet.
+  'George Washington': {
+    'Connor Jermain':  { '2025': {gp:13, g:0,  a:0,  sh:0, exd:0,  stl:0,  sv:35} },
+    'Yam Kabakov':     { '2025': {gp:0,  g:50, a:44, sh:0, exd:0,  stl:0,  sv:0, blk:18} },
+    'Gabriele Molfino':{ '2025': {gp:0,  g:25, a:25, sh:0, exd:0,  stl:0,  sv:0} },
+    'Antonio Florena': { '2025': {gp:0,  g:59, a:0,  sh:0, exd:0,  stl:36, sv:0} },
+    'Anthony Ferneini':{ '2025': {gp:0,  g:18, a:1,  sh:0, exd:0,  stl:0,  sv:0} },
+    'Ben McDade':      { '2025': {gp:0,  g:0,  a:0,  sh:0, exd:18, stl:13, sv:0, blk:11} },
+    'Joseph McCreary': { '2025': {gp:0,  g:0,  a:0,  sh:0, exd:63, stl:0,  sv:0} },
+    'Austin Nelson':   { '2025': {gp:0,  g:0,  a:26, sh:0, exd:0,  stl:0,  sv:0} },
+    'Andrea Forno':    { '2025': {gp:0,  g:69, a:11, sh:0, exd:104,stl:0,  sv:0} },
   },
 };
 function blankSeasonRow(year){ return { year, gpSet:new Set(), g:0, gWithShotData:0, a:0, sh:0, hasShotData:false, exd:0, exg:0, stl:0, to:0, blk:0, sv:0, pd:0 }; }
