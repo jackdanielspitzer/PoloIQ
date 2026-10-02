@@ -3821,6 +3821,17 @@ const SEED_SCHOOL_2026_SCHEDULE = {
 // Cal — guarded by date+opponent (not just "team has zero games") since these teams already carry
 // their 2024-2025 history from ensureOpponentSchoolResults(), so a length===0 check would never fire.
 function ensureSchoolSeed2026Schedule(){
+  // Tournament-bracket placeholders ("MPSF Invitational (field TBD)") can never become a real game once
+  // their date has passed -- the real opponents are separate result rows -- so drop any that are still
+  // sitting untouched in saved state.
+  const todayIso = new Date().toISOString().slice(0,10);
+  const isStaleTbd = g => g.status==='upcoming' && /\(field TBD\)/.test(g.opponent||'') && (g.date||'')<todayIso
+    && !Object.values(g.quarters||{}).some(q=>q && q.length);
+  const staleIds = new Set(app.games.filter(isStaleTbd).map(g=>g.id));
+  if(staleIds.size){
+    app.games = app.games.filter(g=>!staleIds.has(g.id));
+    app.teams.forEach(t=>{ if(Array.isArray(t.games)) t.games = t.games.filter(id=>!staleIds.has(id)); });
+  }
   Object.keys(SEED_SCHOOL_2026_SCHEDULE).forEach(teamName=>{
     const team = app.teams.find(t=>t.name.toLowerCase()===teamName.toLowerCase());
     if(!team) return;
@@ -4198,12 +4209,15 @@ function ensureOpponentSchoolResults(){
   Object.keys(SEED_SCHOOL_RESULTS).forEach(teamName=>{
     const team = app.teams.find(t=>t.name.toLowerCase()===teamName.toLowerCase());
     if(!team) return;
-    const exists = (date, opponent) => app.games.some(g=>g.teamId===team.id && g.date===date && g.opponent===opponent);
     const findRosterPlayer = (name) => team.players.find(p=>p.name===name);
     const pbpForTeam = SEED_SCHOOL_PLAYBYPLAY[teamName];
     SEED_SCHOOL_RESULTS[teamName].forEach(s=>{
-      if(exists(s.date, s.opponent)) return;
-      const game = blankGame(team.id);
+      // A schedule-seed placeholder for this exact game may already be saved from an earlier build
+      // (status 'upcoming', nothing tracked). Upgrade it in place to the real result instead of
+      // skipping it, otherwise results added after the schedule was first seeded never show up.
+      const existing = app.games.find(g=>g.teamId===team.id && g.date===s.date && g.opponent===s.opponent);
+      if(existing && (existing.status!=='upcoming' || Object.values(existing.quarters||{}).some(q=>q && q.length))) return;
+      const game = existing || blankGame(team.id);
       game.opponent = s.opponent; game.date = s.date; game.status = 'final';
       if(s.note) game.notes = s.note;
       const pbp = pbpForTeam && pbpForTeam[s.date+'|'+s.opponent];
@@ -4224,8 +4238,7 @@ function ensureOpponentSchoolResults(){
         buildPlaceholderQuarterEvents(s.teamScore, s.oppScore).forEach(ev=>game.quarters[ev.q].push(ev.event));
       }
       addOpponent(s.opponent, false);
-      app.games.push(game);
-      team.games.push(game.id);
+      if(!existing){ app.games.push(game); team.games.push(game.id); }
     });
   });
 }
@@ -4268,7 +4281,7 @@ function ensureSeedTeamsAndSchedule(){
 // saved/synced) from an earlier, partly wrong scrape. ensureSeedTeamsAndSchedule() deliberately never
 // touches a team that already exists, so without this the corrections would only ever reach a
 // brand-new browser. Deliberately narrow: only these named school teams, never removes anyone except
-// an explicitly listed phantom that no game references, adds missing players with a deterministic id
+// an explicitly listed phantom (hidden if a game references it), adds missing players with a deterministic id
 // (so two browsers reconciling at once can't create duplicates), and syncs cap/position by name.
 const SEED_ROSTER_FIXES = {
   'UC Davis':  { remove:['JT Doughty'] },
@@ -4291,7 +4304,10 @@ function reconcileSeedRosters(){
     });
     (fix.remove||[]).forEach(n=>{
       const i = team.players.findIndex(x=>norm(x.name)===norm(n));
-      if(i>=0 && !JSON.stringify(app.games).includes(team.players[i].id)) team.players.splice(i,1);
+      if(i<0) return;
+      // Referenced by saved games -> hide instead of deleting so those events keep their player.
+      if(JSON.stringify(app.games).includes(team.players[i].id)) team.players[i].active = false;
+      else team.players.splice(i,1);
     });
     CURRENT_ROSTERS[key].players.forEach(sp=>{
       let p = team.players.find(x=>norm(x.name)===norm(sp.name));
