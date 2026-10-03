@@ -8386,7 +8386,7 @@ function computeMomentum(game, n=6){
 // This team's actual record/scorelines vs this opponent from its own logged games this season —
 // distinct from the curated multi-year rivalry history.
 function ownSeasonSeries(game){
-  const priors = app.games.filter(g=> g.id!==game.id && g.teamId===game.teamId && (g.opponent||'').toLowerCase()===(game.opponent||'').toLowerCase());
+  const priors = app.games.filter(g=> g.id!==game.id && g.teamId===game.teamId && (g.opponent||'').toLowerCase()===(game.opponent||'').toLowerCase() && g.status==='final' && (!game.date || !g.date || g.date<game.date));
   if(priors.length===0) return null;
   let wins=0, losses=0;
   const results = priors.map(g=>{
@@ -8561,6 +8561,42 @@ function sitFindingText(f){
   if(f.dir==='low') return `only ${f.o} of their ${f.n} ${label} came ${where} (about ${f.exp.toFixed(1)} expected from the team pattern)`;
   return `${f.o} of their ${f.n} ${label} came ${where} (${pct(f.o/f.n)} vs ${pct(f.share)} for the team)`;
 }
+// Box-score level stats: season totals published by each school (gp, goals, assists, shots, exclusions
+// drawn, steals, saves, blocks). These cover games that have NO play-by-play, so they are the only
+// source of per-player output for most schools. They have no timing, so they feed rates and trends
+// (per game, shooting %, this season vs last), not the period/clock/score buckets above.
+function boxRatesFor(player){
+  if(!player || typeof SEED_SCHOOL_PLAYER_STATS==='undefined') return null;
+  const team = (app.teams||[]).find(t=>t.id===player.teamId); if(!team) return null;
+  const st = (SEED_SCHOOL_PLAYER_STATS[team.name]||{})[player.name]; if(!st) return null;
+  // Some schools only publish totals (gp unknown, stored as 0), so a year counts if it has any stat at all;
+  // per-game rates are simply left at 0 for those and never used.
+  const hasAny = o => !!o && ((o.gp||0)>0 || ((o.g||0)+(o.a||0)+(o.sh||0)+(o.stl||0)+(o.sv||0)+(o.exd||0)+(o.blk||0))>0);
+  const years = Object.keys(st).filter(y=>hasAny(st[y])).sort();
+  if(!years.length) return null;
+  const cur = hasAny(st['2026']) ? '2026' : years[years.length-1];
+  const c = st[cur], pvRaw = st[String(+cur-1)], pv = pvRaw && pvRaw.gp>=3 ? pvRaw : null;
+  const rate = (o,k) => o && o.gp ? (o[k]||0)/o.gp : 0;
+  return { year:cur, gp:c.gp, g:c.g||0, a:c.a||0, sh:c.sh||0, exd:c.exd||0, stl:c.stl||0, sv:c.sv||0, blk:c.blk||0,
+    gpg:rate(c,'g'), apg:rate(c,'a'), exdpg:rate(c,'exd'), stlpg:rate(c,'stl'), svpg:rate(c,'sv'),
+    shPct: c.sh>=8 ? (c.g||0)/c.sh : null,
+    prev: pv ? {year:String(+cur-1), gp:pv.gp, gpg:rate(pv,'g'), apg:rate(pv,'a'), svpg:rate(pv,'sv')} : null,
+    totalG2y: ((st['2026']||{}).g||0) + ((st['2025']||{}).g||0), totalA2y: ((st['2026']||{}).a||0) + ((st['2025']||{}).a||0) };
+}
+// Record in games decided by 1-2 goals over the last two seasons, from every final score on file —
+// including games that only have a final score (no box score, no play-by-play).
+function teamCloseRecord(teamId, excludeGameId){
+  let w=0, l=0;
+  app.games.filter(g=>g.teamId===teamId && g.id!==excludeGameId && g.status==='final' && (g.date||'')>='2025-01-01').forEach(g=>{
+    const sc = computeGameScore(g); if(sc.team===sc.opponent || Math.abs(sc.team-sc.opponent)>2) return;
+    if(sc.team>sc.opponent) w++; else l++;
+  });
+  return {w, l, n:w+l};
+}
+// How much of this team's data is final-score-only (no real events) — shown so the read is honest about coverage.
+function countScoreOnlyGames(teamId){
+  return app.games.filter(g=>{ if(g.teamId!==teamId || g.status!=='final') return false; const ev=getGameEvents(g); return ev.length>0 && ev.every(isPlaceholderSeedEvent); }).length;
+}
 // A single number summarizing how much a player should be trusted with the ball right now, built
 // from weighted real stats: season output, recent hot/cold form, career production against this
 // exact opponent, breakout-game history, season shooting efficiency, and live foul/fatigue risk.
@@ -8568,15 +8604,30 @@ function sitFindingText(f){
 // the whole point being that a substitution call cites a number, not a vibe.
 function computePlayerValueScore(p, oppContext){
   let score = 0; const breakdown = [];
-  const seasonGoals = p.seasonGoals || 0;
-  if(seasonGoals){ score += seasonGoals * 1.0; breakdown.push(`${seasonGoals} season G`); }
+  const box = p.box || null;
+  // Season output: whichever is larger of the tracked-event count and the schools' published
+  // two-season totals, because most games have a box score but no play-by-play.
+  const eventGoals = p.seasonGoals || 0;
+  const seasonGoals = Math.max(eventGoals, box ? box.totalG2y : 0);
+  if(seasonGoals){ score += seasonGoals * 1.0; breakdown.push(box && box.totalG2y>eventGoals ? `${seasonGoals} G over the last two seasons` : `${seasonGoals} G across logged games`); }
+  if(box && box.gp>=4){
+    score += box.gpg*2; if(box.gpg>=1) breakdown.push(`${box.gpg.toFixed(1)} G/game in ${box.year}`);
+    score += box.apg*1.5; if(box.apg>=1) breakdown.push(`${box.apg.toFixed(1)} A/game`);
+    score += box.exdpg; if(box.exdpg>=0.7) breakdown.push(`draws ${box.exdpg.toFixed(1)} exclusions/game`);
+    score += box.stlpg*0.3;
+    if(box.prev && box.prev.gpg>0 && box.prev.gp>=4){
+      const ratio = box.gpg/box.prev.gpg;
+      if(ratio>=1.3){ score += 1; breakdown.push(`up on last season (${box.gpg.toFixed(1)} vs ${box.prev.gpg.toFixed(1)} G/game)`); }
+      else if(ratio<=0.7){ score -= 1; breakdown.push(`down on last season (${box.gpg.toFixed(1)} vs ${box.prev.gpg.toFixed(1)} G/game)`); }
+    }
+  }
   if(p.form){
     if(p.form.hot){ score += 4; breakdown.push(`hot (avg ${p.form.recentAvg.toFixed(1)} last ${p.form.ofLastN} vs season ${p.form.overallAvg.toFixed(1)})`); }
     if(p.form.cold){ score -= 3; breakdown.push(`cold (scoreless last ${p.form.ofLastN})`); }
   }
   if(p.careerVsOpp && p.careerVsOpp.goals){ score += p.careerVsOpp.goals * 1.5; breakdown.push(`${p.careerVsOpp.goals}G vs this opponent`); }
   if(p.bigGames && p.bigGames.length){ score += 1.5; breakdown.push('breakout-game history'); }
-  const shooting = seasonShootingPct(p.id);
+  const shooting = seasonShootingPct(p.id) || (box && box.shPct!=null ? {goals:box.g, attempts:box.sh, pct:box.shPct} : null);
   if(shooting){ const delta = shooting.pct - 0.35; score += delta * 10; breakdown.push(`${Math.round(shooting.pct*100)}% shooting (${shooting.goals}/${shooting.attempts})`); }
   if(p.gameExGiven>=2){ score -= 3; breakdown.push('2 exclusions already this game'); }
   if(p.gameTurnovers>=2){ score -= 1.5; breakdown.push(`${p.gameTurnovers} turnovers already this game`); }
@@ -8674,16 +8725,16 @@ function buildTacticsSituation(game){
     return { ...p, fatigue: t.fatigue||'Low', gameExGiven: thisGameStat(game,p.id,'exclusion'), gameExDrawn: thisGameStat(game,p.id,'exclusion_drawn'), gameTurnovers: thisGameStat(game,p.id,'turnover'), seasonExDrawn: seasonStat(p.id,'exclusion_drawn'), seasonExGiven: seasonStat(p.id,'exclusion'), seasonGoals: seasonStat(p.id,'goal'),
       careerVsOpp: careerFor(oppContext, p.name), goalsVsCurrentGoalie: oppGoalieEntry ? careerGoalsVsGoalie(oppContext, p.name, oppGoalieEntry.name) : 0,
       situationalVsOpp: oppContext ? oppContext.situational[(p.name||'').toLowerCase()] : null,
-      form: computeStreak(ownLog), bigGames: findBigGames(ownLog), noteFlags: buildPlayerNoteTally(p, 5), situational: sitFindingsFor(sitIdx, p.id, sitCurDims) };
+      form: computeStreak(ownLog), bigGames: findBigGames(ownLog), noteFlags: buildPlayerNoteTally(p, 5), situational: sitFindingsFor(sitIdx, p.id, sitCurDims), box: boxRatesFor(p) };
   }).filter(Boolean);
   const benchIds = new Set(our.map(t=>t.refId));
   const bench = roster.filter(p=>!benchIds.has(p.id)).map(p=>{
     const ownLog = ownPlayerGameLog(p, game.id);
     return { ...p, seasonExDrawn:seasonStat(p.id,'exclusion_drawn'), seasonExGiven:seasonStat(p.id,'exclusion'), seasonGoals:seasonStat(p.id,'goal'),
       careerVsOpp: careerFor(oppContext, p.name), goalsVsCurrentGoalie: oppGoalieEntry ? careerGoalsVsGoalie(oppContext, p.name, oppGoalieEntry.name) : 0,
-      form: computeStreak(ownLog), bigGames: findBigGames(ownLog), noteFlags: buildPlayerNoteTally(p, 5), situational: sitFindingsFor(sitIdx, p.id, sitCurDims) };
+      form: computeStreak(ownLog), bigGames: findBigGames(ownLog), noteFlags: buildPlayerNoteTally(p, 5), situational: sitFindingsFor(sitIdx, p.id, sitCurDims), box: boxRatesFor(p) };
   });
-  return {sitContext:{label:sitContextLabel(sitCurDims), phase:sitPhase, games:sitIdx.games, events:sitIdx.events}, manstate, manCount, scoreUs:score.team, scoreOpp:score.opponent, diff:score.team-score.opponent, quarter:app.currentQ, notes, matchups, onField, bench, momentum: computeMomentum(game), oppContext, seasonSeries: ownSeasonSeries(game), oppGoalieName: oppGoalieEntry ? oppGoalieEntry.name : null, opponentToday: analyzeOpponentToday(game), foulDifferential: fullGameFoulDifferential(game)};
+  return {sitContext:{label:sitContextLabel(sitCurDims), phase:sitPhase, games:sitIdx.games, events:sitIdx.events, boxPlayers:[...onField, ...bench].filter(x=>x.box).length, scoreOnlyGames:countScoreOnlyGames(game.teamId), closeRecord:teamCloseRecord(game.teamId, game.id)}, manstate, manCount, scoreUs:score.team, scoreOpp:score.opponent, diff:score.team-score.opponent, quarter:app.currentQ, notes, matchups, onField, bench, momentum: computeMomentum(game), oppContext, seasonSeries: ownSeasonSeries(game), oppGoalieName: oppGoalieEntry ? oppGoalieEntry.name : null, opponentToday: analyzeOpponentToday(game), foulDifferential: fullGameFoulDifferential(game)};
 }
 
 // Every signal below is pushed as {text, weight, tag} instead of a bare string. Weight is a rough
@@ -8783,14 +8834,15 @@ function tacticsRuleEngine(sit, game){
     push(`#${bigGamePlayer.cap} ${bigGamePlayer.name||''} has had breakout games before (${bg.goals}G on ${bg.date}) — capable of taking a game over.`, 4, 'Form', bigGamePlayer.cap);
   }
   // --- Season shooting efficiency among on-field players — a real quantitative edge, not a hunch ---
-  const efficientShooter = sit.onField.map(p=>({p, shooting: seasonShootingPct(p.id)})).filter(x=>x.shooting && x.shooting.pct>=0.45).sort((a,b)=>b.shooting.pct-a.shooting.pct)[0];
+  const efficientShooter = sit.onField.map(p=>({p, shooting: seasonShootingPct(p.id) || (p.box && p.box.shPct!=null ? {goals:p.box.g, attempts:p.box.sh, pct:p.box.shPct} : null)})).filter(x=>x.shooting && x.shooting.pct>=0.45).sort((a,b)=>b.shooting.pct-a.shooting.pct)[0];
   if(efficientShooter) push(`#${efficientShooter.p.cap} ${efficientShooter.p.name||''} is shooting ${Math.round(efficientShooter.shooting.pct*100)}% this season (${efficientShooter.shooting.goals}/${efficientShooter.shooting.attempts}) — a clearly above-average look, worth the extra pass to set it up.`, 5, 'Shooting efficiency', efficientShooter.p.cap);
   // --- Sprint win rate — a real, quantified edge for who should take the opening sprint ---
   const sprintAce = sit.onField.map(p=>({p, spr:seasonSprintPct(p.id)})).filter(x=>x.spr && x.spr.pct>=0.65).sort((a,b)=>b.spr.pct-a.spr.pct)[0];
   if(sprintAce) push(`#${sprintAce.p.cap} ${sprintAce.p.name||''} wins ${Math.round(sprintAce.spr.pct*100)}% of sprints this season (${sprintAce.spr.won}/${sprintAce.spr.attempts}) — a reliable way to start the possession clock in our favor.`, 4, 'Sprint efficiency', sprintAce.p.cap);
   // --- Season assist leader on the field — a proven facilitator worth running sets through ---
-  const playmaker = [...sit.onField].sort((a,b)=>seasonStat(b.id,'assist')-seasonStat(a.id,'assist'))[0];
-  const playmakerAssists = playmaker ? seasonStat(playmaker.id,'assist') : 0;
+  const assistsOf = p => Math.max(seasonStat(p.id,'assist'), p.box ? p.box.totalA2y : 0);
+  const playmaker = [...sit.onField].sort((a,b)=>assistsOf(b)-assistsOf(a))[0];
+  const playmakerAssists = playmaker ? assistsOf(playmaker) : 0;
   if(playmaker && playmakerAssists>=3) push(`#${playmaker.cap} ${playmaker.name||''} leads the floor with ${playmakerAssists} assists this season — run sets that get them the ball in the middle.`, 4, 'Playmaking', playmaker.cap);
 
   // --- Situational form: who has actually produced (or struggled) in THIS exact moment — period, third of
@@ -8808,6 +8860,29 @@ function tacticsRuleEngine(sit, game){
     else if(kind==='weak') push(`${who}: ${txt}. Quieter than the team pattern predicts in this spot.`, Math.min(w,5), 'Situational form', p.cap);
     else push(`${who}: ${txt}. Worth accounting for right now.`, Math.min(w,5), 'Coach notes', p.cap);
   });
+
+  // --- Box-score form: season totals from games that have no play-by-play. Pace this season vs last,
+  // goalie saves per game, and the close-game record from every final score on file. ---
+  const boxNotes = [];
+  sit.onField.forEach(p=>{
+    const b = p.box; if(!b || b.gp<4) return;
+    const who = `#${p.cap} ${p.name||''}`.trim();
+    if(b.prev && b.prev.gpg>=0.8){
+      const r = b.gpg/b.prev.gpg;
+      if(r>=1.4 && b.gpg>=1) boxNotes.push({p, w:5, text:`${who} is scoring ${b.gpg.toFixed(1)} a game in ${b.year} (${b.g} in ${b.gp}), up from ${b.prev.gpg.toFixed(1)} in ${b.prev.year} — playing at a higher level than last season.`});
+      else if(r<=0.6) boxNotes.push({p, w:4, text:`${who} is scoring ${b.gpg.toFixed(1)} a game in ${b.year} (${b.g} in ${b.gp}), down from ${b.prev.gpg.toFixed(1)} in ${b.prev.year} — don't lean on last year's numbers.`});
+    }
+    if(p.wpPosition==='GK' && b.svpg>=3){
+      const trend = b.prev && b.prev.svpg>0 ? ` (${b.prev.svpg.toFixed(1)} in ${b.prev.year})` : '';
+      boxNotes.push({p, w:4, text:`${who} is making ${b.svpg.toFixed(1)} saves a game in ${b.year} (${b.sv} in ${b.gp})${trend}.`});
+    }
+    if(b.exdpg>=1.2) boxNotes.push({p, w:4, text:`${who} draws ${b.exdpg.toFixed(1)} exclusions a game in ${b.year} (${b.exd} in ${b.gp}) — feed them in the water where contact is likely.`});
+  });
+  boxNotes.sort((a,b)=>b.w-a.w).slice(0,2).forEach(n=>push(n.text, n.w, 'Season box-score form', n.p.cap));
+  const cr = sit.sitContext && sit.sitContext.closeRecord;
+  if(cr && cr.n>=4 && Math.abs(sit.diff)<=2 && periodOrdinal(sit.quarter)>=3){
+    push(`In games decided by 1–2 goals over the last two seasons we are ${cr.w}-${cr.l}${cr.w/cr.n>=0.6?' — we close these out':cr.w/cr.n<=0.4?' — these have slipped away, so be deliberate':''}.`, crunch?6:3, 'Close games');
+  }
 
   // --- Should someone else be in? One ranked, quantified comparison instead of three anecdotes —
   // every on-field player is scored against same-role bench players and only a real gap (>=3.0)
@@ -8872,7 +8947,7 @@ function tacticsRuleEngine(sit, game){
   // --- This season's series vs this exact opponent (this team's own logged games) ---
   if(sit.seasonSeries){
     const ss = sit.seasonSeries;
-    push(`This season vs ${game.opponent}: ${ss.wins}-${ss.losses} in ${ss.count} prior meeting(s) (${ss.results.map(r=>r.score).join(', ')}).`, 4, 'Season series');
+    push(`Past meetings vs ${game.opponent} (every logged season, score-only games included): ${ss.wins}-${ss.losses} in ${ss.count} (${ss.results.map(r=>r.score).join(', ')}).`, 4, 'Season series');
   }
 
   // --- Multi-year rivalry history: last meeting + recurring situational patterns ---
@@ -8896,7 +8971,7 @@ function tacticsRuleEngine(sit, game){
   stacked.sort((a,b)=>b.weight-a.weight);
   const totalWeight = stacked.reduce((s,r)=>s+r.weight, 0);
   const confidence = totalWeight>=30 ? 'High' : totalWeight>=14 ? 'Medium' : stacked.length ? 'Low' : 'None';
-  const sitRead = { label: sit.sitContext ? sit.sitContext.label : '', games: sit.sitContext ? sit.sitContext.games : 0, events: sit.sitContext ? sit.sitContext.events : 0, items: sitShown.map(({p,f,onField,kind})=>({cap:p.cap, name:p.name||'', onField, kind, text:sitFindingText(f)})) };
+  const sitRead = { label: sit.sitContext ? sit.sitContext.label : '', games: sit.sitContext ? sit.sitContext.games : 0, events: sit.sitContext ? sit.sitContext.events : 0, boxPlayers: sit.sitContext ? sit.sitContext.boxPlayers : 0, scoreOnlyGames: sit.sitContext ? sit.sitContext.scoreOnlyGames : 0, items: sitShown.map(({p,f,onField,kind})=>({cap:p.cap, name:p.name||'', onField, kind, text:sitFindingText(f)})) };
   return {play:chosenPlay, reasons:stacked, lineupNotes, confidence, totalWeight, record:chosenRecord, sitRead};
 }
 // When 2+ independent signals land on the same player (e.g. hot AND a favorable matchup edge AND
@@ -8974,7 +9049,7 @@ function renderTacticsRecommendation(rec, reasons, sit, hiddenCount){
     }
     if(sit.seasonSeries || (sit.oppContext && sit.oppContext.lastMeeting)){
       historyHtml += '<div style="margin-top:10px;font-size:11px;color:var(--text-faint);">';
-      if(sit.seasonSeries) historyHtml += `This season: ${sit.seasonSeries.wins}-${sit.seasonSeries.losses} vs this opponent (${sit.seasonSeries.count} prior meeting${sit.seasonSeries.count===1?'':'s'}). `;
+      if(sit.seasonSeries) historyHtml += `Logged meetings: ${sit.seasonSeries.wins}-${sit.seasonSeries.losses} vs this opponent (${sit.seasonSeries.count} prior meeting${sit.seasonSeries.count===1?'':'s'}). `;
       if(sit.oppContext && sit.oppContext.lastMeeting) historyHtml += `Last meeting: ${sit.oppContext.lastMeeting.date} — ${sit.oppContext.lastMeeting.score}.`;
       historyHtml += '</div>';
     }
@@ -8998,8 +9073,9 @@ function renderTacticsRecommendation(rec, reasons, sit, hiddenCount){
     ${rec.sitRead ? `<div class="rec-why">
       <span class="lbl">Situation read${rec.sitRead.label?` — ${rec.sitRead.label}`:''}</span>
       ${rec.sitRead.items.length ? `<ul class="rec-why-list">${rec.sitRead.items.map(it=>`<li><span class="reason-tag">${it.onField?(it.kind==='risk'?'Risk':it.kind==='weak'?'Quiet':it.kind==='note'?'Note':'Strength'):'Bench'}</span>#${it.cap} ${it.name} — ${it.text}</li>`).join('')}</ul>`
-        : rec.sitRead.events===0 ? `<div class="rec-hidden-note">No play-by-play has been tracked for this team yet, so there is no situational history to read. Track a game (voice or manual) and this fills in automatically.</div>`
+        : rec.sitRead.events===0 ? `<div class="rec-hidden-note">No play-by-play has been tracked for this team yet, so there is no period-by-period history to read. The recommendation still uses season box-score totals; track a game (voice or manual) and the situational read fills in automatically.</div>`
         : `<div class="rec-hidden-note">No player stands out for this exact moment yet. This read uses ${rec.sitRead.events} tracked events across ${rec.sitRead.games} games, and a player needs about 4+ events in a stat before a pattern counts.</div>`}
+      <div class="rec-hidden-note">Also counted: season box-score totals for ${rec.sitRead.boxPlayers} players${rec.sitRead.scoreOnlyGames?` and ${rec.sitRead.scoreOnlyGames} final-score-only game${rec.sitRead.scoreOnlyGames===1?'':'s'} (close-game record, past meetings)`:''}.</div>
     </div>` : ''}
     ${historyHtml}
   `;
