@@ -2021,12 +2021,23 @@ const TEAM_BRANDING = {
   "fordham": { mascot:"Ramses the Ram \u2014 Fordham Rams", primaryColor:"#860038", secondaryColor:"#FFFFFF", icon:"ram" },
   "saint mary's": { mascot:"Gideon the Gael \u2014 Saint Mary's Gaels", primaryColor:"#06315B", secondaryColor:"#D80024", icon:"cross" },
   "west valley college": { mascot:"West Valley College Vikings", primaryColor:"#1B2A4A", secondaryColor:"#F47920", icon:"viking" },
-  "stanford": { mascot:"The Stanford Tree \u2014 Stanford Cardinal", primaryColor:"#8C1515", secondaryColor:"#FFFFFF", icon:"tree" }
+  "stanford": { mascot:"The Stanford Tree \u2014 Stanford Cardinal", primaryColor:"#8C1515", secondaryColor:"#FFFFFF", icon:"tree" },
+  "navy": { mascot:"Bill the Goat \u2014 Navy Midshipmen", primaryColor:"#00205B", secondaryColor:"#C5B783", icon:"anchor" },
+  "iona": { mascot:"Iona Gaels", primaryColor:"#6F2C3F", secondaryColor:"#F2A900", icon:"cross" },
+  "mount st. mary's": { mascot:"Mount St. Mary's Mountaineers", primaryColor:"#002F6C", secondaryColor:"#FFFFFF", icon:"mountain" },
+  "bucknell": { mascot:"Bucky the Bison \u2014 Bucknell Bison", primaryColor:"#003865", secondaryColor:"#E87722" },
+  "johns hopkins": { mascot:"Johns Hopkins Blue Jays", primaryColor:"#002D72", secondaryColor:"#68ACE5", icon:"bird" },
+  "george washington": { mascot:"GW Revolutionaries", primaryColor:"#033C5A", secondaryColor:"#E8D2A1" },
+  "harvard": { mascot:"Harvard Crimson", primaryColor:"#A51C30", secondaryColor:"#1E1E1E" },
+  "brown": { mascot:"Bruno the Bear \u2014 Brown Bears", primaryColor:"#4E3629", secondaryColor:"#C00404", icon:"bear" },
+  "mit": { mascot:"Tim the Beaver \u2014 MIT Engineers", primaryColor:"#A31F34", secondaryColor:"#8A8B8C" }
 };
 function guessBrandingKey(name){
   if(!name) return null;
   const n = name.toLowerCase();
-  return Object.keys(TEAM_BRANDING).find(k=>n.includes(k)) || null;
+  // Short keys ("iona", "mit", "navy") must match a whole word, or "Triton Invitational" would read as
+  // Iona; "cal" stays a substring match so "California" still finds it.
+  return Object.keys(TEAM_BRANDING).find(k=> k!=='cal' && k.length<=4 ? new RegExp('\\b'+k+'\\b').test(n) : n.includes(k)) || null;
 }
 function applyBrandingIfKnown(team){
   const key = guessBrandingKey(team.name); if(!key) return;
@@ -2076,6 +2087,9 @@ const MASCOT_ICON_PATHS = {
   horse: `<path d="M38,94 L32,54 Q29,20 58,14 Q80,14 80,36 L70,42 L76,52 L60,54 L57,94 Z"/><polygon points="58,14 52,-2 66,10"/>`,
   wave: `<path d="M2,58 Q22,36 42,58 T82,58 T122,58" stroke-width="11" fill="none"/><path d="M2,80 Q22,58 42,80 T82,80 T122,80" stroke-width="11" fill="none" opacity=".55"/>`,
   ram: `<circle cx="50" cy="56" r="17"/><path d="M35,44 Q8,38 13,66 Q18,88 40,77" fill="none" stroke-width="9"/><path d="M65,44 Q92,38 87,66 Q82,88 60,77" fill="none" stroke-width="9"/>`,
+  anchor: `<circle cx="50" cy="17" r="8" fill="none" stroke="rgba(255,255,255,.96)" stroke-width="7"/><rect x="45" y="24" width="10" height="64"/><rect x="27" y="35" width="46" height="9" rx="3"/><path d="M16,60 Q20,90 50,90 Q80,90 84,60" fill="none" stroke="rgba(255,255,255,.96)" stroke-width="9"/><polygon points="6,64 22,52 24,70"/><polygon points="94,64 78,52 76,70"/>`,
+  mountain: `<polygon points="4,86 38,22 56,54 68,38 96,86"/>`,
+  bird: `<ellipse cx="46" cy="58" rx="26" ry="18"/><circle cx="68" cy="40" r="13"/><polygon points="62,30 55,8 73,27"/><polygon points="79,39 97,44 79,48"/><polygon points="23,55 2,73 27,68"/>`,
   cross: `<rect x="43" y="12" width="14" height="76"/><rect x="16" y="43" width="68" height="14"/><circle cx="50" cy="50" r="24" fill="none" stroke-width="7"/>`,
   viking: `<path d="M22,72 Q22,28 50,28 Q78,28 78,72 Z"/><rect x="12" y="68" width="76" height="11" rx="3"/><path d="M24,38 Q2,16 14,2" fill="none" stroke-width="9"/><path d="M76,38 Q98,16 86,2" fill="none" stroke-width="9"/>`,
 };
