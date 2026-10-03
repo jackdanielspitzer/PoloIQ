@@ -509,6 +509,8 @@
           <span class="signal-chip"><b>13</b>Full-game foul differential trend</span>
           <span class="signal-chip"><b>14</b>Goalie-specific history, both ends of the pool</span>
           <span class="signal-chip"><b>15</b>Rivalry-specific flags — blown leads, discipline</span>
+          <span class="signal-chip"><b>16</b>Each player's form by quarter, clock, score margin and man-state</span>
+          <span class="signal-chip"><b>17</b>Coach notes mined by situation, not just counted</span>
           <span class="signal-chip">+ 21 more, stacked and ranked live</span>
         </div>
       </div>
@@ -944,6 +946,9 @@
           <div id="tacticsRecArea" class="rec-empty">Set player positions on the pool, then request a recommendation.</div>
           <div class="data-row" style="margin-top:12px;">
             <button class="primary-btn action-btn" id="tacticsRecBtn" onclick="getRecommendation()">Who should be in / what play?</button>
+            <select id="tacticsPhaseSel" class="small-input" title="Where we are in the period. Auto reads the live clock when it is running." style="width:auto;">
+              <option value="auto">Clock: auto</option><option value="early">First third</option><option value="mid">Middle third</option><option value="late">Last third</option>
+            </select>
             <button class="ghost-btn" id="tacticsLogBtn" onclick="toggleTacticsOutcomeBtns()" style="display:none">Did it work? Log it</button>
           </div>
           <div id="tacticsOutcomeBtns" class="data-row" style="display:none;margin-top:10px;gap:8px;flex-wrap:wrap;">
@@ -8416,6 +8421,146 @@ function fullGameFoulDifferential(game){
   const given = events.filter(ev=>ev.stat_type==='exclusion' && (ev.side||'team')==='team').length;
   return { drawn, given, diff: drawn-given };
 }
+/* ---------------- Situational form ----------------
+   Reads EVERY tracked event this team has (live-tracked games and real play-by-play imports; placeholder
+   score-only results are skipped because their event times are invented) and buckets each one by the
+   moment it happened: period, third of the period, score margin before it, man-state and opponent.
+   Coach notes ("bad pass", "great center defense"...) are bucketed the same way.
+   A player is only flagged when their concentration in a bucket beats what the TEAM's own distribution
+   would predict by a real margin (binomial test, p <= 0.05, minimum sample sizes), so a 2-goal fluke
+   never becomes a "tendency". */
+const SIT_POLARITY = {goal:1, assist:1, exclusion_drawn:1, penalty_drawn:1, block:1, save:1, steal:1, sprint_won:1, rebound:1, exclusion:-1, turnover:-1, sprint_lost:-1, scored_on:-1};
+const SIT_LABEL = {goal:'goals', assist:'assists', exclusion_drawn:'exclusions drawn', penalty_drawn:'penalties drawn', block:'blocks', save:'saves', steal:'steals', sprint_won:'sprints won', rebound:'rebounds', exclusion:'exclusions given', turnover:'turnovers', sprint_lost:'sprints lost', scored_on:'goals allowed'};
+const SIT_NEG_NOTE = /\b(bad|poor|sloppy|slow|late|lost|miss|missed|too high|too low|out of position|mistake|careless|weak|rush|rushed|forced|lazy|flat|beat|beaten)\b/i;
+const SIT_POS_NOTE = /\b(great|good|strong|quick|nice|solid|excellent|smart|clutch|sharp|tough|crisp|hustle|fast)\b/i;
+const SIT_PHASE_TEXT = {early:'the first third', mid:'the middle third', late:'the last third'};
+const SIT_MARGIN_TEXT = {leadingBig:'when leading by 3+', leadingClose:'when leading by 1–2', tied:'in tied games', trailingClose:'when trailing by 1–2', trailingBig:'when trailing by 3+'};
+function sitPeriodKey(q){ return /^\d+$/.test(String(q)) ? 'Q'+q : 'OT'; }
+function sitPhaseOf(game, q, ms){
+  if(typeof ms!=='number' || !isClockedPeriod(q)) return null;
+  const len = gamePeriodLengthMs(game, q); if(!len || ms<0 || ms>len+1000) return null;
+  const f = ms/len; return f<1/3 ? 'early' : f<2/3 ? 'mid' : 'late';
+}
+function sitManOf(ev){ return ev.manState==='team_up' ? 'man-up' : ev.manState==='opp_up' ? 'man-down' : ev.manState==='even' ? 'even' : null; }
+function sitDims(per, phase, margin, man, opp){
+  const d = [];
+  if(per) d.push('per:'+per);
+  if(per && phase) d.push('pq:'+per+'|'+phase);
+  if(phase) d.push('ph:'+phase);
+  if(margin) d.push('mar:'+margin);
+  if(man) d.push('man:'+man);
+  if(opp) d.push('opp:'+opp);
+  return d;
+}
+function sitDimText(dim){
+  const i = dim.indexOf(':'), kind = dim.slice(0,i), val = dim.slice(i+1);
+  if(kind==='per') return 'in '+val;
+  if(kind==='pq'){ const [per,ph] = val.split('|'); return 'in '+SIT_PHASE_TEXT[ph]+' of '+per; }
+  if(kind==='ph') return 'in '+SIT_PHASE_TEXT[val]+' of periods';
+  if(kind==='mar') return SIT_MARGIN_TEXT[val] || val;
+  if(kind==='man') return val==='man-up' ? 'on the man-up' : val==='man-down' ? 'while a man down' : 'at even strength';
+  if(kind==='opp') return 'against '+val;
+  return val;
+}
+function sitContextLabel(dims){
+  const per = dims.find(d=>d.startsWith('per:')), ph = dims.find(d=>d.startsWith('ph:')), mar = dims.find(d=>d.startsWith('mar:')), man = dims.find(d=>d.startsWith('man:')), opp = dims.find(d=>d.startsWith('opp:'));
+  const bits = [];
+  if(per) bits.push(per.slice(4));
+  if(ph) bits.push(SIT_PHASE_TEXT[ph.slice(3)]);
+  if(mar) bits.push((SIT_MARGIN_TEXT[mar.slice(4)]||'').replace(/^when /,'').replace(/^in /,''));
+  if(man) bits.push(man.slice(4).replace('-',' '));
+  if(opp) bits.push('vs '+opp.slice(4));
+  return bits.join(' · ');
+}
+// Phase of the CURRENT period: the coach's manual pick wins, otherwise the live clock if it's running
+// (quarterStart is stamped on the first event of a period, or by the camera sync).
+function sitCurrentPhase(game){
+  const sel = document.getElementById('tacticsPhaseSel');
+  if(sel && sel.value && sel.value!=='auto') return sel.value;
+  const qs = game.quarterStart && game.quarterStart[app.currentQ];
+  if(!qs) return null;
+  return sitPhaseOf(game, app.currentQ, Date.now()-qs);
+}
+function buildSituationIndex(teamId){
+  const idx = {teamStat:{}, teamAll:{total:0, dims:{}}, player:{}, games:0, events:0};
+  const add = (o, key, dims) => { const e = o[key] || (o[key] = {total:0, dims:{}}); e.total++; dims.forEach(d=>{ e.dims[d] = (e.dims[d]||0)+1; }); };
+  const playerObj = id => idx.player[id] || (idx.player[id] = {});
+  app.games.filter(g=>g.teamId===teamId).forEach(game=>{
+    let us = 0, them = 0, used = false;
+    getStatPeriods(game).forEach(q=>{
+      const per = sitPeriodKey(q);
+      (game.quarters[q]||[]).forEach(ev=>{
+        if(!ev || isPlaceholderSeedEvent(ev) || !ev.stat_type) return;
+        const st = ev.stat_type, side = ev.side || 'team';
+        if(side==='team'){
+          const dims = sitDims(per, sitPhaseOf(game,q,ev.wall_time_offset_ms), marginBucket(us-them), sitManOf(ev), game.opponent);
+          used = true; idx.events++;
+          idx.teamAll.total++; dims.forEach(d=>{ idx.teamAll.dims[d] = (idx.teamAll.dims[d]||0)+1; });
+          if(st==='note'){
+            if(ev.playerId && ev.note && ev.note.trim()){ const key = 'note:'+ev.note.trim().toLowerCase(); add(idx.teamStat, key, dims); add(playerObj(ev.playerId), key, dims); }
+          } else if(SIT_POLARITY[st]!==undefined){
+            add(idx.teamStat, st, dims); if(ev.playerId) add(playerObj(ev.playerId), st, dims);
+          }
+        }
+        if(st==='goal'){ if(Array.isArray(ev.scoreAfter)){ us = ev.scoreAfter[0]; them = ev.scoreAfter[1]; } else if(side==='team') us++; else them++; }
+      });
+    });
+    if(used) idx.games++;
+  });
+  return idx;
+}
+// P(X >= k) and P(X <= k) for X ~ Binomial(n, p), via the pmf recurrence (n is at most a few hundred).
+function sitBinomTail(n, k, p, upper){
+  if(p<=0 || p>=1) return 1;
+  let pmf = Math.pow(1-p, n), cdf = 0, ge = 0;
+  const r = p/(1-p);
+  for(let i=0;i<=n;i++){
+    if(i<=k) cdf += pmf; if(i>=k) ge += pmf;
+    pmf = pmf * (n-i)/(i+1) * r;
+  }
+  return upper ? Math.min(1, ge) : Math.min(1, cdf);
+}
+function sitFindingsFor(idx, playerId, dims){
+  const pl = idx.player[playerId]; if(!pl) return [];
+  const out = [];
+  Object.entries(pl).forEach(([key, rec])=>{
+    const isNote = key.startsWith('note:');
+    const n = rec.total; if(n < (isNote?3:4)) return;
+    const base = isNote ? idx.teamAll : idx.teamStat[key]; if(!base) return;
+    const T = base.total; if(T < (isNote?30:12)) return;
+    let pol = SIT_POLARITY[key];
+    if(isNote){ const pos = SIT_POS_NOTE.test(key), neg = SIT_NEG_NOTE.test(key); pol = pos && !neg ? 1 : neg && !pos ? -1 : 0; }
+    if(pol===undefined) return;
+    dims.forEach(dim=>{
+      const t = base.dims[dim]||0; if(t<3) return;
+      const share = t/T; if(share>0.85) return;
+      const o = rec.dims[dim]||0, exp = n*share;
+      if(o>=3 && o>=1.5*exp){
+        const pv = sitBinomTail(n, o, share, true);
+        if(pv<=0.05) out.push({key, dim, o, n, exp, share, p:pv, dir:'high', pol, isNote});
+      } else if(key==='goal' && n>=8 && exp>=3.5 && o<=0.4*exp){
+        const pv = sitBinomTail(n, o, share, false);
+        if(pv<=0.05) out.push({key, dim, o, n, exp, share, p:pv, dir:'low', pol, isNote});
+      }
+    });
+  });
+  out.sort((a,b)=>a.p-b.p);
+  // one finding per stat (its strongest bucket), so the same fact isn't repeated for every overlapping bucket
+  const seen = new Set();
+  return out.filter(f=>{ if(seen.has(f.key)) return false; seen.add(f.key); return true; });
+}
+function sitFindingKind(f){
+  if(f.isNote) return f.pol>0 ? 'strong' : f.pol<0 ? 'risk' : 'note';
+  if(f.dir==='low') return 'weak';
+  return f.pol>0 ? 'strong' : 'risk';
+}
+function sitFindingText(f){
+  const pct = x => Math.round(x*100)+'%';
+  const label = f.isNote ? '“'+f.key.slice(5)+'” flags' : (SIT_LABEL[f.key]||f.key);
+  const where = sitDimText(f.dim);
+  if(f.dir==='low') return `only ${f.o} of their ${f.n} ${label} came ${where} (about ${f.exp.toFixed(1)} expected from the team pattern)`;
+  return `${f.o} of their ${f.n} ${label} came ${where} (${pct(f.o/f.n)} vs ${pct(f.share)} for the team)`;
+}
 // A single number summarizing how much a player should be trusted with the ball right now, built
 // from weighted real stats: season output, recent hot/cold form, career production against this
 // exact opponent, breakout-game history, season shooting efficiency, and live foul/fatigue risk.
@@ -8440,6 +8585,17 @@ function computePlayerValueScore(p, oppContext){
   if(p.fatigue==='High'){ score -= 2; breakdown.push('high fatigue'); }
   const noteFlag = p.noteFlags && p.noteFlags[0];
   if(noteFlag && noteFlag.count>=2){ score -= Math.min(noteFlag.count, 4); breakdown.push(`flagged "${noteFlag.text}" ${noteFlag.count}x recently`); }
+  // Situational form: how this player has produced in THIS exact spot (period, third, margin, man-state,
+  // opponent). Capped so no single moment outweighs a season of output.
+  if(p.situational && p.situational.length){
+    let sb = 0;
+    p.situational.slice(0,3).forEach(f=>{
+      const k = sitFindingKind(f), bonus = f.p<=0.03 ? 2 : 1.5;
+      if(k==='strong'){ sb += bonus; breakdown.push(`strong ${sitDimText(f.dim)} (${f.o} of ${f.n} ${f.isNote?'flags':SIT_LABEL[f.key]})`); }
+      else if(k==='risk' || k==='weak'){ sb -= 1.5; breakdown.push(`${k==='weak'?'quiet':'risky'} ${sitDimText(f.dim)} (${f.o} of ${f.n} ${f.isNote?'flags':SIT_LABEL[f.key]})`); }
+    });
+    score += Math.max(-3, Math.min(4, sb));
+  }
   return { score: Math.round(score*10)/10, breakdown };
 }
 // Compare every on-field player against same-role bench players using the value score above, and
@@ -8496,6 +8652,9 @@ function buildTacticsSituation(game){
   const score = computeGameScore(game);
   const notes = document.getElementById('tacticsFreeNotes').value.trim();
   const oppContext = buildOpponentContext(game);
+  const sitIdx = buildSituationIndex(game.teamId);
+  const sitPhase = sitCurrentPhase(game);
+  const sitCurDims = sitDims(sitPeriodKey(app.currentQ), sitPhase, marginBucket(score.team-score.opponent), manstate, game.opponent);
   const oppGoalieEntry = opp.map(t=>findOppCap(game,t.refId)).find(p=>p && /gk|goalie|goalkeeper/i.test(p.note||''));
   const matchups = computeTacticsMatchups(game).map(pr=>{
     const ourP = roster.find(p=>p.id===pr.our.refId);
@@ -8515,16 +8674,16 @@ function buildTacticsSituation(game){
     return { ...p, fatigue: t.fatigue||'Low', gameExGiven: thisGameStat(game,p.id,'exclusion'), gameExDrawn: thisGameStat(game,p.id,'exclusion_drawn'), gameTurnovers: thisGameStat(game,p.id,'turnover'), seasonExDrawn: seasonStat(p.id,'exclusion_drawn'), seasonExGiven: seasonStat(p.id,'exclusion'), seasonGoals: seasonStat(p.id,'goal'),
       careerVsOpp: careerFor(oppContext, p.name), goalsVsCurrentGoalie: oppGoalieEntry ? careerGoalsVsGoalie(oppContext, p.name, oppGoalieEntry.name) : 0,
       situationalVsOpp: oppContext ? oppContext.situational[(p.name||'').toLowerCase()] : null,
-      form: computeStreak(ownLog), bigGames: findBigGames(ownLog), noteFlags: buildPlayerNoteTally(p, 5) };
+      form: computeStreak(ownLog), bigGames: findBigGames(ownLog), noteFlags: buildPlayerNoteTally(p, 5), situational: sitFindingsFor(sitIdx, p.id, sitCurDims) };
   }).filter(Boolean);
   const benchIds = new Set(our.map(t=>t.refId));
   const bench = roster.filter(p=>!benchIds.has(p.id)).map(p=>{
     const ownLog = ownPlayerGameLog(p, game.id);
     return { ...p, seasonExDrawn:seasonStat(p.id,'exclusion_drawn'), seasonExGiven:seasonStat(p.id,'exclusion'), seasonGoals:seasonStat(p.id,'goal'),
       careerVsOpp: careerFor(oppContext, p.name), goalsVsCurrentGoalie: oppGoalieEntry ? careerGoalsVsGoalie(oppContext, p.name, oppGoalieEntry.name) : 0,
-      form: computeStreak(ownLog), bigGames: findBigGames(ownLog), noteFlags: buildPlayerNoteTally(p, 5) };
+      form: computeStreak(ownLog), bigGames: findBigGames(ownLog), noteFlags: buildPlayerNoteTally(p, 5), situational: sitFindingsFor(sitIdx, p.id, sitCurDims) };
   });
-  return {manstate, manCount, scoreUs:score.team, scoreOpp:score.opponent, diff:score.team-score.opponent, quarter:app.currentQ, notes, matchups, onField, bench, momentum: computeMomentum(game), oppContext, seasonSeries: ownSeasonSeries(game), oppGoalieName: oppGoalieEntry ? oppGoalieEntry.name : null, opponentToday: analyzeOpponentToday(game), foulDifferential: fullGameFoulDifferential(game)};
+  return {sitContext:{label:sitContextLabel(sitCurDims), phase:sitPhase, games:sitIdx.games, events:sitIdx.events}, manstate, manCount, scoreUs:score.team, scoreOpp:score.opponent, diff:score.team-score.opponent, quarter:app.currentQ, notes, matchups, onField, bench, momentum: computeMomentum(game), oppContext, seasonSeries: ownSeasonSeries(game), oppGoalieName: oppGoalieEntry ? oppGoalieEntry.name : null, opponentToday: analyzeOpponentToday(game), foulDifferential: fullGameFoulDifferential(game)};
 }
 
 // Every signal below is pushed as {text, weight, tag} instead of a bare string. Weight is a rough
@@ -8634,6 +8793,22 @@ function tacticsRuleEngine(sit, game){
   const playmakerAssists = playmaker ? seasonStat(playmaker.id,'assist') : 0;
   if(playmaker && playmakerAssists>=3) push(`#${playmaker.cap} ${playmaker.name||''} leads the floor with ${playmakerAssists} assists this season — run sets that get them the ball in the middle.`, 4, 'Playmaking', playmaker.cap);
 
+  // --- Situational form: who has actually produced (or struggled) in THIS exact moment — period, third of
+  // the period, score margin, man-state, opponent — from every tracked event, coach notes included.
+  const sitItems = [];
+  sit.onField.forEach(p=>(p.situational||[]).slice(0,2).forEach(f=>sitItems.push({p, f, onField:true, kind:sitFindingKind(f)})));
+  sit.bench.forEach(p=>(p.situational||[]).filter(f=>sitFindingKind(f)==='strong').slice(0,1).forEach(f=>sitItems.push({p, f, onField:false, kind:'strong'})));
+  sitItems.sort((a,b)=>a.f.p-b.f.p);
+  const sitShown = sitItems.slice(0,5);
+  sitShown.forEach(({p, f, onField, kind})=>{
+    const who = `#${p.cap} ${p.name||''}`.trim(), txt = sitFindingText(f), w = f.p<=0.02 ? 7 : f.p<=0.05 ? 6 : 5;
+    if(!onField) push(`On the bench: ${who} — ${txt}. A strong fit for this exact moment.`, w, 'Situational form', p.cap);
+    else if(kind==='strong') push(`${who}: ${txt}. A real strength in this spot — keep them involved.`, w, 'Situational form', p.cap);
+    else if(kind==='risk') push(`${who}: ${txt}. A liability in this spot — consider a different look.`, w, 'Situational form', p.cap);
+    else if(kind==='weak') push(`${who}: ${txt}. Quieter than the team pattern predicts in this spot.`, Math.min(w,5), 'Situational form', p.cap);
+    else push(`${who}: ${txt}. Worth accounting for right now.`, Math.min(w,5), 'Coach notes', p.cap);
+  });
+
   // --- Should someone else be in? One ranked, quantified comparison instead of three anecdotes —
   // every on-field player is scored against same-role bench players and only a real gap (>=3.0)
   // gets surfaced, with the exact number and what drove it shown so it's checkable, not a vibe.
@@ -8721,7 +8896,8 @@ function tacticsRuleEngine(sit, game){
   stacked.sort((a,b)=>b.weight-a.weight);
   const totalWeight = stacked.reduce((s,r)=>s+r.weight, 0);
   const confidence = totalWeight>=30 ? 'High' : totalWeight>=14 ? 'Medium' : stacked.length ? 'Low' : 'None';
-  return {play:chosenPlay, reasons:stacked, lineupNotes, confidence, totalWeight, record:chosenRecord};
+  const sitRead = { label: sit.sitContext ? sit.sitContext.label : '', games: sit.sitContext ? sit.sitContext.games : 0, events: sit.sitContext ? sit.sitContext.events : 0, items: sitShown.map(({p,f,onField,kind})=>({cap:p.cap, name:p.name||'', onField, kind, text:sitFindingText(f)})) };
+  return {play:chosenPlay, reasons:stacked, lineupNotes, confidence, totalWeight, record:chosenRecord, sitRead};
 }
 // When 2+ independent signals land on the same player (e.g. hot AND a favorable matchup edge AND
 // a proven history vs this opponent), that's a materially stronger case than any one alone — don't
@@ -8819,6 +8995,12 @@ function renderTacticsRecommendation(rec, reasons, sit, hiddenCount){
       <ul class="rec-why-list">${reasons.map(r=>`<li><span class="reason-tag">${r.tag||''}</span>${r.text}</li>`).join('')}</ul>
       ${hiddenCount>0 ? `<div class="rec-hidden-note">${hiddenCount} lower-confidence signal${hiddenCount===1?'':'s'} not shown — this stays focused on what actually matters right now.</div>` : ''}
     </div>
+    ${rec.sitRead ? `<div class="rec-why">
+      <span class="lbl">Situation read${rec.sitRead.label?` — ${rec.sitRead.label}`:''}</span>
+      ${rec.sitRead.items.length ? `<ul class="rec-why-list">${rec.sitRead.items.map(it=>`<li><span class="reason-tag">${it.onField?(it.kind==='risk'?'Risk':it.kind==='weak'?'Quiet':it.kind==='note'?'Note':'Strength'):'Bench'}</span>#${it.cap} ${it.name} — ${it.text}</li>`).join('')}</ul>`
+        : rec.sitRead.events===0 ? `<div class="rec-hidden-note">No play-by-play has been tracked for this team yet, so there is no situational history to read. Track a game (voice or manual) and this fills in automatically.</div>`
+        : `<div class="rec-hidden-note">No player stands out for this exact moment yet. This read uses ${rec.sitRead.events} tracked events across ${rec.sitRead.games} games, and a player needs about 4+ events in a stat before a pattern counts.</div>`}
+    </div>` : ''}
     ${historyHtml}
   `;
 }
