@@ -7443,7 +7443,8 @@ let clockSyncDigitCount = 3;
 let clockSyncPeriodMs = 8*60*1000;
 let clockSyncInterval = null;
 let clockSyncDrawStart = null;
-let clockSyncLastAppliedMs = null; // avoid re-pulling/pushing on every tick once a reading has already been applied
+let clockSyncLastAppliedMs = null;
+let clockSyncLastAppliedQ = null; // which period that last applied reading belonged to // avoid re-pulling/pushing on every tick once a reading has already been applied
 let clockSyncLastSyncFlashAt = 0; // when the "✓ Synced" confirmation last showed — briefly holds that message, then lets live digit feedback resume
 let clockSyncDisplayType = 'segment'; // 'segment' = classic 7-segment LED, 'ocr' = a TV/video-board rendering digits in a regular font
 let clockSyncOcrInterval = null;
@@ -7846,6 +7847,18 @@ async function applyClockSyncReading(remainingMs){
     const game = findGame(app.selectedGameId); if(!game) return;
     if(!game.quarterStart) game.quarterStart = {};
     if(!game.periodLengthMsByPeriod) game.periodLengthMsByPeriod = {};
+    // The scoreboard going from (nearly) 0:00 straight back to a full period means the next quarter
+    // just started. Without this, a coach who forgets to tap the next quarter tab gets every new
+    // event filed under the old quarter and the old quarter's clock re-anchored. Only when that
+    // 0:00 reading was taken in the quarter still selected (if the coach already switched tabs,
+    // nothing to do), and only Q1-Q3: overtime is a decision, never automatic.
+    let autoAdvanced = false;
+    if(clockSyncLastAppliedMs !== null && clockSyncLastAppliedMs <= 30000 && remainingMs >= clockSyncPeriodMs - 30000
+       && clockSyncLastAppliedQ === app.currentQ && /^[123]$/.test(String(app.currentQ))){
+      app.currentQ = Number(app.currentQ) + 1;
+      if(!game.quarters[app.currentQ]) game.quarters[app.currentQ] = [];
+      autoAdvanced = true;
+    }
     const elapsedMs = clockSyncPeriodMs - remainingMs;
     game.quarterStart[app.currentQ] = Date.now() - Math.max(0, elapsedMs);
     // Remember the period length this reading was taken against so the game log can convert
@@ -7854,10 +7867,14 @@ async function applyClockSyncReading(remainingMs){
     game.periodLengthMsByPeriod[app.currentQ] = clockSyncPeriodMs;
     game.periodLengthMs = game.periodLengthMs || clockSyncPeriodMs;
     clockSyncLastAppliedMs = remainingMs;
+    clockSyncLastAppliedQ = app.currentQ;
     saveState();
+    if(autoAdvanced && app.page==='game') renderGame();
     const statusEl = document.getElementById('clockSyncStatus');
     clockSyncLastSyncFlashAt = Date.now();
-    if(statusEl) statusEl.innerHTML = `<span style="color:var(--good);">✓ Synced</span> — ${periodLabel(app.currentQ)} set to ${fmtClockMs(remainingMs)} remaining.`;
+    if(statusEl) statusEl.innerHTML = autoAdvanced
+      ? `<span style="color:var(--good);">✓ ${periodLabel(app.currentQ)} started</span> — clock reset detected, now logging ${periodLabel(app.currentQ)} (${fmtClockMs(remainingMs)} remaining).`
+      : `<span style="color:var(--good);">✓ Synced</span> — ${periodLabel(app.currentQ)} set to ${fmtClockMs(remainingMs)} remaining.`;
   } finally {
     clockSyncApplying = false;
     // Something newer came in while this one was busy (only realistically possible during the
