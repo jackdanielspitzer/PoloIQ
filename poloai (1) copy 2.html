@@ -8312,8 +8312,13 @@ function buildPregameSummary(game){
     const leaders = roster.map(p=>({p, career:careerFor(oppContext, p.name)})).filter(x=>x.career && x.career.goals>0).sort((a,b)=>b.career.goals-a.career.goals);
     if(leaders[0]) lines.push(`#${leaders[0].p.cap} ${leaders[0].p.name||''} has ${leaders[0].career.goals} goal(s) against this exact opponent across ${leaders[0].career.meetings} logged meeting(s) — a proven weapon here.`);
   }
-  const topScorer = [...roster].sort((a,b)=>seasonStat(b.id,'goal')-seasonStat(a.id,'goal'))[0];
-  if(topScorer && seasonStat(topScorer.id,'goal')>0) lines.push(`Leading scorer this season: #${topScorer.cap} ${topScorer.name||''} with ${seasonStat(topScorer.id,'goal')} goal(s).`);
+  // One pass over every game, then a lookup per player — calling seasonStat inside the sort
+  // comparator re-scanned every game in the app ~200 times per plan, which is what made the
+  // Coaches page (one plan per game) take 5-15 seconds to open.
+  const goalsBy = {}; const rosterIds = new Set(roster.map(p=>p.id));
+  app.games.forEach(g=>getGameEvents(g).forEach(ev=>{ if(ev.stat_type==='goal' && rosterIds.has(ev.playerId)) goalsBy[ev.playerId] = (goalsBy[ev.playerId]||0)+1; }));
+  const topScorer = [...roster].sort((a,b)=>(goalsBy[b.id]||0)-(goalsBy[a.id]||0))[0];
+  if(topScorer && goalsBy[topScorer.id]>0) lines.push(`Leading scorer this season: #${topScorer.cap} ${topScorer.name||''} with ${goalsBy[topScorer.id]} goal(s).`);
   if(lines.length===0) lines.push('No matchup history or standout trends yet for this opponent — this fills in as more games get logged.');
   return lines;
 }
