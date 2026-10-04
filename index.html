@@ -1058,7 +1058,7 @@ const STAT_DEFS = [
   { key:'shot_attempt', label:'Shot attempt', short:'ATT', tone:'', patterns:['shot attempt','shot on goal','shoot','shot','attempt','misses the cage','miss the cage','sails the cage','sails wide','sails high','hits the bar','hit the bar','hits the crossbar','off the post','post out','bar out','bar in','misses','miss']},
   { key:'assist', label:'Assist', short:'AST', tone:'good', patterns:['assist','assists']},
   { key:'exclusion', label:'Exclusion', short:'EXC', tone:'bad', patterns:['exclusion','excluded','kicked out','ejection','ejected','eject','penalty against','penalty conceded','penalty on us','their penalty']},
-  { key:'exclusion_drawn', label:'Exclusion drawn', short:'EXD', tone:'good', patterns:['exclusion drawn','drawn exclusion','drew exclusion','draws exclusion','ejection drawn','drawn ejection','drew ejection']},
+  { key:'exclusion_drawn', label:'Exclusion drawn', short:'EXD', tone:'good', patterns:['exclusion drawn','drawn exclusion','drew exclusion','draws exclusion','earned exclusion','earns exclusion','exclusion earned','ejection drawn','drawn ejection','drew ejection','earned ejection']},
   { key:'penalty_drawn', label:'Penalty drawn', short:'PD', tone:'good', patterns:['penalty drawn','drawn penalty','draws penalty','drew penalty','penalty for us','our penalty']},
   { key:'block', label:'Block', short:'BLK', tone:'good', patterns:['block','blocked']},
   { key:'save', label:'Save', short:'SV', tone:'good', patterns:['save','saved','stopped it','save by','great save']},
@@ -6855,12 +6855,22 @@ function tokenizeCapMentions(text, game){
       else if(words[j]==='to' || words[j]==='too') val = 2;
       else if(words[j]==='for') val = 4;
     }
-    if(val===null) continue;
+    // Lettered caps — two goalies sharing #1 as "1A"/"1B" — arrive either as one token ("1a") or as
+    // the number then a lone letter ("1 a", "one b"). Only read the separate letter when that exact
+    // cap exists on the side's roster, since a lone "a" right after a number is otherwise filler.
     const side = (colorWord===ourColor) ? 'team' : 'opponent';
+    const sideRoster = side==='team' ? roster : ((game && game.oppRoster) || []);
+    let capEnd = j;
+    const glued = /^(\d+)([abc])$/.exec(words[j]||'');
+    if(val===null && glued) val = glued[1] + glued[2].toUpperCase();
+    else if(val!==null && /^[abc]$/.test(words[j+1]||'') && sideRoster.some(pl=>String(pl.cap).toUpperCase()===`${val}${words[j+1].toUpperCase()}`)){
+      val = `${val}${words[j+1].toUpperCase()}`; capEnd = j+1; consumed.add(j+1);
+    }
+    if(val===null) continue;
     let playerId = null;
-    if(side==='team'){ const p = roster.find(pl=>String(pl.cap)===String(val)); if(p) playerId = p.id; }
-    tokens.push({playerId, cap:val, side, start: positions[i], end: positions[j]+String(words[j]).length});
-    consumed.add(i); consumed.add(j); i = j;
+    if(side==='team'){ const p = roster.find(pl=>String(pl.cap).toUpperCase()===String(val).toUpperCase()); if(p) playerId = p.id; }
+    tokens.push({playerId, cap:val, side, start: positions[i], end: positions[capEnd]+String(words[capEnd]).length});
+    consumed.add(i); consumed.add(j); i = capEnd;
   }
   words.forEach((w,i)=>{
     if(consumed.has(i)) return;
@@ -6888,7 +6898,7 @@ function resolveGoalie(side, game){
 function findGoalieMentions(text, game){
   if(!game) return [];
   const mentions = [];
-  const re = /\b(dark|light|white)\s+(?:cap\s+)?goalie\b/g;
+  const re = /\b(dark|light|white)\s+(?:cap\s+)?(?:goalie|goal\s?keeper|goal\s?tender|keeper)\b/g;
   const team = findTeam(game.teamId);
   const ourColor = ((game && game.ourColor) || (team && team.color) || 'Dark').toLowerCase();
   let m;
@@ -6896,7 +6906,9 @@ function findGoalieMentions(text, game){
     const colorWord = m[1]==='white' ? 'light' : m[1];
     const side = colorWord===ourColor ? 'team' : 'opponent';
     const resolved = resolveGoalie(side, game);
-    if(resolved) mentions.push({ playerId: resolved.playerId, cap: resolved.cap, side, start: m.index, end: m.index+m[0].length });
+    // No goalie on file for that side (usually the opponent with no roster loaded) — still credit
+    // the side, with the cap left unknown, rather than dropping "light goalie save" as unrecognized.
+    mentions.push({ playerId: resolved ? resolved.playerId : null, cap: resolved ? resolved.cap : null, side, start: m.index, end: m.index+m[0].length });
   }
   return mentions;
 }
@@ -6986,6 +6998,23 @@ const COMPOUND_RULES = [
         events.unshift({...base, playerId:assister.playerId, playerCap:assister.cap, side:assister.side, stat_type:'assist', vsCap:beaten.cap, vsId:beaten.playerId, assistTo:scorer.cap});
       }
       return events;
+    } },
+  // Saves: "dark 5 shot saved (by light goalie)" is the SHOOTER's attempt; the save belongs to whoever
+  // comes after "by". Active "light goalie saved dark 5" names the keeper first. Without a shot word or
+  // a second player, "dark 1A save" stays a plain save for the one player named.
+  { name:'shot_saved', test:t=>/\bsaved\b/.test(t), build:(t,a1,a2,base,game)=>{
+      if(!a2 && !/\b(shot|shoots?|attempt)\b/.test(t)) return null;
+      const byForm = /\bsaved by\b/.test(t) || !a2;
+      const shooter = byForm ? a1 : withSide(a2, oppositeSide(a1.side), game);
+      const keeper = byForm ? (a2 ? withSide(a2, oppositeSide(a1.side), game) : null) : a1;
+      const events = [{...base, playerId:shooter.playerId, playerCap:shooter.cap, side:shooter.side, stat_type:'shot_attempt', missReason:'saved', ...(keeper?{vsCap:keeper.cap, vsId:keeper.playerId}:{})}];
+      if(keeper) events.push({...base, playerId:keeper.playerId, playerCap:keeper.cap, side:keeper.side, stat_type:'save', vsCap:shooter.cap, vsId:shooter.playerId});
+      return events;
+    } },
+  // "dark 8 shot blocked" (no blocker named) is dark 8's shot, not a block BY dark 8.
+  { name:'shot_blocked_solo', test:t=>/\b(shot|shoots?|attempt)\b/.test(t) && /\bblocked\b/.test(t) && !/\bblocked by\b/.test(t), build:(t,a1,a2,base)=>{
+      if(a2) return null;
+      return [{...base, playerId:a1.playerId, playerCap:a1.cap, side:a1.side, stat_type:'shot_attempt', missReason:'blocked'}];
     } },
   { name:'goal_assist_beaten_combo', test:t=>/\b(score|scores|scored|goal)\b/.test(t) && /\bassist/.test(t) && /\b(by|from)\b/.test(t) && /\b(on|versus|against|vs)\b/.test(t), build:(t,a1,a2,base,game,a3)=>{
       if(!a2 || !a3) return null;
@@ -7085,6 +7114,19 @@ const COMPOUND_RULES = [
   // Passive voice flips who committed it: "dark 15 IS EXCLUDED BY light 5" means dark15 got kicked
   // out (they committed the foul) and light5 drew it — the opposite credit from the active phrasing
   // just below. Checked first so it wins over exclusion_pair's broader active-voice test.
+  // "dark 8 drew an exclusion on light 4" / "dark 8 exclusion drawn against light 9" — the DRAWER is
+  // named first and the excluded player after, the reverse of "excluded by". Passive "light 4
+  // excluded, drawn by dark 8" flips it back. Both players get their linked event.
+  { name:'exclusion_drawn_pair', test:t=>/\b(drew|draws|draw|drawn|earned|earns|earn)\b/.test(t) && /\b(exclusion|exclud\w*|ejection|eject\w*|kick(ed)? ?out)\b/.test(t), build:(t,a1,a2,base,game)=>{
+      if(!a2) return null;
+      const passive = /\bdrawn by\b/.test(t);
+      const drawer = passive ? a2 : a1, other = passive ? a1 : a2;
+      const committed = withSide(other, oppositeSide(drawer.side), game);
+      return [
+        {...base, playerId:drawer.playerId, playerCap:drawer.cap, side:drawer.side, stat_type:'exclusion_drawn', vsCap:committed.cap, vsId:committed.playerId},
+        {...base, playerId:committed.playerId, playerCap:committed.cap, side:committed.side, stat_type:'exclusion', vsCap:drawer.cap, vsId:drawer.playerId},
+      ];
+    } },
   { name:'exclusion_passive', test:t=>/(exclud\w*|eject\w*)\s+by\b/.test(t)&&!/(drawn|drew|draws)/.test(t), build:(t,a1,a2,base,game)=>{
       if(onlyMentionIsCredited(a1,a2,t)){ const events=[{...base, playerId:a1.playerId, playerCap:a1.cap, side:a1.side, stat_type:'exclusion_drawn'}]; const note=buildDriveNote(t,base,a1); if(note) events.push(note); return events; }
       const events=[{...base, playerId:a1.playerId, playerCap:a1.cap, side:a1.side, stat_type:'exclusion'}];
@@ -7210,7 +7252,7 @@ const COMPOUND_RULES = [
 
 // Free text left over after removing the player mention — filler words stripped, since noisy
 // pool-deck audio often picks up "um"/"uh"/"yeah" that shouldn't end up baked into a note.
-const NOTE_FILLER_WORDS = new Set(['um','uh','uhh','umm','yeah','like','so','and','the','a']);
+const NOTE_FILLER_WORDS = new Set(['um','uh','uhh','umm','yeah','like','so','and','the','a','an']);
 function stripMentionSpan(text, span){
   if(!span) return text;
   return (text.slice(0, span.start) + ' ' + text.slice(span.end)).replace(/\s+/g,' ').trim();
@@ -7244,12 +7286,17 @@ function parsePhrase(rawText, offsetMs){ const text=rawText.toLowerCase().trim()
   // Match against a filler-stripped copy too ("drew a penalty" needs to hit the "drew penalty"
   // pattern) — natural speech scatters "a"/"the"/"um" between the exact words a fixed phrase list
   // expects, and a real coach isn't going to talk like a search query.
-  const normalizedText = cleanNoteText(text);
-  let matchedKey=null, matchedPhrase=null; for(const p of PATTERN_INDEX){ if(text.includes(p.phrase) || normalizedText.includes(p.phrase)){ matchedKey=p.key; matchedPhrase=p.phrase; break; } }
+  // "goalie"/"goalkeeper"/"goaltender" contain "goal" — mask them so "dark goalie save" is a save, not a goal.
+  const maskGk = t => t.replace(/\bgoal\s?(ie|keeper|tender)s?\b/g, 'keeper').replace(/\bshooters?\b/g, 'gunner');
+  const matchText = maskGk(text), normalizedText = maskGk(cleanNoteText(text));
+  let matchedKey=null, matchedPhrase=null; for(const p of PATTERN_INDEX){ if(matchText.includes(p.phrase) || normalizedText.includes(p.phrase)){ matchedKey=p.key; matchedPhrase=p.phrase; break; } }
   const carriedActor = (!actor1 && app.lastVoiceActor && (Date.now()-app.lastVoiceActorAt)<=ACTOR_CARRY_FORWARD_MS) ? app.lastVoiceActor : null;
   if(matchedKey && (actor1||carriedActor)){
     const who=actor1||carriedActor;
     const ev = {...base, playerId:who.playerId, playerCap:who.cap, side:who.side, stat_type:matchedKey};
+    // "put back goal" / "rebound goal": the longer "put back" pattern wins the match, but a goal was
+    // scored too — log the goal off the rebound rather than dropping it.
+    if(matchedKey==='rebound' && /\b(goal|scores?|scored)\b/.test(text)) return {type:'events', events:[ev, {...base, playerId:who.playerId, playerCap:who.cap, side:who.side, stat_type:'goal', manState: detectManStateContext(text) || undefined}]};
     if(matchedKey==='goal'){ const manState = detectManStateContext(text); if(manState) ev.manState = manState; }
     // Tag WHICH miss it was ("sails the cage" vs "hits the bar" vs a plain "misses") so the feed
     // shows the actual outcome instead of every non-blocked, non-scored attempt looking identical.
