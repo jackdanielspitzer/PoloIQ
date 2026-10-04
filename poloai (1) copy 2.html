@@ -6970,6 +6970,23 @@ const COMPOUND_RULES = [
   // assister). Requires a clean, unambiguous role split; if the two candidate mentions don't
   // resolve to one "beaten" and one "assister" each, this returns null and normal 2-actor rules
   // handle it instead.
+  // Passive "dark 3 (got/was) scored on by light 2 (assisted by light 4)": the FIRST player named is
+  // the one beaten and the scorer comes after "by" — the reverse of every active goal rule below,
+  // which all treat the first mention as the scorer. Checked first so those rules never see it.
+  { name:'scored_on_passive', test:t=>/\bscored on by\b/.test(t), build:(t,a1,a2,base,game,a3)=>{
+      if(!a2) return null;
+      const beaten = a1;
+      const scorer = withSide(a2, oppositeSide(beaten.side), game);
+      const goalEv = {...base, playerId:scorer.playerId, playerCap:scorer.cap, side:scorer.side, stat_type:'goal', vsCap:beaten.cap, vsId:beaten.playerId};
+      const manState = detectManStateContext(t); if(manState) goalEv.manState = manState;
+      const beatenEv = {...base, playerId:beaten.playerId, playerCap:beaten.cap, side:beaten.side, stat_type:'scored_on', vsCap:scorer.cap, vsId:scorer.playerId};
+      const events = [goalEv, beatenEv];
+      if(a3 && /\bassist(ed)?\b/.test(t)){
+        const assister = withSide(a3, scorer.side, game);
+        events.unshift({...base, playerId:assister.playerId, playerCap:assister.cap, side:assister.side, stat_type:'assist', vsCap:beaten.cap, vsId:beaten.playerId, assistTo:scorer.cap});
+      }
+      return events;
+    } },
   { name:'goal_assist_beaten_combo', test:t=>/\b(score|scores|scored|goal)\b/.test(t) && /\bassist/.test(t) && /\b(by|from)\b/.test(t) && /\b(on|versus|against|vs)\b/.test(t), build:(t,a1,a2,base,game,a3)=>{
       if(!a2 || !a3) return null;
       const roles = new Map([[a2,nearestPrecedingPrepRole(t,a2.start)],[a3,nearestPrecedingPrepRole(t,a3.start)]]);
@@ -7399,7 +7416,7 @@ async function openClockSync(){
   const game = findGame(app.selectedGameId);
   if(!game || !hasManagePermission(game)){ alert('You do not have permission to manage this game.'); return; }
   const m = document.getElementById('clockSyncModal'); m.style.display='flex'; m.classList.remove('hidden'); m.classList.remove('minimized'); m.onclick = null;
-  clockSyncBox = null; clockSyncLastAppliedMs = null; clockSyncPulledThisSession = false; clockSyncLastSyncFlashAt = 0;
+  clockSyncBox = null; clockSyncLastAppliedMs = null; clockSyncPulledThisSession = false; clockSyncLastSyncFlashAt = 0; clockSyncTrust = null; clockSyncPending = null;
   document.getElementById('clockSyncStatus').textContent = 'Starting camera…';
   document.getElementById('clockSyncReading').textContent = '--:--';
   try{
@@ -7497,7 +7514,7 @@ function onClockSyncDisplayTypeChange(val){
 function startClockSyncCalibration(){
   if(clockSyncInterval){ clearInterval(clockSyncInterval); clockSyncInterval=null; }
   if(clockSyncOcrInterval){ clearInterval(clockSyncOcrInterval); clockSyncOcrInterval=null; }
-  clockSyncBox = null;
+  clockSyncBox = null; clockSyncTrust = null; clockSyncPending = null;
   const statusEl = document.getElementById('clockSyncStatus');
   if(statusEl) statusEl.textContent = 'Drag a box around the clock digits, then release.';
   const overlay = document.getElementById('clockSyncOverlay');
@@ -7622,7 +7639,7 @@ function beginClockSyncReadingOCR(){
       // fights against that. A clean MM:SS-shaped match above is already the bar for trusting a
       // reading; apply it immediately, same as the segment reader. applyClockSyncReading no-ops on
       // its own once the value repeats, so a steady clock between ticks costs nothing extra.
-      applyClockSyncReading(ms);
+      if(clockReadingAccepted(ms)) applyClockSyncReading(ms);
     }catch(e){
       console.warn('OCR read failed:', e);
       const statusEl = document.getElementById('clockSyncStatus');
@@ -7638,6 +7655,64 @@ function beginClockSyncReadingOCR(){
 // can push a long game session into a crash. Once minimized, this skips most ticks — the interval
 // itself stays cheap to check, only the real (canvas/pixel) work gets throttled.
 function isClockSyncMinimized(){ const m = document.getElementById('clockSyncModal'); return !!(m && m.classList.contains('minimized')); }
+// Real scoreboards don't space their digits evenly — the colon sits in a wider gap between the
+// minutes and the seconds — so splitting the drawn box into equal slices shifts every sample point
+// off the later digits. Instead find the digits themselves: a column is "lit" when enough of its
+// pixels are bright, a run of lit columns is a digit, and the colon (two small dots, so no column
+// is mostly lit) is skipped. A 7-segment "1" only lights its right-hand bars, so a run much
+// narrower than the others is widened leftward to a full digit cell. Returns null (fall back to
+// equal slices) whenever the runs don't add up to the expected digit count.
+function findClockDigitCells(wctx, box, count){
+  const x0 = Math.max(0, Math.round(box.x)), y0 = Math.max(0, Math.round(box.y));
+  const w = Math.max(1, Math.round(box.w)), h = Math.max(1, Math.round(box.h));
+  let data; try{ data = wctx.getImageData(x0, y0, w, h).data; }catch(e){ return null; }
+  const lum = new Float32Array(w*h);
+  for(let i=0, p=0; i<data.length; i+=4, p++) lum[p] = 0.299*data[i]+0.587*data[i+1]+0.114*data[i+2];
+  const sorted = Array.from(lum).sort((a,b)=>a-b);
+  const lo = sorted[Math.floor(sorted.length*0.10)], hi = sorted[Math.floor(sorted.length*0.97)];
+  if(hi - lo < 25) return null;
+  const thr = lo + (hi-lo)*0.5;
+  const colFrac = new Float32Array(w);
+  for(let x=0;x<w;x++){ let on=0; for(let y=0;y<h;y++) if(lum[y*w+x] >= thr) on++; colFrac[x] = on/h; }
+  const runs = []; let start = -1, peak = 0;
+  const minGap = Math.max(2, Math.round(w*0.015));
+  for(let x=0;x<=w;x++){
+    const lit = x<w && colFrac[x] > 0.04;
+    if(lit){ if(start<0){ start=x; peak=0; } peak = Math.max(peak, colFrac[x]); }
+    else if(start>=0){
+      // tolerate a hairline dark gap inside one digit before closing the run
+      let gapEnd = x; while(gapEnd<w && gapEnd-x<minGap && !(colFrac[gapEnd]>0.04)) gapEnd++;
+      if(gapEnd<w && gapEnd-x<minGap){ x = gapEnd-1; continue; }
+      runs.push({a:start, b:x-1, peak}); start=-1;
+    }
+  }
+  // a digit always has at least one segment running most of a half-height; colon dots and specks don't
+  const digitsRuns = runs.filter(r=>r.peak >= 0.3);
+  if(digitsRuns.length !== count) return null;
+  // Every 7-segment digit lights a right-hand bar (b or c), but 1, 3 and 7 light nothing on the
+  // left, so the right edge is the one reliable anchor. Width: the widest digit seen, or — when
+  // every digit is a narrow "1" (1:11) — an estimate from the digit height (7-segment digits run
+  // about half as wide as they are tall).
+  const full = Math.max(...digitsRuns.map(r=>r.b-r.a+1), Math.round(h*0.5));
+  return digitsRuns.map(r=>({x: x0 + r.b + 1 - full, w: full}));
+}
+// A game clock only ever counts down or sits still, so a reading that jumps up, or drops far faster
+// than real time has passed, is a misread (glare, a swimmer's arm, one segment flickering) — not a
+// new time. Those are held back until several readings in a row agree with each other, which is
+// exactly what a genuine reset (new period, a manually corrected clock) looks like. The very first
+// reading of a session also needs one agreeing reading before it's trusted.
+let clockSyncTrust = null;   // {ms, at}: last accepted reading and when it was accepted
+let clockSyncPending = null; // {ms, at, count}: a run of readings that disagree with clockSyncTrust
+function clockReadingAccepted(ms){
+  const now = Date.now();
+  const consistent = (prev) => ms <= prev.ms + 1000 && ms >= prev.ms - (now - prev.at) - 1500;
+  if(clockSyncTrust && consistent(clockSyncTrust)){ clockSyncTrust = {ms, at:now}; clockSyncPending = null; return true; }
+  if(clockSyncPending && consistent(clockSyncPending)){ clockSyncPending = {ms, at:now, count:clockSyncPending.count+1}; }
+  else clockSyncPending = {ms, at:now, count:1};
+  const needed = clockSyncTrust ? 3 : 2;
+  if(clockSyncPending.count >= needed){ clockSyncTrust = {ms, at:now}; clockSyncPending = null; return true; }
+  return false;
+}
 function beginClockSyncReadingSegment(){
   const video = document.getElementById('clockSyncVideo');
   const work = document.createElement('canvas');
@@ -7649,9 +7724,14 @@ function beginClockSyncReadingSegment(){
     work.width = video.videoWidth; work.height = video.videoHeight;
     wctx.drawImage(video, 0, 0, work.width, work.height);
     const digitW = clockSyncBox.w / clockSyncDigitCount;
-    const digits = [];
+    const cells = findClockDigitCells(wctx, clockSyncBox, clockSyncDigitCount);
+    // Sample every segment of every digit first, then judge lit vs unlit against the WHOLE clock's
+    // range: a per-digit range made an "8" (all seven segments lit, so no dim sample to compare
+    // against) unreadable, and with it any time containing an 8.
+    const cellLums = [];
     for(let i=0;i<clockSyncDigitCount;i++){
-      const dx = clockSyncBox.x + i*digitW, dy = clockSyncBox.y, dw = digitW, dh = clockSyncBox.h;
+      const dx = cells ? cells[i].x : clockSyncBox.x + i*digitW, dw = cells ? cells[i].w : digitW;
+      const dy = clockSyncBox.y, dh = clockSyncBox.h;
       const lum = {};
       Object.entries(CLOCK_SEGMENT_POINTS).forEach(([seg,[fx,fy]])=>{
         const px = Math.round(dx + fx*dw), py = Math.round(dy + fy*dh);
@@ -7660,16 +7740,18 @@ function beginClockSyncReadingSegment(){
         for(let k=0;k<data.length;k+=4){ sum += 0.299*data[k]+0.587*data[k+1]+0.114*data[k+2]; n++; }
         lum[seg] = sum/n;
       });
-      const vals = Object.values(lum);
-      const lo = Math.min(...vals), hi = Math.max(...vals);
-      // Not enough contrast between the brightest and dimmest sample point to be a real lit digit
-      // (e.g. the box drifted off the display, or this cell is a blank leading position) — bail
-      // on this whole frame rather than guess.
-      if(hi-lo < 15){ digits.push(null); continue; }
-      const threshold = lo + (hi-lo)*0.5;
-      const onSegs = new Set(Object.keys(lum).filter(s=>lum[s] >= threshold));
-      digits.push(clockSegmentsToDigit(onSegs));
+      cellLums.push(lum);
     }
+    const allVals = cellLums.flatMap(l=>Object.values(l));
+    const lo = Math.min(...allVals), hi = Math.max(...allVals);
+    const threshold = lo + (hi-lo)*0.5;
+    // Not enough contrast anywhere in the box to be a lit display (box drifted off it, or it's
+    // too dim/glarey) — mark every position unreadable rather than guess.
+    const digits = cellLums.map(lum=>{
+      if(hi-lo < 15) return null;
+      const onSegs = new Set(Object.keys(lum).filter(s=>lum[s] >= threshold));
+      return onSegs.size ? clockSegmentsToDigit(onSegs) : null;
+    });
     // Show what each digit position actually decoded to on every pass — ✗ means no usable
     // contrast at that spot (box drifted off the display, or too dim/glarey to read), a wrong
     // digit means the box or digit count doesn't line up with the real display. Same fix as the
@@ -7695,7 +7777,7 @@ function beginClockSyncReadingSegment(){
     // immediately, every time it changes, is what "just use the time it's already reading" means.
     // applyClockSyncReading no-ops on its own once the value repeats, so this costs nothing extra
     // once the clock holds steady between ticks.
-    applyClockSyncReading(ms);
+    if(clockReadingAccepted(ms)) applyClockSyncReading(ms);
   }, 200);
 }
 let clockSyncApplying = false, clockSyncPulledThisSession = false, clockSyncPendingMs = null;
