@@ -1560,10 +1560,18 @@ async function pullSharedStateFromServer(applyIfNewer){
     const parts = new Array(meta.totalChunks);
     for(let i=0;i<meta.totalChunks;i+=8){
       await Promise.all(Array.from({length:Math.min(8, meta.totalChunks-i)}, async (_,j)=>{
-        const res = await fetch(SHARED_STATE_URL+'?chunk='+(i+j));
-        if(!res.ok) throw new Error('chunk '+(i+j)+' HTTP '+res.status);
-        const json = await res.json();
-        parts[i+j] = (json && json.chunk) || '';
+        // Each piece retries on its own — one dropped request on a phone connection used to fail
+        // the whole download and start all 117 over.
+        let lastErr;
+        for(let attempt=0; attempt<3; attempt++){
+          try{
+            const res = await fetch(SHARED_STATE_URL+'?chunk='+(i+j));
+            if(!res.ok) throw new Error('chunk '+(i+j)+' HTTP '+res.status);
+            const json = await res.json();
+            parts[i+j] = (json && json.chunk) || ''; return;
+          }catch(e){ lastErr = e; await new Promise(r=>setTimeout(r, 400*(attempt+1))); }
+        }
+        throw lastErr;
       }));
     }
     const full = parts.join('');
