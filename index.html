@@ -1320,7 +1320,7 @@ async function reconcileWithIndexedDb(){
   resetSyncBaseline();
   renderAll();
 }
-function saveState(){
+function saveState(opts){
   stampLocalEdits();
   const _stateJson = serializeAppState();
   try{
@@ -1341,18 +1341,23 @@ function saveState(){
     }
   }
   idbSaveState(_stateJson).catch(()=>{});
-  schedulePush();
+  schedulePush(opts && opts.quietPush ? 30000 : 700);
 }
-function schedulePush(){
+function schedulePush(delay){
+  delay = delay || 700;
   _syncState.pushWanted = true;
+  // never push a pending upload LATER than it was already due (a quiet clock save mustn't delay a stat)
+  const due = Date.now() + delay;
+  if(_syncState.pushTimer && _syncState.pushDueAt && _syncState.pushDueAt <= due) return;
   clearTimeout(_syncState.pushTimer);
-  _syncState.pushTimer = setTimeout(pushSharedStateToServer, 700);
+  _syncState.pushDueAt = due;
+  _syncState.pushTimer = setTimeout(()=>{ _syncState.pushTimer = null; _syncState.pushDueAt = 0; pushSharedStateToServer(); }, delay);
 }
 
 async function pushSharedStateToServer(){
   if(!sharedStateConfigured()) return;
   if(!_syncState.pulledOnce) return; // the first successful pull pushes anything still pending
-  if(_syncState.pushing){ clearTimeout(_syncState.pushTimer); _syncState.pushTimer = setTimeout(pushSharedStateToServer, 1500); return; }
+  if(_syncState.pushing){ clearTimeout(_syncState.pushTimer); _syncState.pushTimer = null; _syncState.pushDueAt = 0; schedulePush(1500); return; }
   _syncState.pushing = true;
   try{
     // Someone else saved since we last synced? Merge their copy in first (newer edits win per game),
@@ -1363,7 +1368,7 @@ async function pushSharedStateToServer(){
       if(metaRes.ok){ const meta = await metaRes.json(); const serverTime = Date.parse(meta && meta.updatedAt) || 0;
         if(serverTime > Math.max(_syncState.lastPulledAt, _syncState.lastPushedAt)) await pullSharedStateFromServer(false); }
     }catch(e){ /* offline: the upload below fails harmlessly and retries on the next change */ }
-    clearTimeout(_syncState.pushTimer); _syncState.pushWanted = false; // this upload covers anything queued so far
+    clearTimeout(_syncState.pushTimer); _syncState.pushTimer = null; _syncState.pushDueAt = 0; _syncState.pushWanted = false; // this upload covers anything queued so far
     const payload = {}; SHARED_KEYS.forEach(k=>payload[k]=app[k]); payload.games = (app.games||[]).map(packGame);
     const full = JSON.stringify(payload);
     const chunks = []; for(let i=0;i<full.length;i+=SHARED_STATE_CHUNK_SIZE) chunks.push(full.slice(i,i+SHARED_STATE_CHUNK_SIZE));
@@ -8070,7 +8075,8 @@ let clockSyncPeriodMs = 8*60*1000;
 let clockSyncInterval = null;
 let clockSyncDrawStart = null;
 let clockSyncLastAppliedMs = null;
-let clockSyncLastAppliedQ = null; // which period that last applied reading belonged to // avoid re-pulling/pushing on every tick once a reading has already been applied
+let clockSyncLastAppliedQ = null; // which period that last applied reading belonged to
+let clockSyncQuarterMaxMs = {}; // highest reading applied in each period — proves its clock actually ran // avoid re-pulling/pushing on every tick once a reading has already been applied
 let clockSyncLastSyncFlashAt = 0; // when the "✓ Synced" confirmation last showed — briefly holds that message, then lets live digit feedback resume
 let clockSyncDisplayType = 'segment'; // 'segment' = classic 7-segment LED, 'ocr' = a TV/video-board rendering digits in a regular font
 let clockSyncOcrInterval = null;
@@ -8090,7 +8096,7 @@ async function openClockSync(){
   const game = findGame(app.selectedGameId);
   if(!game || !hasManagePermission(game)){ alert('You do not have permission to manage this game.'); return; }
   const m = document.getElementById('clockSyncModal'); m.style.display='flex'; m.classList.remove('hidden'); m.classList.remove('minimized'); m.onclick = null;
-  clockSyncBox = null; clockSyncLastAppliedMs = null; clockSyncPulledThisSession = false; clockSyncMinimizedOnce = false; clockSyncLastSyncFlashAt = 0; clockSyncTrust = null; clockSyncPending = null; clockSyncFrameVotes = [];
+  clockSyncBox = null; clockSyncLastAppliedMs = null; clockSyncPulledThisSession = false; clockSyncMinimizedOnce = false; clockSyncQuarterMaxMs = {}; clockSyncLastSyncFlashAt = 0; clockSyncTrust = null; clockSyncPending = null; clockSyncFrameVotes = [];
   document.getElementById('clockSyncStatus').textContent = 'Starting camera…';
   document.getElementById('clockSyncReading').textContent = '--:--';
   try{
@@ -8543,7 +8549,11 @@ function beginClockSyncReadingSegment(){
 }
 let clockSyncApplying = false, clockSyncPulledThisSession = false, clockSyncPendingMs = null, clockSyncMinimizedOnce = false;
 async function applyClockSyncReading(remainingMs){
-  if(remainingMs === clockSyncLastAppliedMs) return; // clock hasn't moved since our last sync — nothing to do
+  // Skip only when the game clock ALREADY shows this time. Skipping whenever the reading repeated
+  // meant a stopped real clock (timeout, whistle, paused video) kept reading 7:26 while the app's
+  // own clock ran on to 6:49 — now every reading pulls the game clock back to the camera's.
+  { const g0 = findGame(app.selectedGameId); const st = g0 && g0.quarterStart && g0.quarterStart[app.currentQ];
+    if(remainingMs === clockSyncLastAppliedMs && st){ const shown = clockSyncPeriodMs - (Date.now() - st); if(Math.abs(shown - remainingMs) <= 600) return; } }
   // A running background sync confirms a new reading roughly once a second (the real clock just
   // ticks over naturally) — this used to pull the ENTIRE shared backend (megabytes, 100+ requests)
   // fresh on every single one of those. Left running for a whole game, that piled up dozens of
@@ -8568,7 +8578,8 @@ async function applyClockSyncReading(remainingMs){
     // nothing to do), and only Q1-Q3: overtime is a decision, never automatic.
     let autoAdvanced = false;
     if(clockSyncLastAppliedMs !== null && clockSyncLastAppliedMs <= 30000 && remainingMs >= clockSyncPeriodMs - 30000
-       && clockSyncLastAppliedQ === app.currentQ && /^[123]$/.test(String(app.currentQ))){
+       && clockSyncLastAppliedQ === app.currentQ && /^[123]$/.test(String(app.currentQ))
+       && (clockSyncQuarterMaxMs[app.currentQ]||0) >= 60000){ // the clock actually RAN in this quarter (not just 0:00 seen during a break after the coach already switched tabs)
       app.currentQ = Number(app.currentQ) + 1;
       if(!game.quarters[app.currentQ]) game.quarters[app.currentQ] = [];
       autoAdvanced = true;
@@ -8582,7 +8593,10 @@ async function applyClockSyncReading(remainingMs){
     game.periodLengthMs = game.periodLengthMs || clockSyncPeriodMs;
     clockSyncLastAppliedMs = remainingMs;
     clockSyncLastAppliedQ = app.currentQ;
-    saveState();
+    clockSyncQuarterMaxMs[app.currentQ] = Math.max(clockSyncQuarterMaxMs[app.currentQ]||0, remainingMs);
+    // Clock corrections happen every second or so: save them on this device right away, but only
+    // upload them every 30 s (a logged stat still uploads immediately and carries the clock along).
+    saveState({quietPush:true});
     if(autoAdvanced && app.page==='game') renderGame();
     const statusEl = document.getElementById('clockSyncStatus');
     clockSyncLastSyncFlashAt = Date.now();
