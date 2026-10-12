@@ -8230,18 +8230,33 @@ const CLOCK_SEGMENT_DIGITS = { 'abcdef':0, 'bc':1, 'abged':2, 'abgcd':3, 'fgbc':
 // at an angle or slanted digits (each bar is judged over a whole stretch, not one pixel), and a
 // colon between minutes and seconds (told apart from a "1" by how much of the height it covers).
 // Returns {digits:[d|null...], cells} or null when the box has no usable contrast.
-const CLOCK_SEGMENT_RECTS = { a:[.3,.7,0,.12], g:[.3,.7,.44,.56], d:[.3,.7,.88,1], f:[0,.28,.2,.38], b:[.72,1,.2,.38], e:[0,.28,.62,.8], c:[.72,1,.62,.8] };
+const CLOCK_SEGMENT_RECTS = { a:[.36,.62,0,.12], g:[.36,.62,.44,.56], d:[.36,.62,.88,1], f:[0,.26,.2,.38], b:[.74,1,.2,.38], e:[0,.26,.62,.8], c:[.74,1,.62,.8] };
 function readClockDigits(wctx, box, count){
   const x0 = Math.max(0, Math.round(box.x)), y0 = Math.max(0, Math.round(box.y));
-  const w = Math.max(4, Math.round(box.w)), h = Math.max(4, Math.round(box.h));
-  let data; try{ data = wctx.getImageData(x0, y0, w, h).data; }catch(e){ return null; }
+  const W0 = Math.max(4, Math.round(box.w)), H0 = Math.max(4, Math.round(box.h));
+  let data; try{ data = wctx.getImageData(x0, y0, W0, H0).data; }catch(e){ return null; }
+  // A big camera box (a phone close to the clock) is shrunk to ~90 px tall first — plenty to read
+  // digits, and it keeps every reading well under the 200 ms between readings.
+  const sc = Math.max(1, Math.round(H0/90));
+  const w = Math.floor(W0/sc), h = Math.floor(H0/sc);
   const lum = new Float32Array(w*h);
-  for(let i=0, p=0; i<data.length; i+=4, p++) lum[p] = 0.299*data[i]+0.587*data[i+1]+0.114*data[i+2];
+  for(let y=0;y<h;y++) for(let x=0;x<w;x++){ let sum=0;
+    for(let dy=0;dy<sc;dy++) for(let dx=0;dx<sc;dx++){ const i=((y*sc+dy)*W0 + x*sc+dx)*4; sum += 0.299*data[i]+0.587*data[i+1]+0.114*data[i+2]; }
+    lum[y*w+x] = sum/(sc*sc); }
+  // Glare or uneven light across the screen/scoreboard: estimate the background brightness patch by
+  // patch (the darker part of each patch) and subtract it, so a bright corner isn't mistaken for digits.
+  { const T = Math.max(8, Math.round(Math.min(w,h)/3)), tx = Math.ceil(w/T), ty = Math.ceil(h/T); const bgT = new Float32Array(tx*ty);
+    for(let j=0;j<ty;j++) for(let i=0;i<tx;i++){ const vals=[]; for(let y=j*T;y<Math.min(h,(j+1)*T);y+=2) for(let x=i*T;x<Math.min(w,(i+1)*T);x+=2) vals.push(lum[y*w+x]); vals.sort((p,q)=>p-q); bgT[j*tx+i] = vals[Math.floor(vals.length*0.2)]||0; }
+    for(let y=0;y<h;y++) for(let x=0;x<w;x++){ const fx = Math.min(tx-1, Math.max(0, x/T-0.5)), fy = Math.min(ty-1, Math.max(0, y/T-0.5));
+      const i0=Math.floor(fx), j0=Math.floor(fy), i1=Math.min(tx-1,i0+1), j1=Math.min(ty-1,j0+1), ax=fx-i0, ay=fy-j0;
+      const b = (bgT[j0*tx+i0]*(1-ax)+bgT[j0*tx+i1]*ax)*(1-ay) + (bgT[j1*tx+i0]*(1-ax)+bgT[j1*tx+i1]*ax)*ay;
+      lum[y*w+x] = Math.max(0, lum[y*w+x]-b); } }
   const sorted = Array.from(lum).sort((a,b)=>a-b);
   const lo = sorted[Math.floor(sorted.length*0.10)], hi = sorted[Math.floor(sorted.length*0.98)];
   if(hi - lo < 25) return null;
   const thr = lo + (hi-lo)*0.45;
   let raw = new Uint8Array(w*h); for(let p=0;p<w*h;p++) raw[p] = lum[p] >= thr ? 1 : 0;
+  let lumS = lum; // brightness, straightened along with the mask below
   const rowsLit = m => { let t=-1, bt=-1; for(let y=0;y<h;y++){ let on=0; for(let x=0;x<w;x++) on+=m[y*w+x]; if(on/w > 0.01){ if(t<0) t=y; bt=y; } } return [t,bt]; };
   let [top, bot] = rowsLit(raw);
   if(top<0 || bot-top < 6) return null;
@@ -8253,9 +8268,9 @@ function readClockDigits(wctx, box, count){
       for(let y=top;y<=bot;y++){ const off = Math.round(sh*(bot-y)); for(let x=0;x<w;x++){ if(raw[y*w+x]){ const xs = x-off; if(xs>=0 && xs<w) col[xs]++; } } }
       let sc=0; for(let x=0;x<w;x++) sc += col[x]*col[x];
       if(sc > bestScore*1.02){ bestScore = sc; best = sh; } }
-    if(best!==0){ const m2 = new Uint8Array(w*h);
-      for(let y=0;y<h;y++){ const off = Math.round(best*(bot-y)); for(let x=0;x<w;x++){ const xs = x+off; if(xs>=0 && xs<w) m2[y*w+x] = raw[y*w+xs]; } }
-      raw = m2; } }
+    if(best!==0){ const m2 = new Uint8Array(w*h), l2 = new Float32Array(w*h).fill(lo);
+      for(let y=0;y<h;y++){ const off = Math.round(best*(bot-y)); for(let x=0;x<w;x++){ const xs = x+off; if(xs>=0 && xs<w){ m2[y*w+x] = raw[y*w+xs]; l2[y*w+x] = lum[y*w+xs]; } } }
+      raw = m2; lumS = l2; } }
   // grown copy: a dot-matrix bar's dots joined into one bar (used to judge which bars are lit)
   const r = Math.max(1, Math.round(dh*0.045));
   const grow = (src, horiz) => { const out = new Uint8Array(w*h);
@@ -8287,17 +8302,46 @@ function readClockDigits(wctx, box, count){
   } else {
     const dw = w/count; cells = Array.from({length:count}, (_,i)=>({x: Math.round(i*dw), w: Math.round(dw)}));
   }
-  const digits = cells.map(cell=>{
-    const on = new Set();
+  // Lit or not is decided by comparing the bars with EACH OTHER, not against a fixed cutoff: many
+  // displays (and YouTube timers) draw unlit bars faintly, and a phone camera filming a screen
+  // brightens those "ghost" bars and blows the lit ones out to pink-white. Each bar gets a score from
+  // how much of its stretch is bright (dots/gaps) and how bright it is; the scores split into a lit
+  // group and an unlit group wherever the biggest separation between them is (Otsu).
+  const segVals = cells.map(cell=>{
+    const v = {};
     Object.entries(CLOCK_SEGMENT_RECTS).forEach(([seg,[fx0,fx1,fy0,fy1]])=>{
-      const xa = Math.max(0, Math.round(cell.x + fx0*cell.w)), xb = Math.min(w-1, Math.round(cell.x + fx1*cell.w));
+      const xa = Math.max(0, Math.ceil(cell.x + fx0*cell.w)), xb = Math.min(w-1, Math.floor(cell.x + fx1*cell.w) - (fx1<1 ? 1 : 0));
       const ya = Math.round(top + fy0*dh), yb = Math.min(bot, Math.round(top + fy1*dh));
-      let n=0, lit=0; for(let y=ya;y<=yb;y++) for(let x=xa;x<=xb;x++){ n++; lit+=mask[y*w+x]; }
-      if(n && lit/n >= 0.35) on.add(seg);
+      const px = []; for(let y=ya;y<=yb;y++) for(let x=xa;x<=xb;x++) px.push(lumS[y*w+x]);
+      if(!px.length){ v[seg] = 0; return; }
+      px.sort((p,q)=>p-q);
+      v[seg] = px[Math.floor(px.length*0.92)]; // a bar's brightest part — on a dotted bar, the dots, not the gaps
     });
+    // Glare or a brightness gradient across the screen: score each bar against the dark background
+    // and the brightest point around ITS OWN digit, so one side of the clock being brighter doesn't
+    // make every bar there look lit.
+    const cx0 = Math.max(0, Math.round(cell.x)), cx1 = Math.min(w-1, Math.round(cell.x + cell.w));
+    const local = []; for(let y=top;y<=bot;y+=2) for(let x=cx0;x<=cx1;x+=2) local.push(lumS[y*w+x]);
+    local.sort((p,q)=>p-q);
+    const base = local[Math.floor(local.length*0.10)] || 0, peak = local[Math.floor(local.length*0.98)] || 1;
+    Object.keys(v).forEach(sg=>{ v[sg] = peak>base ? (v[sg]-base)/(peak-base) : 0; });
+    return v;
+  });
+  const all = segVals.flatMap(v=>Object.values(v)).sort((p,q)=>p-q);
+  let split = null, bestVar = -1;
+  for(let i=1;i<all.length;i++){
+    const A = all.slice(0,i), B = all.slice(i);
+    const mA = A.reduce((p,q)=>p+q,0)/A.length, mB = B.reduce((p,q)=>p+q,0)/B.length;
+    const between = A.length*B.length*(mB-mA)*(mB-mA);
+    if(between > bestVar){ bestVar = between; split = (all[i-1]+all[i])/2; }
+  }
+  // every bar about equally bright: all lit (88:88) — scores are already 0..1 per digit
+  const uniform = all[all.length-1] - all[0] < 0.2;
+  const digits = segVals.map(v=>{
+    const on = new Set(Object.keys(v).filter(sg=> uniform ? v[sg] > 0.5 : v[sg] > split));
     return on.size ? clockSegmentsToDigit(on, true) : null;
   });
-  return { digits, cells: cells.map(c=>({x: x0+c.x, w: c.w})), runs, top, bot };
+  return { digits, cells: cells.map(c=>({x: x0+c.x*sc, w: c.w*sc})), runs, top, bot, segVals, split };
 }
 function clockSegmentsToDigit(onSegs, allowNear){
   for(const [key,digit] of Object.entries(CLOCK_SEGMENT_DIGITS)){
