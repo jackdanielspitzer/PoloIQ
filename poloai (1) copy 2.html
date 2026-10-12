@@ -343,6 +343,7 @@
             <option value="manager">Manager</option>
             <option value="coach">Coach</option>
             <option value="statistician">Statistician</option>
+            <option value="admin">Admin (app owner only)</option>
           </select>
         </div>
       </div>
@@ -1088,7 +1089,10 @@ const STAT_DEFS = [
   { key:'scored_on', label:'Scored on', short:'SCON', tone:'bad', patterns:[]},
   { key:'rebound', label:'Rebound', short:'REB', tone:'good', patterns:['offensive rebound','o-board','put back','putback','rebound']},
 ];
-const ROLES = ['player','captain','coach','manager','statistician'];
+const ROLES = ['player','captain','coach','manager','statistician','admin'];
+// The app owner. Only these emails can pick the Admin role (full access to every team and game).
+const ADMIN_EMAILS = ['jackdanielspitzer@gmail.com'];
+function isAdminUser(u){ return !!u && u.role==='admin' && ADMIN_EMAILS.includes((u.email||'').toLowerCase()); }
 // Curated historical matchup data — researched manually since this static app can't
 // live cross-origin-fetch calbears.com / gostanford.com from the browser (CORS).
 // Ask to refresh this after future Big Splash games or postseason meetings.
@@ -1197,7 +1201,29 @@ const SHARED_KEYS = ['teams','games','opponents','users','plays','customMatchupG
 // games) will exceed that easily, so every read and write happens in chunks well under the
 // ceiling instead of as one big request.
 const SHARED_STATE_CHUNK_SIZE = 20000;
-let _syncState = { lastPushedAt: 0, lastPulledAt: 0, pushTimer: null, pulling: false, pushing: false, backendAvailable: true };
+let _syncState = { lastPushedAt: 0, lastPulledAt: 0, pushTimer: null, pulling: false, pushing: false, backendAvailable: true,
+  // Never upload before this device has downloaded the shared copy at least once: a fresh phone or
+  // browser (no accounts, none of another device's live games) used to push its own empty-ish copy
+  // over everyone's — that's how the shared account list ended up empty.
+  pulledOnce: false, pushWanted: false, localAhead: false };
+// Last-edited stamps, so a merge keeps the NEWER copy of a game/team instead of whichever device
+// happened to upload last (a stale copy on one phone could erase events another phone just logged).
+let _syncBaseline = { gameId: null, gameJson: null, teams: null };
+function syncJsonOf(obj){ const {modifiedAt, ...rest} = obj || {}; return JSON.stringify(rest); }
+function touchGame(game){ if(game) game.modifiedAt = Date.now(); }
+function stampLocalEdits(){
+  const g = app.selectedGameId ? (app.games||[]).find(x=>x.id===app.selectedGameId) : null;
+  if(g){ const j = syncJsonOf(g); if(_syncBaseline.gameId===g.id && _syncBaseline.gameJson!==null && j!==_syncBaseline.gameJson) g.modifiedAt = Date.now(); _syncBaseline.gameId = g.id; _syncBaseline.gameJson = j; }
+  const teamsNow = new Map((app.teams||[]).map(t=>[t.id, syncJsonOf(t)]));
+  if(_syncBaseline.teams){ (app.teams||[]).forEach(t=>{ const was = _syncBaseline.teams.get(t.id); if(was!==undefined && was!==teamsNow.get(t.id)) t.modifiedAt = Date.now(); }); }
+  _syncBaseline.teams = new Map((app.teams||[]).map(t=>[t.id, syncJsonOf(t)]));
+}
+// After adopting data from elsewhere (a pull, the boot-time cache), whatever's in memory now is the
+// new "unchanged" starting point — not a local edit to stamp.
+function resetSyncBaseline(){
+  const g = app.selectedGameId ? (app.games||[]).find(x=>x.id===app.selectedGameId) : null;
+  _syncBaseline = { gameId: g ? g.id : null, gameJson: g ? syncJsonOf(g) : null, teams: new Map((app.teams||[]).map(t=>[t.id, syncJsonOf(t)])) };
+}
 
 function sharedStateConfigured(){ return SHARED_STATE_URL && !SHARED_STATE_URL.startsWith('PASTE_'); }
 
@@ -1291,9 +1317,11 @@ async function reconcileWithIndexedDb(){
   if(!Array.isArray(app.opponents)) app.opponents = [];
   ensureSeedTeamsAndSchedule(); reconcileSeedRosters(); ensurePastSeasonResults(); ensureOpponentSchoolResults(); ensureSchoolSeed2026Schedule(); stripFabricatedSeedVsCap();
   (app.teams||[]).forEach(applyBrandingIfKnown);
+  resetSyncBaseline();
   renderAll();
 }
 function saveState(){
+  stampLocalEdits();
   const _stateJson = serializeAppState();
   try{
     localStorage.setItem('poloai-app-state', _stateJson);
@@ -1313,30 +1341,46 @@ function saveState(){
     }
   }
   idbSaveState(_stateJson).catch(()=>{});
+  schedulePush();
+}
+function schedulePush(){
+  _syncState.pushWanted = true;
   clearTimeout(_syncState.pushTimer);
   _syncState.pushTimer = setTimeout(pushSharedStateToServer, 700);
 }
 
 async function pushSharedStateToServer(){
-  if(_syncState.pushing || !_syncState.backendAvailable || !sharedStateConfigured()) return;
+  if(!sharedStateConfigured()) return;
+  if(!_syncState.pulledOnce) return; // the first successful pull pushes anything still pending
+  if(_syncState.pushing){ clearTimeout(_syncState.pushTimer); _syncState.pushTimer = setTimeout(pushSharedStateToServer, 1500); return; }
   _syncState.pushing = true;
-  const payload = {}; SHARED_KEYS.forEach(k=>payload[k]=app[k]); payload.games = (app.games||[]).map(packGame);
-  const full = JSON.stringify(payload);
-  const chunks = []; for(let i=0;i<full.length;i+=SHARED_STATE_CHUNK_SIZE) chunks.push(full.slice(i,i+SHARED_STATE_CHUNK_SIZE));
-  if(chunks.length===0) chunks.push('');
   try{
-    for(let i=0;i<chunks.length;i++){
-      // Deliberately no Content-Type header: a plain string body defaults to text/plain, which is
-      // a CORS-safelisted request type and skips the preflight — Apps Script Web Apps have no
-      // doOptions handler, so a preflighted request would fail outright.
-      const res = await fetch(SHARED_STATE_URL, { method:'POST', body: JSON.stringify({chunkIndex:i, totalChunks:chunks.length, chunk:chunks[i]}) });
-      if(!res.ok) throw new Error('chunk '+i+' HTTP '+res.status);
-      const json = await res.json();
-      if(json && json.error) throw new Error(json.error);
-      if(json && json.committed) _syncState.lastPushedAt = Date.parse(json.updatedAt) || Date.now();
-    }
-  }catch(e){ console.warn('shared-state push failed (will retry on next change):', e); }
-  finally{ _syncState.pushing = false; }
+    // Someone else saved since we last synced? Merge their copy in first (newer edits win per game),
+    // so this upload can't roll back what another device just logged.
+    while(_syncState.pulling) await new Promise(r=>setTimeout(r,150));
+    try{
+      const metaRes = await fetch(SHARED_STATE_URL);
+      if(metaRes.ok){ const meta = await metaRes.json(); const serverTime = Date.parse(meta && meta.updatedAt) || 0;
+        if(serverTime > Math.max(_syncState.lastPulledAt, _syncState.lastPushedAt)) await pullSharedStateFromServer(false); }
+    }catch(e){ /* offline: the upload below fails harmlessly and retries on the next change */ }
+    clearTimeout(_syncState.pushTimer); _syncState.pushWanted = false; // this upload covers anything queued so far
+    const payload = {}; SHARED_KEYS.forEach(k=>payload[k]=app[k]); payload.games = (app.games||[]).map(packGame);
+    const full = JSON.stringify(payload);
+    const chunks = []; for(let i=0;i<full.length;i+=SHARED_STATE_CHUNK_SIZE) chunks.push(full.slice(i,i+SHARED_STATE_CHUNK_SIZE));
+    if(chunks.length===0) chunks.push('');
+    try{
+      for(let i=0;i<chunks.length;i++){
+        // Deliberately no Content-Type header: a plain string body defaults to text/plain, which is
+        // a CORS-safelisted request type and skips the preflight — Apps Script Web Apps have no
+        // doOptions handler, so a preflighted request would fail outright.
+        const res = await fetch(SHARED_STATE_URL, { method:'POST', body: JSON.stringify({chunkIndex:i, totalChunks:chunks.length, chunk:chunks[i]}) });
+        if(!res.ok) throw new Error('chunk '+i+' HTTP '+res.status);
+        const json = await res.json();
+        if(json && json.error) throw new Error(json.error);
+        if(json && json.committed) _syncState.lastPushedAt = Date.parse(json.updatedAt) || Date.now();
+      }
+    }catch(e){ _syncState.pushWanted = true; console.warn('shared-state push failed (will retry on next change):', e); }
+  }finally{ _syncState.pushing = false; }
 }
 
 // Pull the shared fields from the backend and merge them in. `applyIfNewer=false` (used by the
@@ -1368,14 +1412,54 @@ function isSeedGame(game){
 // remote no longer has (an actual deletion from another client). Teams are never dropped locally at
 // all — losing a team cascades into losing everything filed under it, which is worse than a rare
 // stale team lingering an extra sync cycle.
+// Two phones logging the SAME game: merge event-by-event so both sets of calls survive, instead of
+// one whole copy replacing the other. Deleted/undone events are remembered (removedEvents) so a merge
+// never brings them back. Game-level fields (notes, final, colors) come from the newer copy.
+function eventSyncKey(ev){ return [ev.batchId||'', ev.stat_type, ev.side||'', ev.playerCap==null?'':ev.playerCap, ev.wall_time_offset_ms==null?'':ev.wall_time_offset_ms, ev.raw_phrase||'', ev.note||''].join('|'); }
+function rememberRemovedEvents(game, evs){
+  if(!game) return; game.removedEvents = game.removedEvents || [];
+  (evs||[]).forEach(ev=>{ if(ev) game.removedEvents.push(eventSyncKey(ev)); });
+  if(game.removedEvents.length > 500) game.removedEvents = game.removedEvents.slice(-500);
+}
+function mergeGameCopies(local, remote){
+  const newer = (local.modifiedAt||0) > (remote.modifiedAt||0) ? local : remote, older = newer===local ? remote : local;
+  const removed = [...new Set([...(local.removedEvents||[]), ...(remote.removedEvents||[])])];
+  const gone = new Set(removed);
+  const periods = [...new Set([...Object.keys(newer.quarters||{}), ...Object.keys(older.quarters||{})])];
+  const quarters = {};
+  periods.forEach(q=>{
+    // Keep the newer copy's order exactly (so "Undo last" still means the last thing logged), and slot
+    // each event only the other copy has in by its game time — after anything at the same time.
+    const out = []; const have = new Set();
+    ((newer.quarters||{})[q]||[]).forEach(ev=>{ const k = eventSyncKey(ev); if(have.has(k) || gone.has(k)) return; have.add(k); out.push(ev); });
+    ((older.quarters||{})[q]||[]).forEach(ev=>{
+      const k = eventSyncKey(ev); if(have.has(k) || gone.has(k)) return; have.add(k);
+      const t = ev.wall_time_offset_ms ?? 0; let at = out.length;
+      while(at>0 && (out[at-1].wall_time_offset_ms ?? 0) > t) at--;
+      out.splice(at, 0, ev);
+    });
+    quarters[q] = out;
+  });
+  const extraPeriods = [...new Set([...(newer.extraPeriods||[]), ...(older.extraPeriods||[])])];
+  const merged = {...newer, quarters, extraPeriods, modifiedAt: Math.max(local.modifiedAt||0, remote.modifiedAt||0)};
+  if(removed.length) merged.removedEvents = removed.slice(-500); else delete merged.removedEvents;
+  return merged;
+}
 function mergeGamesFromServer(localGames, remoteGames){
   if(!Array.isArray(remoteGames)) return localGames;
   const remoteById = new Map(remoteGames.filter(g=>g && g.id).map(g=>[g.id, g]));
   const seenIds = new Set(); const merged = [];
   (localGames||[]).forEach(g=>{
     if(!g || !g.id) return;
-    if(remoteById.has(g.id)){ merged.push(remoteById.get(g.id)); seenIds.add(g.id); }
+    if(remoteById.has(g.id)){
+      const r = remoteById.get(g.id);
+      if(!g.modifiedAt && !r.modifiedAt) merged.push(r); // nobody has edited it live — the shared copy as before
+      else { const m = mergeGameCopies(g, r); if(syncJsonOf(m)!==syncJsonOf(r)) _syncState.localAhead = true; merged.push(m); }
+      seenIds.add(g.id);
+    }
     else if(isSeedGame(g)){ merged.push(g); }
+    // Created or edited here since the last sync and not uploaded yet — keep it (and upload it).
+    else if(Math.max(g.modifiedAt||0, g.createdAt||0) > (_syncState.lastPulledAt||0)){ merged.push(g); _syncState.localAhead = true; }
     // else: a real, non-seed local game missing from the remote — treat as deleted elsewhere, drop it.
   });
   remoteGames.forEach(g=>{ if(g && g.id && !seenIds.has(g.id)){ merged.push(g); seenIds.add(g.id); } });
@@ -1417,7 +1501,13 @@ function mergeByIdKeepLocal(localArr, remoteArr){
   remoteArr.forEach(t=>{ if(t && t.id && !seenIds.has(t.id)){ merged.push(t); seenIds.add(t.id); } });
   return merged;
 }
-function mergeTeamsFromServer(localTeams, remoteTeams){ return mergeByIdKeepLocal(localTeams, remoteTeams); }
+function mergeTeamsFromServer(localTeams, remoteTeams){
+  if(!Array.isArray(remoteTeams)) return localTeams;
+  const localById = new Map((localTeams||[]).filter(t=>t&&t.id).map(t=>[t.id,t]));
+  const merged = mergeByIdKeepLocal(localTeams, remoteTeams).map(t=>{ const l = localById.get(t.id); if(l && l!==t && (l.modifiedAt||0) > (t.modifiedAt||0)){ _syncState.localAhead = true; return l; } return t; });
+  if((localTeams||[]).some(t=>t && t.id && !remoteTeams.some(r=>r && r.id===t.id))) _syncState.localAhead = true;
+  return merged;
+}
 // blankTeam() ids are random per call too, same as games — so a browser that seeds its own local
 // copy of "California" independently from another device (or from this same shared backend on a
 // separate occasion) ends up with two team objects, two different ids, for the same real team.
@@ -1426,7 +1516,7 @@ function mergeTeamsFromServer(localTeams, remoteTeams){ return mergeByIdKeepLoca
 // claimed, then whichever has more players, then whichever came first — and returns a remap so every
 // game pointing at a discarded duplicate's id can be repointed at the survivor instead of quietly
 // orphaning half a team's games under a team nobody can see anymore.
-function dedupeTeamsByName(teams){
+function dedupeTeamsByName(teams, preferIds){
   const groups = new Map();
   (teams||[]).forEach(t=>{
     if(!t || !t.id) return;
@@ -1437,7 +1527,9 @@ function dedupeTeamsByName(teams){
   const remap = new Map(); const keepIds = new Set();
   groups.forEach(group=>{
     if(group.length===1){ keepIds.add(group[0].id); return; }
-    const score = t => (t.claimStatus==='claimed'?1000:0) + (t.players ? t.players.length : 0);
+    // The shared backend's copy wins over a phone's freshly seeded duplicate, so a team keeps ONE id
+    // on every device — accounts (user.teamId) and games point at it and must keep working.
+    const score = t => (t.claimStatus==='claimed'?1000:0) + (preferIds && preferIds.has(t.id) ? 500 : 0) + (t.players ? t.players.length : 0);
     let canonical = group[0];
     group.forEach(t=>{ if(score(t) > score(canonical)) canonical = t; });
     keepIds.add(canonical.id);
@@ -1457,10 +1549,11 @@ async function pullSharedStateFromServer(applyIfNewer){
     if(!metaRes.ok){ _syncState.backendAvailable = false; return; }
     _syncState.backendAvailable = true;
     const meta = await metaRes.json();
-    if(!meta || meta.error || !meta.totalChunks) return; // nothing saved yet, or the backend errored — keep what we loaded locally
+    if(!meta || meta.error) return; // the backend errored — keep what we loaded locally, don't upload over it
+    if(!meta.totalChunks){ _syncState.pulledOnce = true; if(_syncState.pushWanted) schedulePush(); return; } // nothing saved yet — safe to upload
     const serverTime = Date.parse(meta.updatedAt) || 0;
-    if(applyIfNewer && serverTime <= _syncState.lastPushedAt) return;
-    if(serverTime <= _syncState.lastPulledAt) return; // already have this exact version, skip the N-chunk fetch
+    if(applyIfNewer && serverTime <= _syncState.lastPushedAt){ _syncState.pulledOnce = true; return; }
+    if(serverTime <= _syncState.lastPulledAt){ _syncState.pulledOnce = true; return; } // already have this exact version, skip the N-chunk fetch
 
     let full = '';
     for(let i=0;i<meta.totalChunks;i++){
@@ -1469,7 +1562,20 @@ async function pullSharedStateFromServer(applyIfNewer){
       const json = await res.json();
       full += (json && json.chunk) || '';
     }
-    const data = JSON.parse(full); if(data) unpackGames(data.games);
+    let data;
+    try{ data = JSON.parse(full); }
+    catch(parseErr){
+      // A read can land mid-write (rows half-updated) and fail once — but the SAME version still
+      // failing 20+ seconds later means the stored copy itself is broken (two uploads interleaved).
+      // Let this device's good copy repair it rather than every device refusing to upload forever.
+      const seen = _syncState.corruptSeen;
+      if(seen && seen.serverTime===serverTime && Date.now()-seen.at > 20000){ _syncState.pulledOnce = true; _syncState.lastPulledAt = serverTime; schedulePush(); }
+      else if(!seen || seen.serverTime!==serverTime) _syncState.corruptSeen = {serverTime, at:Date.now()};
+      throw parseErr;
+    }
+    _syncState.corruptSeen = null;
+    if(data) unpackGames(data.games);
+    _syncState.localAhead = false;
     let changed = false;
     // Only apply fields the server actually has — never let a partial/malformed remote payload
     // (an old write, a hand-edited sheet, a bug) blank out good local data for a field it's simply
@@ -1487,6 +1593,7 @@ async function pullSharedStateFromServer(applyIfNewer){
     }
     if(typeof data.users!=='undefined'){
       const mergedUsers = mergeByIdKeepLocal(app.users, data.users);
+      if((app.users||[]).some(u=>u && u.id && !(data.users||[]).some(r=>r && r.id===u.id))) _syncState.localAhead = true;
       if(JSON.stringify(app.users) !== JSON.stringify(mergedUsers)){ app.users = mergedUsers; changed = true; }
     }
     ['opponents','plays','customMatchupGames'].forEach(k=>{ if(typeof data[k]==='undefined') return; if(JSON.stringify(app[k]) !== JSON.stringify(data[k])){ app[k] = data[k]; changed = true; } });
@@ -1494,10 +1601,15 @@ async function pullSharedStateFromServer(applyIfNewer){
     // their own copy of, say, "California" with a different random id) and repoint every game that
     // referenced a discarded duplicate onto the surviving team — otherwise a Team page would quietly
     // show only half that team's games, split across two team ids nobody can tell apart by name.
-    const teamDedupe = dedupeTeamsByName(app.teams);
+    const teamDedupe = dedupeTeamsByName(app.teams, new Set((data.teams||[]).map(t=>t && t.id)));
     if(teamDedupe.remap.size){
       app.teams = teamDedupe.teams;
+      const rm = id => teamDedupe.remap.has(id) ? teamDedupe.remap.get(id) : id;
       app.games.forEach(g=>{ if(teamDedupe.remap.has(g.teamId)) g.teamId = teamDedupe.remap.get(g.teamId); });
+      (app.users||[]).forEach(u=>{ if(u && u.teamId) u.teamId = rm(u.teamId); });
+      (app.practiceGames||[]).forEach(g=>{ g.teamId = rm(g.teamId); });
+      app.selectedTeamId = app.selectedTeamId ? rm(app.selectedTeamId) : app.selectedTeamId;
+      if(app.statFor && app.statFor.teamId) app.statFor.teamId = rm(app.statFor.teamId);
       app.games = dedupeGamesByMatchup(app.games);
       changed = true;
     }
@@ -1511,6 +1623,9 @@ async function pullSharedStateFromServer(applyIfNewer){
     // missing after a pull, that's what the normal page-load seeding (loadState) is for — this stays
     // a pure "take what the server has" sync, nothing more.
     _syncState.lastPulledAt = serverTime;
+    _syncState.pulledOnce = true;
+    resetSyncBaseline();
+    if(_syncState.localAhead || _syncState.pushWanted){ _syncState.localAhead = false; schedulePush(); }
     if(changed){
       try{ localStorage.setItem('poloai-app-state', serializeAppState()); }catch(e){} _syncState.lastPushedAt = serverTime; checkGameStateNotifications(app.games);
       // A background sync landing mid-tap is exactly what made buttons "stop working": renderAll()
@@ -1781,6 +1896,7 @@ async function saveUser(){
   const errEl=document.getElementById('userFormError'); errEl.style.display='none';
   const name=document.getElementById('userNameInput').value.trim(); const email=document.getElementById('userEmailInput').value.trim().toLowerCase(); const password=document.getElementById('userPasswordInput').value || ''; const loginMode = document.getElementById('userLoginMode').checked; const role=document.getElementById('userRoleInput').value; const teamId=document.getElementById('userTeamAssign').value || null;
   if(!email){ showUserFormError('Please provide an email.'); return; }
+  if(role==='admin' && !ADMIN_EMAILS.includes(email)){ showUserFormError('The Admin role is only for the app owner. Pick Coach, Manager or Statistician.'); return; }
   const mount = document.getElementById('userPresetIcons'); const pic = mount && (mount.dataset.uploaded || mount.dataset.selected) || null;
 
   if(_editUserId){ // editing the logged-in account
@@ -1887,7 +2003,7 @@ function navigate(page, id = null, meta = {}){
   if(page==='tactics'){ app.selectedGameId = id || app.selectedGameId; if(!app.selectedGameId){ app.page='games'; renderAll(); return; } if(!hasManagePermission(findGame(app.selectedGameId))){ alert('You need manage access to this game to use the tactics board.'); app.page='game'; renderAll(); return; } }
   if(page==='coaches'){
     const cu = currentUser();
-    if(!cu || !['coach','manager','statistician'].includes(cu.role)){ alert('You need a coach, manager, or statistician account to use this page.'); app.page='home'; renderAll(); return; }
+    if(!cu || !(['coach','manager','statistician'].includes(cu.role) || isAdminUser(cu))){ alert('You need a coach, manager, or statistician account to use this page.'); app.page='home'; renderAll(); return; }
     app.selectedTeamId = id || app.selectedTeamId || cu.teamId || (app.teams[0] && app.teams[0].id) || null;
   }
   if(page==='player'){ app.selectedPlayerId = id || app.selectedPlayerId; }
@@ -5106,7 +5222,7 @@ function saveGame(){
   if(!teamId){ alert('Choose a team before scheduling a game.'); return; }
   if(!opponent){ alert('Add the opponent name before saving.'); return; }
   addOpponent(opponent);
-  const game=blankGame(teamId); game.opponent=opponent; game.date=date; game.time=time; game.location=location; app.games.push(game); saveState(); hideGameForm(); renderGames(); navigate('game', game.id, {manage:true}); }
+  const game=blankGame(teamId); game.opponent=opponent; game.date=date; game.time=time; game.location=location; touchGame(game); app.games.push(game); saveState(); hideGameForm(); renderGames(); navigate('game', game.id, {manage:true}); }
 
 // Once every school on the schedule has its own full game history, the unfiltered list is
 // hundreds of other teams' games a coach never asked for — default to just the team they've
@@ -5285,7 +5401,7 @@ function renderGame(){ const game = findGame(app.selectedGameId); if(!game){ nav
 
 function hasManagePermission(game){ if(game && game.practice) return true; // practice games are this device's own sandbox — anyone can log them
   const u=currentUser(); if(!u) return false; // only manager, coach, or statistician can manage stats
-  if(u.role==='statistician') return true;
+  if(u.role==='statistician' || isAdminUser(u)) return true;
   if(u.role==='manager'){ return u.teamId ? (u.teamId===game.teamId) : true; }
   if(u.role==='coach'){ return u.teamId===game.teamId; }
   return false; }
@@ -5295,7 +5411,7 @@ function hasManagePermission(game){ if(game && game.practice) return true; // pr
 function explainManagePermission(game){
   const u = currentUser();
   if(!u) return 'Viewer — read-only. Log in to manage a game.';
-  if(u.role!=='statistician' && u.role!=='manager' && u.role!=='coach'){
+  if(u.role!=='statistician' && u.role!=='manager' && u.role!=='coach' && !isAdminUser(u)){
     return `Viewer — read-only. Your account role (${u.role}) can't manage games — a coach or manager can change this in My account.`;
   }
   const team = findTeam(game.teamId);
@@ -5359,7 +5475,7 @@ function renderGameFeed(game){ const el=document.getElementById('gameFeed'); con
       ? `<span class="cap team-light">Opp${imported && !ev.playerCap ? '' : ' '+(ev.playerCap || '?')}</span>`
       : `<span class="cap team-dark">${imported && !ev.playerCap ? 'Us' : '#'+(ev.playerCap || '?')}</span>`;
     row.innerHTML = `${capHtml}<span class="label ${info.tone}">${info.text}</span><span class="t">${eventClockLabel(game, app.currentQ, ev)}</span><button class="del">✕</button>`;
-    row.querySelector('.del').onclick = ()=>{ game.quarters[app.currentQ].splice(idx,1); saveState(); renderGame(); };
+    row.querySelector('.del').onclick = ()=>{ const [gone] = game.quarters[app.currentQ].splice(idx,1); rememberRemovedEvents(game, [gone]); saveState(); renderGame(); };
     el.appendChild(row);
   });
   document.getElementById('undoBtn').disabled=false;
@@ -8249,12 +8365,13 @@ function renderGameNotes(game){
 function undoEvent(){
   const game=findGame(app.selectedGameId); if(!game) return;
   const q = game.quarters[app.currentQ]; if(!q.length) return;
-  const lastBatchId = q[q.length-1].batchId;
+  const lastBatchId = q[q.length-1].batchId; const gone = [];
   if(lastBatchId){
-    while(q.length && q[q.length-1].batchId===lastBatchId) q.pop();
+    while(q.length && q[q.length-1].batchId===lastBatchId) gone.push(q.pop());
   } else {
-    q.pop();
+    gone.push(q.pop());
   }
+  rememberRemovedEvents(game, gone);
   saveState(); renderGame();
 }
 function toggleGameFinal(){
@@ -8580,13 +8697,13 @@ function deletePlay(id){ app.plays = app.plays.filter(p=>p.id!==id); saveState()
 // Coaches & Manager page isn't tied to one game, so it needs the team-level version of the check.
 function hasTeamManagePermission(team){
   const u = currentUser(); if(!u || !team) return false;
-  if(u.role==='statistician') return true;
+  if(u.role==='statistician' || isAdminUser(u)) return true;
   if(u.role==='manager') return u.teamId ? u.teamId===team.id : true;
   if(u.role==='coach') return u.teamId===team.id;
   return false;
 }
 function escAttr(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-function saveGameNotes(gameId, value){ const g = findGame(gameId); if(!g) return; g.notes = value; saveState(); }
+function saveGameNotes(gameId, value){ const g = findGame(gameId); if(!g) return; if(g.notes!==value){ g.notes = value; touchGame(g); } saveState(); }
 // The pre-game "notes" field has existed on every game object since blankGame() but was never
 // wired to any UI — this is the first thing that actually reads/writes it, as a real game-plan
 // field distinct from tacticsFreeNotes (live in-game scratch text) and the coach-notes event feed
@@ -10051,7 +10168,7 @@ function importAppData(evt){
 }
 
 document.addEventListener('DOMContentLoaded', ()=>{
-  loadState(); setupRecognition(); renderAll(); // instant paint from the local cache
+  loadState(); resetSyncBaseline(); setupRecognition(); renderAll(); // instant paint from the local cache
   reconcileWithIndexedDb(); // then adopt IndexedDB's copy if it's ahead of localStorage's (async, non-blocking)
   checkGameStateNotifications(app.games); // establish baseline silently — no toast for state already known at boot
   checkUpcomingGameNotifications();
