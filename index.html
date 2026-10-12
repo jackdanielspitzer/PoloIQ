@@ -2012,7 +2012,13 @@ function navigate(page, id = null, meta = {}){
   app.page = page;
   if(page==='team'){ app.selectedTeamId = id || app.selectedTeamId; }
   if(page==='games'){ if(id) app.selectedTeamId = id; }
-  if(page==='game'){ app.selectedGameId = id || app.selectedGameId; app.manageMode = meta.manage || false; if(!app.selectedGameId) return; }
+  if(page==='game'){
+    // Coming back to the SAME game (from the tactics board, a player page...) keeps Edit/View as it
+    // was — "Back to game" used to silently drop you into view mode with the logging controls gone.
+    const sameGame = !id || id===app.selectedGameId;
+    app.selectedGameId = id || app.selectedGameId;
+    app.manageMode = (meta.manage===undefined && sameGame) ? app.manageMode : (meta.manage || false);
+    if(!app.selectedGameId) return; }
   if(page==='tactics'){ app.selectedGameId = id || app.selectedGameId; if(!app.selectedGameId){ app.page='games'; renderAll(); return; } if(!hasManagePermission(findGame(app.selectedGameId))){ alert('You need manage access to this game to use the tactics board.'); app.page='game'; renderAll(); return; } }
   if(page==='coaches'){
     const cu = currentUser();
