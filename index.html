@@ -8090,7 +8090,7 @@ async function openClockSync(){
   const game = findGame(app.selectedGameId);
   if(!game || !hasManagePermission(game)){ alert('You do not have permission to manage this game.'); return; }
   const m = document.getElementById('clockSyncModal'); m.style.display='flex'; m.classList.remove('hidden'); m.classList.remove('minimized'); m.onclick = null;
-  clockSyncBox = null; clockSyncLastAppliedMs = null; clockSyncPulledThisSession = false; clockSyncLastSyncFlashAt = 0; clockSyncTrust = null; clockSyncPending = null; clockSyncFrameVotes = [];
+  clockSyncBox = null; clockSyncLastAppliedMs = null; clockSyncPulledThisSession = false; clockSyncMinimizedOnce = false; clockSyncLastSyncFlashAt = 0; clockSyncTrust = null; clockSyncPending = null; clockSyncFrameVotes = [];
   document.getElementById('clockSyncStatus').textContent = 'Starting camera…';
   document.getElementById('clockSyncReading').textContent = '--:--';
   try{
@@ -8359,10 +8359,9 @@ function beginClockSyncReading(){
   if(statusEl) statusEl.textContent = 'Reading… hold steady on the clock.';
   if(clockSyncDisplayType === 'ocr') beginClockSyncReadingOCR();
   else beginClockSyncReadingSegment();
-  // No separate "keep syncing" step to click — reading straight off the camera and applying it to
-  // the game clock is just what this does now. A couple of seconds here to actually see it read
-  // correctly, then it shrinks itself out of the way on its own and keeps going in the background.
-  setTimeout(()=>{ if(isClockSyncActive() && !isClockSyncMinimized()) minimizeClockSync(); }, 2500);
+  // It shrinks itself into the corner as soon as the first reading actually syncs the clock (see
+  // applyClockSyncReading) and keeps going in the background — not on a fixed timer, which hid the
+  // window before anything had synced and left no way to see why.
 }
 // Loads the OCR engine lazily — most coaches will use the classic segment reader and never need
 // this heavier download at all. Cached on window.Tesseract once loaded so re-opening the modal
@@ -8542,7 +8541,7 @@ function beginClockSyncReadingSegment(){
     if(clockReadingAccepted(voted)) applyClockSyncReading(voted);
   }, 200);
 }
-let clockSyncApplying = false, clockSyncPulledThisSession = false, clockSyncPendingMs = null;
+let clockSyncApplying = false, clockSyncPulledThisSession = false, clockSyncPendingMs = null, clockSyncMinimizedOnce = false;
 async function applyClockSyncReading(remainingMs){
   if(remainingMs === clockSyncLastAppliedMs) return; // clock hasn't moved since our last sync — nothing to do
   // A running background sync confirms a new reading roughly once a second (the real clock just
@@ -8557,7 +8556,8 @@ async function applyClockSyncReading(remainingMs){
   if(clockSyncApplying){ clockSyncPendingMs = remainingMs; return; } // a previous reading is still being applied — remember this one rather than dropping it, and catch up once that finishes
   clockSyncApplying = true;
   try{
-    if(!clockSyncPulledThisSession){ await pullSharedStateFromServer(false); clockSyncPulledThisSession = true; }
+    // (No full download first any more: it took 20+ s on a phone before the first reading could land,
+    // and the sync now merges per game with newer-edit-wins, so this save can't clobber anyone.)
     const game = findGame(app.selectedGameId); if(!game) return;
     if(!game.quarterStart) game.quarterStart = {};
     if(!game.periodLengthMsByPeriod) game.periodLengthMsByPeriod = {};
@@ -8586,6 +8586,7 @@ async function applyClockSyncReading(remainingMs){
     if(autoAdvanced && app.page==='game') renderGame();
     const statusEl = document.getElementById('clockSyncStatus');
     clockSyncLastSyncFlashAt = Date.now();
+    if(!clockSyncMinimizedOnce && isClockSyncActive() && !isClockSyncMinimized()){ clockSyncMinimizedOnce = true; setTimeout(()=>{ if(isClockSyncActive() && !isClockSyncMinimized()) minimizeClockSync(); }, 1200); }
     if(statusEl) statusEl.innerHTML = autoAdvanced
       ? `<span style="color:var(--good);">✓ ${periodLabel(app.currentQ)} started</span> — clock reset detected, now logging ${periodLabel(app.currentQ)} (${fmtClockMs(remainingMs)} remaining).`
       : `<span style="color:var(--good);">✓ Synced</span> — ${periodLabel(app.currentQ)} set to ${fmtClockMs(remainingMs)} remaining.`;
