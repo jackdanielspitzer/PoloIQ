@@ -7694,6 +7694,8 @@ function parsePhrase(rawText, offsetMs, splitDepth){
   const text = rawText.toLowerCase().trim()
     .replace(/\b([56])\s*[-:]\s*0?([56])\b/g, (m,a,b)=>a!==b ? `${a} on ${b}` : m)
     .replace(/\b([56])\s*-\s*on\s*-\s*([56])\b/g, '$1 on $2')
+    // speech-to-text spellings of "steal"
+    .replace(/\b(steel|steele|stela|stele|steal's|steals's)\b/g, 'steal')
     .replace(/[.,!?]/g,'');
   if(/\b(undo|scratch that)\b/.test(text)) return {type:'undo'};
   const game = app.selectedGameId ? findGame(app.selectedGameId) : null;
@@ -7742,6 +7744,17 @@ function parsePhrase(rawText, offsetMs, splitDepth){
       const ok = r => r.type==='events' && r.events.length && !r.events.some(e=>e.stat_type==='unmatched' || e.stat_type==='note' && r.events.length===1);
       if(ok(a) && ok(b)) return {type:'events', events:[...a.events, ...b.events].map(e=>({...e, raw_phrase:rawText}))};
     }
+  }
+  // "steal against/on/from light 3" with nobody named first: light 3 turned it over; the steal goes
+  // to whoever was just named (if they're on the other team), otherwise to an unnamed opponent of
+  // light 3 — never to light 3 itself.
+  if(/^\s*(steal|steals|stole it|stole)\s+(against|on|from)\b/.test(text) && mentions.length===1 && mentions[0].side!=null){
+    const victim = mentions[0];
+    const recent = app.lastVoiceActor && (Date.now()-app.lastVoiceActorAt)<=ACTOR_CARRY_FORWARD_MS && app.lastVoiceActor.side===oppositeSide(victim.side) ? app.lastVoiceActor : null;
+    const stealer = recent || {playerId:null, cap:null, side:oppositeSide(victim.side)};
+    return {type:'events', events:[
+      {...base, playerId:stealer.playerId, playerCap:stealer.cap, side:stealer.side, stat_type:'steal', vsCap:victim.cap, vsId:victim.playerId},
+      {...base, playerId:victim.playerId, playerCap:victim.cap, side:victim.side, stat_type:'turnover', vsCap:stealer.cap, vsId:stealer.playerId}]};
   }
   const result = parsePhraseCore(rawText, offsetMs, text);
   if(result.type!=='events') return result;
