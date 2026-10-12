@@ -684,7 +684,22 @@
       <div class="panel">
         <div class="data-row">
           <h2>Games</h2>
-          <button class="ghost-btn" onclick="showGameForm()">Schedule game</button>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="ghost-btn" onclick="showPracticeForm()">🎯 Practice mode</button>
+            <button class="ghost-btn" onclick="showGameForm()">Schedule game</button>
+          </div>
+        </div>
+        <div id="practicePanel" class="panel hidden" style="border:1px dashed var(--cyan);">
+          <h2>Practice mode</h2>
+          <p style="color:var(--text-dim);font-size:13px;margin:0 0 10px;">Rehearse logging on any game — a YouTube replay, a TV broadcast, a scrimmage. Practice games work exactly like a live game (voice, manual buttons, quarters, camera clock, tactics) but are <b>never shared, never counted in stats, and never used by the recommendation engine</b>. They're saved only on this device.</p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+            <label class="entity-meta">Your team (roster to use) <select id="practiceTeamSelect" class="small-input"></select></label>
+            <label class="entity-meta">Opponent <input id="practiceOpponentInput" class="small-input" placeholder="e.g. USC" /></label>
+            <button class="primary-btn action-btn" onclick="startPracticeGame()">Start practice game</button>
+            <button class="ghost-btn" onclick="document.getElementById('practicePanel').classList.add('hidden')">Cancel</button>
+          </div>
+          <div style="font-size:12px;color:var(--text-faint);margin-top:8px;">Tip: play the video on a laptop or TV and log on your phone, like you would poolside. To test the camera clock, point the phone at the video's scoreboard and use the "TV / video board" display type.</div>
+          <div id="practiceGameList" style="margin-top:12px;"></div>
         </div>
         <label id="gamesScopeToggleRow" class="entity-meta" style="display:none;cursor:pointer;user-select:none;">
           <input type="checkbox" id="gamesScopeToggle" onchange="renderGames()" style="margin-right:6px;vertical-align:middle;" />
@@ -738,6 +753,7 @@
           <button class="ghost-btn" onclick="navigate('games')">← Back to games</button>
           <div>
             <h2 id="gameHeading"></h2>
+            <div id="gamePracticeBanner" style="display:none;"></div>
             <div class="entity-meta"><span id="gameInfoDate"></span><span id="gameInfoOpponent"></span><span id="gameInfoLocation"></span></div>
           </div>
           <button class="ghost-btn" id="gameModeBtn" onclick="toggleManageMode()">View only</button>
@@ -1137,6 +1153,10 @@ const app = {
   page:'home',
   teams:[],
   games:[],
+  // Practice games (logging a game off YouTube/TV to rehearse). Kept OUT of app.games on purpose:
+  // everything that syncs (SHARED_KEYS), counts stats, or feeds tactics/learning reads app.games,
+  // so a practice game can never leak into real data. Saved only on this device.
+  practiceGames:[],
   opponents:[],
   users:[],
   currentUserId:null,
@@ -1567,7 +1587,7 @@ function removeOpponent(name){
 // migrate old storage if present
 try{ if(!localStorage.getItem('poloai-app-state')){ const old = localStorage.getItem('deck-app-state'); if(old){ try{ const stored = JSON.parse(old); localStorage.setItem('poloai-app-state', JSON.stringify(stored)); console.info('migrated deck-app-state -> poloai-app-state'); }catch(e){} } } }catch(e){}
 function findTeam(id){ return app.teams.find(t=>t.id===id) || null; }
-function findGame(id){ return app.games.find(g=>g.id===id) || null; }
+function findGame(id){ return app.games.find(g=>g.id===id) || (app.practiceGames||[]).find(g=>g.id===id) || null; }
 function findPlayer(id){ return app.teams.flatMap(t=>t.players).find(p=>p.id===id) || null; }
 function getTeamPlayers(teamId){ const team = findTeam(teamId); return team ? [...team.players].sort((a,b) => parseInt(a.cap||0,10) - parseInt(b.cap||0,10)) : []; }
 // Everywhere that resolves a LIVE cap number (voice parsing, manual entry dropdowns, the roster
@@ -5061,7 +5081,7 @@ function saveGame(){
 // 2024-2025 imported results are backend data for tactics/stats, not something to browse day to
 // day — this list defaults to 2026-and-forward games only, with an explicit opt-in toggle (like the
 // team-scope one above) for a coach who actually wants the older seasons for scouting.
-function renderGames(){ const list = document.getElementById('gameList'); list.innerHTML='';
+function renderGames(){ const list = document.getElementById('gameList'); list.innerHTML=''; if((app.practiceGames||[]).length) showPracticeForm();
   const u = currentUser();
   const myTeam = u && u.teamId ? findTeam(u.teamId) : null;
   const toggleRow = document.getElementById('gamesScopeToggleRow');
@@ -5110,6 +5130,64 @@ async function deleteGame(gameId){
   renderGames();
 }
 
+/* ---------------- Practice mode ---------------- */
+function showPracticeForm(){
+  const panel = document.getElementById('practicePanel'); if(!panel) return;
+  const sel = document.getElementById('practiceTeamSelect');
+  const u = currentUser();
+  const def = (u && u.teamId) || app.selectedTeamId || (app.teams[0] && app.teams[0].id) || '';
+  sel.innerHTML = app.teams.slice().sort((a,b)=>a.name.localeCompare(b.name)).map(t=>`<option value="${t.id}" ${t.id===def?'selected':''}>${t.name}</option>`).join('');
+  panel.classList.remove('hidden');
+  renderPracticeGameList();
+}
+function startPracticeGame(){
+  const teamId = document.getElementById('practiceTeamSelect').value; if(!teamId) return;
+  const opponent = document.getElementById('practiceOpponentInput').value.trim() || 'Practice opponent';
+  const game = blankGame(teamId);
+  game.id = 'practice-'+game.id; game.practice = true; game.opponent = opponent; game.date = new Date().toISOString().slice(0,10);
+  if(!app.practiceGames) app.practiceGames = [];
+  app.practiceGames.push(game);
+  document.getElementById('practiceOpponentInput').value = '';
+  app.currentQ = 1;
+  saveState();
+  navigate('game', game.id, {manage:true});
+}
+function deletePracticeGame(id){
+  const game = (app.practiceGames||[]).find(g=>g.id===id); if(!game) return;
+  if(!confirm(`Delete the practice game vs ${game.opponent}? This can't be undone.`)) return;
+  if(app.selectedGameId===id){ stopListening(); if(isClockSyncActive()) closeClockSync(); app.selectedGameId = null; }
+  app.practiceGames = app.practiceGames.filter(g=>g.id!==id);
+  saveState();
+  if(app.page==='game') navigate('games'); else renderPracticeGameList();
+}
+function renderPracticeGameList(){
+  const el = document.getElementById('practiceGameList'); if(!el) return;
+  const list = (app.practiceGames||[]).slice().reverse();
+  if(!list.length){ el.innerHTML=''; return; }
+  el.innerHTML = '<div style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-faint);margin-bottom:6px;">Your practice games</div>' + list.map(g=>{
+    const team = findTeam(g.teamId); const sc = computeGameScore(g);
+    return `<div class="item" style="display:flex;align-items:center;justify-content:space-between;gap:10px;"><span><strong>${team?team.name:'Team'} vs ${g.opponent}</strong> <span style="color:var(--text-faint);font-size:12px;">${g.date} · ${sc.team}-${sc.opponent} · ${getGameEvents(g).length} events</span></span><span style="display:flex;gap:6px;"><button class="ghost-btn" onclick="navigate('game','${g.id}',{manage:true})">Open</button><button class="ghost-btn" style="color:var(--bad);" onclick="deletePracticeGame('${g.id}')">Delete</button></span></div>`;
+  }).join('');
+}
+// What a practice run is actually for: seeing what the voice parser missed. Lists every phrase
+// that wasn't recognized, so they can be re-tried or reported, plus a per-quarter tally.
+function renderPracticeBanner(game){
+  const el = document.getElementById('gamePracticeBanner'); if(!el) return;
+  if(!game.practice){ el.style.display='none'; el.innerHTML=''; return; }
+  const all = getGamePeriods(game).flatMap(q=>(game.quarters[q]||[]).map(ev=>({...ev, q})));
+  const misses = all.filter(ev=>ev.stat_type==='unmatched');
+  const logged = all.filter(ev=>ev.stat_type!=='unmatched' && ev.stat_type!=='shot_attempt' && ev.stat_type!=='note');
+  const perQ = getGamePeriods(game).map(q=>`${periodLabel(q)} ${(game.quarters[q]||[]).filter(ev=>ev.stat_type!=='unmatched'&&ev.stat_type!=='shot_attempt').length}`).join(' · ');
+  const said = logged.length + misses.length;
+  const rate = said ? Math.round(logged.length/said*100) : null;
+  el.style.display='block';
+  el.innerHTML = `<div style="margin:6px 0 2px;padding:10px 12px;border:1px dashed var(--cyan);border-radius:8px;background:rgba(0,168,255,.06);font-size:12.5px;color:var(--text-dim);">
+    <b style="color:var(--cyan);letter-spacing:.06em;">🎯 PRACTICE GAME</b> — not shared, not counted in stats or tactics. Saved on this device only.
+    <div style="margin-top:6px;">Events logged: <b>${logged.length}</b> (${perQ})${rate!=null?` · Recognized: <b>${rate}%</b> of ${said} calls`:''}</div>
+    ${misses.length ? `<details style="margin-top:6px;"><summary style="cursor:pointer;">${misses.length} phrase${misses.length===1?'':'s'} not recognized — tap to see</summary><ul style="margin:6px 0 0;padding-left:18px;">${misses.map(m=>`<li>${periodLabel(m.q)}: "${String(m.raw_phrase||'').replace(/</g,'&lt;')}"</li>`).join('')}</ul></details>` : ''}
+    <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;"><button class="ghost-btn" onclick="navigate('games')">All practice games</button><button class="ghost-btn" style="color:var(--bad);" onclick="deletePracticeGame('${game.id}')">Delete practice game</button></div>
+  </div>`;
+}
 function toggleManageMode(){ app.manageMode = !app.manageMode; renderGame(); }
 function renderGame(){ const game = findGame(app.selectedGameId); if(!game){ navigate('games'); return; }
   const team = findTeam(game.teamId);
@@ -5143,6 +5221,7 @@ function renderGame(){ const game = findGame(app.selectedGameId); if(!game){ nav
   if(!controlsVisible){ notice.style.display='inline-flex'; notice.textContent = explainManagePermission(game); } else { notice.style.display='none'; }
   // if entering manage mode and controls visible, ensure user picks which side to track
   if(controlsVisible){ if(!app.statFor || app.statFor.gameId !== game.id || !game.ourColor){ showStatForModal(game); } }
+  renderPracticeBanner(game);
   renderGameRoster(game);
   renderGameQuarterTabs(game);
   renderGameFeed(game);
@@ -5170,7 +5249,8 @@ function renderGame(){ const game = findGame(app.selectedGameId); if(!game){ nav
   }
 }
 
-function hasManagePermission(game){ const u=currentUser(); if(!u) return false; // only manager, coach, or statistician can manage stats
+function hasManagePermission(game){ if(game && game.practice) return true; // practice games are this device's own sandbox — anyone can log them
+  const u=currentUser(); if(!u) return false; // only manager, coach, or statistician can manage stats
   if(u.role==='statistician') return true;
   if(u.role==='manager'){ return u.teamId ? (u.teamId===game.teamId) : true; }
   if(u.role==='coach'){ return u.teamId===game.teamId; }
