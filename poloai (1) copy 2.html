@@ -7534,6 +7534,26 @@ const COMPOUND_RULES = [
       if(a2){ const other = withSide(a2, oppositeSide(a1.side), game); ev.vsCap = other.cap; ev.vsId = other.playerId; }
       return [ev];
     } },
+  // "light 1 good drive, pass by 4 and goal by 1": the first player sets the side (and gets the
+  // drive note); the passer is after "pass by/from", the scorer after "goal/scored by" — all one team.
+  { name:'pass_by_goal_by', test:t=>/\bpass(ed)?\s+(by|from)\b/.test(t) && /\b(goal|scored?|scores)\s+by\b/.test(t), build:(t,a1,a2,base,game,a3)=>{
+      const ms = [a1,a2,a3].filter(Boolean);
+      const pIdx = t.search(/\bpass(ed)?\s+(by|from)\b/), gIdx = t.search(/\b(goal|scored?|scores)\s+by\b/);
+      const after = idx => ms.filter(m=>m.start>idx).sort((x,y)=>x.start-y.start)[0] || null;
+      const passerM = pIdx<gIdx ? ms.find(m=>m.start>pIdx && m.start<gIdx) : after(pIdx);
+      const scorerM = gIdx<pIdx ? ms.find(m=>m.start>gIdx && m.start<pIdx) : after(gIdx);
+      if(!scorerM) return null;
+      const side = a1.side || scorerM.side || (passerM && passerM.side);
+      const scorer = withSide(scorerM, side, game);
+      const goalEv = {...base, playerId:scorer.playerId, playerCap:scorer.cap, side:scorer.side, stat_type:'goal'};
+      const manState = detectManStateContext(t); if(manState) goalEv.manState = manState;
+      const events = [goalEv];
+      if(passerM && passerM!==scorerM){ const passer = withSide(passerM, side, game); const quality = /\b(great|nice|good|perfect|beautiful|amazing)\s+pass\b/.exec(t);
+        const assistEv = {...base, playerId:passer.playerId, playerCap:passer.cap, side:passer.side, stat_type:'assist', assistTo:scorer.cap}; if(quality) assistEv.passQuality = quality[1]; events.push(assistEv); }
+      const drive = DRIVE_NOTE.exec(t);
+      if(drive) events.push({...base, playerId:a1.playerId, playerCap:a1.cap, side:a1.side||side, stat_type:'note', note:`${drive[1]} ${drive[2]}`});
+      return events;
+    } },
   // "X [great] pass to Y for a goal/scores" — a same-team assist-and-goal in one breath, without
   // needing the word "assist" at all. The quality word ("great"/"nice"/"good"/"perfect"/"beautiful")
   // gets kept on the assist itself, since a coach calling out a great pass wants that distinction
@@ -7559,12 +7579,23 @@ const COMPOUND_RULES = [
   // side as the scorer (a pass is never cross-team). Checked before the plain "scored on Y" rule
   // below, since this phrase also contains "scores on" but means something completely different —
   // a same-team assist, not an opposing defender beaten.
-  { name:'scored_on_pass_from', test:t=>/\b(score|scores|scored|goal)\s+on\b/.test(t) && /\bpass\b/.test(t) && /\bfrom\b/.test(t), build:(t,a1,a2,base,game)=>{
+  { name:'scored_on_pass_from', test:t=>/\b(score|scores|scored|goal)\s+on\b/.test(t) && /\bpass\b/.test(t) && /\bfrom\b/.test(t), build:(t,a1,a2,base,game,a3)=>{
       const goalEv = {...base, playerId:a1.playerId, playerCap:a1.cap, side:a1.side, stat_type:'goal'};
       const manState = detectManStateContext(t); if(manState) goalEv.manState = manState;
       const events = [goalEv];
-      if(a2){
-        const passer = withSide(a2, a1.side, game);
+      // "light 1 scored on dark 1 on a great pass from 4": the player right after "scored on" is the
+      // one beaten (opponent); only the player after "from" is the passer.
+      const fromIdx = t.search(/\bfrom\b/);
+      const others = [a2, a3].filter(Boolean);
+      const passerM = others.find(m=>m.start > fromIdx) || null;
+      const beatenM = others.find(m=>m.start < fromIdx && m!==passerM) || null;
+      if(beatenM){
+        const beaten = withSide(beatenM, oppositeSide(a1.side), game);
+        goalEv.vsCap = beaten.cap; goalEv.vsId = beaten.playerId;
+        events.push({...base, playerId:beaten.playerId, playerCap:beaten.cap, side:beaten.side, stat_type:'scored_on', vsCap:a1.cap, vsId:a1.playerId});
+      }
+      if(passerM){
+        const passer = withSide(passerM, a1.side, game);
         const assistEv = {...base, playerId:passer.playerId, playerCap:passer.cap, side:passer.side, stat_type:'assist', assistTo:a1.cap};
         const quality = /\b(great|nice|good|perfect|beautiful|amazing)\s+pass\b/.exec(t);
         if(quality){ assistEv.passQuality = quality[1]; events.push({...base, playerId:passer.playerId, playerCap:passer.cap, side:passer.side, stat_type:'note', note:`${quality[1]} pass to #${a1.cap}`}); }
@@ -7657,7 +7688,7 @@ function leftoverNoteText(text, mentions){
   return words.slice(idx[0], idx[idx.length-1]+1).join(' ');
 }
 const LEAD_NOTE_RE = /^\s*(great|nice|good|bad|poor|perfect|beautiful|amazing|terrible|awful|smart|lazy|careless)\s+(pass|drive|move|cut|fake|entry|shot|defense|d|play|look|feed)\s*$/;
-function parsePhrase(rawText, offsetMs){
+function parsePhrase(rawText, offsetMs, splitDepth){
   // Phone speech-to-text writes "six on five" as "6:05", "6-5", "6-on-5" or "6 v. 5" — normalize those
   // to "6 on 5" before anything else reads the phrase.
   const text = rawText.toLowerCase().trim()
@@ -7679,6 +7710,21 @@ function parsePhrase(rawText, offsetMs){
       if(rest.type==='events' && !rest.events.some(e=>e.stat_type==='unmatched')){
         const a = mentions[0];
         return {type:'events', events:[{...base, playerId:a.playerId, playerCap:a.cap, side:a.side, stat_type:'note', note:`${lead[1]} ${lead[2]}`}, ...rest.events]};
+      }
+    }
+  }
+  // "dark 1 lost the ball and light 1 good pass to 4 for a goal" — two plays in one breath. Split on
+  // and/then/also when EVERY part names its own player with a color or name (so "drew a penalty on
+  // light 5 and scored" stays one play), and each part parses into real stats on its own.
+  if(!splitDepth){
+    const parts = text.split(/\s+(?:and then|and|then|also)\s+/).filter(Boolean);
+    if(parts.length>=2){
+      const explicit = parts.map(pt=>findMentions(pt).some(m=>m.side!=null));
+      if(explicit.every(Boolean)){
+        const parsed = parts.map(pt=>parsePhrase(pt, offsetMs, 1));
+        if(parsed.every(r=>r.type==='events' && r.events.length && !r.events.some(e=>e.stat_type==='unmatched'))){
+          return {type:'events', events: parsed.flatMap(r=>r.events.map(e=>({...e, raw_phrase:rawText})))};
+        }
       }
     }
   }
