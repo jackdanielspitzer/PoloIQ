@@ -1074,10 +1074,8 @@ const STAT_DEFS = [
   { key:'goal', label:'Goal', short:'GL', tone:'good', patterns:['goal','scores','score','scored'] },
   { key:'shot_attempt', label:'Shot attempt', short:'ATT', tone:'', patterns:['shot attempt','shot on goal','shoot','shot','attempt','misses the cage','miss the cage','sails the cage','sails wide','sails high','hits the bar','hit the bar','hits the crossbar','off the post','post out','bar out','bar in','misses','miss']},
   { key:'assist', label:'Assist', short:'AST', tone:'good', patterns:['assist','assists']},
-  { key:'exclusion', label:'Exclusion', short:'EXC', tone:'bad', patterns:['exclusion','excluded','kicked out','ejection','ejected','eject']},
-  // A penalty foul (5m) is not an exclusion — the fouler stays in the water — but it still counts as
-  // a personal foul toward the 3 that foul a player out, so foul-trouble checks add both together.
-  { key:'penalty', label:'Penalty foul', short:'PEN', tone:'bad', patterns:['penalty against','penalty conceded','penalty on us','their penalty','penalty foul','committed a penalty','commits a penalty','gave up a penalty','gives up a penalty']},
+  // A penalty foul is logged as an exclusion on whoever committed it (coach's call, 2026-10-11).
+  { key:'exclusion', label:'Exclusion', short:'EXC', tone:'bad', patterns:['exclusion','excluded','kicked out','ejection','ejected','eject','penalty against','penalty conceded','penalty on us','their penalty','penalty foul','committed a penalty','commits a penalty','gave up a penalty','gives up a penalty']},
   { key:'exclusion_drawn', label:'Exclusion drawn', short:'EXD', tone:'good', patterns:['exclusion drawn','drawn exclusion','drew exclusion','draws exclusion','earned exclusion','earns exclusion','exclusion earned','ejection drawn','drawn ejection','drew ejection','earned ejection']},
   { key:'penalty_drawn', label:'Penalty drawn', short:'PD', tone:'good', patterns:['penalty drawn','drawn penalty','draws penalty','drew penalty','penalty for us','our penalty']},
   { key:'block', label:'Block', short:'BLK', tone:'good', patterns:['block','blocked']},
@@ -7350,18 +7348,18 @@ const COMPOUND_RULES = [
   // first so it wins over penalty_against's broader test.
   { name:'penalty_passive', test:t=>/\bpenaliz\w*\s+by\b/.test(t) || /\bpenalty\b.*\bby\b/.test(t), build:(t,a1,a2,base,game)=>{
       if(onlyMentionIsCredited(a1,a2,t)){ const events=[{...base, playerId:a1.playerId, playerCap:a1.cap, side:a1.side, stat_type:'penalty_drawn'}]; const note=buildDriveNote(t,base,a1); if(note) events.push(note); return events; }
-      const events=[{...base, playerId:a1.playerId, playerCap:a1.cap, side:a1.side, stat_type:'penalty'}];
+      const events=[{...base, playerId:a1.playerId, playerCap:a1.cap, side:a1.side, stat_type:'exclusion'}];
       if(a2){ const drawer = withSide(a2, oppositeSide(a1.side), game); events[0].vsCap = drawer.cap; events[0].vsId = drawer.playerId; events.push({...base, playerId:drawer.playerId, playerCap:drawer.cap, side:drawer.side, stat_type:'penalty_drawn', vsCap:a1.cap, vsId:a1.playerId}); const note=buildDriveNote(t,base,drawer); if(note) events.push(note); }
       return events;
     } },
   { name:'penalty_against', test:t=>/penalty (against|on)\b/.test(t), build:(t,a1,a2,base,game)=>{
       if(a2){
         const committed = withSide(a2, oppositeSide(a1.side), game);
-        const events = [{...base, playerId:a1.playerId, playerCap:a1.cap, side:a1.side, stat_type:'penalty_drawn', vsCap:committed.cap, vsId:committed.playerId}, {...base, playerId:committed.playerId, playerCap:committed.cap, side:committed.side, stat_type:'penalty', vsCap:a1.cap, vsId:a1.playerId}];
+        const events = [{...base, playerId:a1.playerId, playerCap:a1.cap, side:a1.side, stat_type:'penalty_drawn', vsCap:committed.cap, vsId:committed.playerId}, {...base, playerId:committed.playerId, playerCap:committed.cap, side:committed.side, stat_type:'exclusion', vsCap:a1.cap, vsId:a1.playerId}];
         const note = buildDriveNote(t, base, a1); if(note) events.push(note);
         return events;
       }
-      return [{...base, playerId:a1.playerId, playerCap:a1.cap, side:a1.side, stat_type:'penalty'}];
+      return [{...base, playerId:a1.playerId, playerCap:a1.cap, side:a1.side, stat_type:'exclusion'}];
     } },
   { name:'penalty_drawn_solo', test:t=>/(penalty drawn|drew (a )?penalty|draws penalty)/.test(t), build:(t,a1,a2,base)=>{
       return [{...base, playerId:a1.playerId, playerCap:a1.cap, side:a1.side, stat_type:'penalty_drawn'}];
@@ -7527,8 +7525,14 @@ function parsePhrase(rawText, offsetMs){
       return {type:'events', events:[goalEv]};
     }
   }
-  // Extra description after a recognized stat is kept as a note instead of being dropped.
   const evs = result.events;
+  // "dark 3 penalty against light 5 ... scores on penalty" run together into one breath (the mic
+  // joins calls said within ~1.3s): the penalty rule logs the foul but the goal was dropped.
+  const drawnEv = evs.find(e=>e.stat_type==='penalty_drawn');
+  if(drawnEv && !evs.some(e=>e.stat_type==='goal') && /\b(score|scores|scored|goal)\b/.test(text.replace(/\bgoal\s?(ie|keeper|tender)s?\b/g,''))){
+    evs.push({...base, playerId:drawnEv.playerId, playerCap:drawnEv.playerCap, side:drawnEv.side, stat_type:'goal'});
+  }
+  // Extra description after a recognized stat is kept as a note instead of being dropped.
   if(mentions.length && evs.length && !evs.some(e=>e.stat_type==='note' || e.stat_type==='unmatched')){
     const extra = leftoverNoteText(text, mentions);
     const who = evs[0];
@@ -9417,7 +9421,7 @@ function computePlayerValueScore(p, oppContext){
   if(p.bigGames && p.bigGames.length){ score += 1.5; breakdown.push('breakout-game history'); }
   const shooting = seasonShootingPct(p.id) || (box && box.shPct!=null ? {goals:box.g, attempts:box.sh, pct:box.shPct} : null);
   if(shooting){ const delta = shooting.pct - 0.35; score += delta * 10; breakdown.push(`${Math.round(shooting.pct*100)}% shooting (${shooting.goals}/${shooting.attempts})`); }
-  if(p.gameExGiven>=2){ score -= 3; breakdown.push('2 personal fouls already this game'); }
+  if(p.gameExGiven>=2){ score -= 3; breakdown.push('2 exclusions already this game'); }
   if(p.gameTurnovers>=2){ score -= 1.5; breakdown.push(`${p.gameTurnovers} turnovers already this game`); }
   const sprint = seasonSprintPct(p.id);
   if(sprint && sprint.pct>=0.65){ score += 1; breakdown.push(`${Math.round(sprint.pct*100)}% sprint win rate`); }
@@ -9537,7 +9541,7 @@ function buildTacticsSituation(game){
   const onField = our.map(t=>{
     const p = roster.find(rp=>rp.id===t.refId); if(!p) return null;
     const ownLog = ownPlayerGameLog(p, game.id);
-    return { ...p, fatigue: t.fatigue||'Low', gameExGiven: thisGameStat(game,p.id,'exclusion') + thisGameStat(game,p.id,'penalty'), gameExDrawn: thisGameStat(game,p.id,'exclusion_drawn'), gameTurnovers: thisGameStat(game,p.id,'turnover'), seasonExDrawn: seasonStat(p.id,'exclusion_drawn'), seasonExGiven: seasonStat(p.id,'exclusion'), seasonGoals: seasonStat(p.id,'goal'),
+    return { ...p, fatigue: t.fatigue||'Low', gameExGiven: thisGameStat(game,p.id,'exclusion'), gameExDrawn: thisGameStat(game,p.id,'exclusion_drawn'), gameTurnovers: thisGameStat(game,p.id,'turnover'), seasonExDrawn: seasonStat(p.id,'exclusion_drawn'), seasonExGiven: seasonStat(p.id,'exclusion'), seasonGoals: seasonStat(p.id,'goal'),
       careerVsOpp: careerFor(oppContext, p.name), goalsVsCurrentGoalie: oppGoalieEntry ? careerGoalsVsGoalie(oppContext, p.name, oppGoalieEntry.name) : 0,
       situationalVsOpp: oppContext ? oppContext.situational[(p.name||'').toLowerCase()] : null,
       form: computeStreak(ownLog), bigGames: findBigGames(ownLog), noteFlags: buildPlayerNoteTally(p, 5), situational: sitFindingsFor(sitIdx, p.id, sitCurDims), box: boxRatesFor(p), bigForm: gameType.big ? bigGameForm(p, game) : null, vsOppLines: Object.values(meetHist.ours).find(e=>sameNameKey(e.name, p.name)) || null };
@@ -9582,7 +9586,7 @@ function tacticsRuleEngine(sit, game){
   // --- Current situation: who's in foul/fatigue trouble right now ---
   sit.onField.forEach(p=>{
     if(p.gameExGiven>=2){
-      push(`#${p.cap} ${p.name||''} has 2 personal fouls (exclusions/penalties) already this game — one more and they're out for the rest of the game. Consider subbing.`, 9, 'Foul trouble', p.cap);
+      push(`#${p.cap} ${p.name||''} has 2 exclusions already this game — one more and they're out for the rest of the game. Consider subbing.`, 9, 'Foul trouble', p.cap);
       const bestBench = [...sit.bench].sort((a,b)=>(b.seasonExDrawn-b.seasonExGiven)-(a.seasonExDrawn-a.seasonExGiven))[0];
       if(bestBench) lineupNotes.push(`Sub #${bestBench.cap} ${bestBench.name||''} in for #${p.cap} ${p.name||''} (foul trouble).`);
     }
