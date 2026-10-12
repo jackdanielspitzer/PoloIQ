@@ -8484,14 +8484,19 @@ function clockReadingAccepted(ms){
   if(clockSyncPending.count >= needed && longEnough){ clockSyncTrust = {ms, at:now}; clockSyncPending = null; return true; }
   return false;
 }
-// Each camera frame's digits go through a small vote: a time is only used once it's the majority of
-// the last 5 frames, so one glitchy frame (a reflection, a flicker) never reaches the clock at all.
+// Each camera frame's reading goes through a small vote: it's only used when at least 2 of the
+// previous 4 frames agree with it, so one glitchy frame (a reflection, a flicker) never reaches the
+// clock. "Agree" means it fits a clock that's running down (or stopped) over the time between the
+// two frames — NOT an identical number: a running clock changes every second, and when the sync
+// window is shrunk it only looks a few times a second, so identical readings were rare and every
+// good reading got thrown out.
 let clockSyncFrameVotes = [];
 function clockVotedReading(ms){
-  clockSyncFrameVotes.push(ms); if(clockSyncFrameVotes.length > 5) clockSyncFrameVotes.shift();
-  const counts = {}; clockSyncFrameVotes.forEach(v=>{ counts[v] = (counts[v]||0)+1; });
-  const [best, n] = Object.entries(counts).sort((a,b)=>b[1]-a[1])[0];
-  return n >= 3 ? Number(best) : null;
+  const now = Date.now();
+  const prev = clockSyncFrameVotes.slice(-4);
+  clockSyncFrameVotes.push({ms, at:now}); if(clockSyncFrameVotes.length > 5) clockSyncFrameVotes.shift();
+  const fits = f => { const dt = now - f.at; return ms <= f.ms + 1000 && ms >= f.ms - dt - 1200; };
+  return prev.filter(fits).length >= 2 ? ms : null;
 }
 function beginClockSyncReadingSegment(){
   const video = document.getElementById('clockSyncVideo');
@@ -8499,7 +8504,7 @@ function beginClockSyncReadingSegment(){
   const wctx = work.getContext('2d', {willReadFrequently:true});
   let tick = 0;
   clockSyncInterval = setInterval(()=>{
-    tick++; if(isClockSyncMinimized() && tick % 5 !== 0) return; // ~200ms live, ~1s minimized
+    tick++; if(isClockSyncMinimized() && tick % 2 !== 0) return; // ~200ms live, ~400ms minimized
     if(!clockSyncBox || !video.videoWidth) return;
     work.width = video.videoWidth; work.height = video.videoHeight;
     wctx.drawImage(video, 0, 0, work.width, work.height);
