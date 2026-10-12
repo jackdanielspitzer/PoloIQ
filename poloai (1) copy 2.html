@@ -8456,7 +8456,9 @@ function beginClockSyncReadingSegment(){
       const digitsLabel = digits.map(d=>d===null?'✗':d).join(' ');
       statusEl.innerHTML = `Reading… hold steady on the clock.<br><span style="opacity:.65;font-size:12px;">Digits seen: ${digitsLabel}</span>`;
     }
-    if(digits.some(d=>d===null)) return;
+    // Can't read the clock right now (camera moved, glare, a swimmer in the way): blank the big
+    // reading instead of leaving the last good one up, which looked like a live (wrong) time.
+    if(digits.some(d=>d===null)){ const rEl = document.getElementById('clockSyncReading'); if(rEl) rEl.textContent = '—'; return; }
     const secondsDigitCount = 2;
     const minutes = parseInt(digits.slice(0, clockSyncDigitCount-secondsDigitCount).join(''),10);
     const seconds = parseInt(digits.slice(clockSyncDigitCount-secondsDigitCount).join(''),10);
