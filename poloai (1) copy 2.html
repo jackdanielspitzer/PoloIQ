@@ -1074,7 +1074,10 @@ const STAT_DEFS = [
   { key:'goal', label:'Goal', short:'GL', tone:'good', patterns:['goal','scores','score','scored'] },
   { key:'shot_attempt', label:'Shot attempt', short:'ATT', tone:'', patterns:['shot attempt','shot on goal','shoot','shot','attempt','misses the cage','miss the cage','sails the cage','sails wide','sails high','hits the bar','hit the bar','hits the crossbar','off the post','post out','bar out','bar in','misses','miss']},
   { key:'assist', label:'Assist', short:'AST', tone:'good', patterns:['assist','assists']},
-  { key:'exclusion', label:'Exclusion', short:'EXC', tone:'bad', patterns:['exclusion','excluded','kicked out','ejection','ejected','eject','penalty against','penalty conceded','penalty on us','their penalty']},
+  { key:'exclusion', label:'Exclusion', short:'EXC', tone:'bad', patterns:['exclusion','excluded','kicked out','ejection','ejected','eject']},
+  // A penalty foul (5m) is not an exclusion — the fouler stays in the water — but it still counts as
+  // a personal foul toward the 3 that foul a player out, so foul-trouble checks add both together.
+  { key:'penalty', label:'Penalty foul', short:'PEN', tone:'bad', patterns:['penalty against','penalty conceded','penalty on us','their penalty','penalty foul','committed a penalty','commits a penalty','gave up a penalty','gives up a penalty']},
   { key:'exclusion_drawn', label:'Exclusion drawn', short:'EXD', tone:'good', patterns:['exclusion drawn','drawn exclusion','drew exclusion','draws exclusion','earned exclusion','earns exclusion','exclusion earned','ejection drawn','drawn ejection','drew ejection','earned ejection']},
   { key:'penalty_drawn', label:'Penalty drawn', short:'PD', tone:'good', patterns:['penalty drawn','drawn penalty','draws penalty','drew penalty','penalty for us','our penalty']},
   { key:'block', label:'Block', short:'BLK', tone:'good', patterns:['block','blocked']},
@@ -7106,7 +7109,12 @@ function findGoalieMentions(text, game){
 }
 function findMentions(text){
   const game = app.selectedGameId ? findGame(app.selectedGameId) : null;
-  const all = [...findNameMentions(text), ...tokenizeCapMentions(text, game), ...findGoalieMentions(text, game)];
+  // "scores on the 6 on 5 assisted by 4": the 6 and 5 there are the man-state, not caps — they used
+  // to be read as players, crediting the assist to #6 and dropping the real assister.
+  const manSpans = []; const manRe = /\b(6|six|5|five)\s*(v|vs|versus|on)\s*(5|five|6|six)\b/g; let mm;
+  while((mm = manRe.exec(text))) manSpans.push({start:mm.index, end:mm.index+mm[0].length});
+  const all = [...findNameMentions(text), ...tokenizeCapMentions(text, game), ...findGoalieMentions(text, game)]
+    .filter(m=>!manSpans.some(r=>m.start>=r.start && m.end<=r.end));
   all.sort((a,b)=>a.start-b.start);
   return all;
 }
@@ -7232,6 +7240,7 @@ const COMPOUND_RULES = [
   { name:'assist_passive', test:t=>/assisted by/.test(t), build:(t,a1,a2,base,game)=>{
       if(onlyMentionIsCredited(a1,a2,t)) return [{...base, playerId:a1.playerId, playerCap:a1.cap, side:a1.side, stat_type:'assist'}];
       const goalEv = {...base, playerId:a1.playerId, playerCap:a1.cap, side:a1.side, stat_type:'goal'};
+      { const manState = detectManStateContext(t); if(manState) goalEv.manState = manState; }
       const events=[goalEv];
       if(a2){
         const assister = withSide(a2, a1.side, game);
@@ -7341,31 +7350,29 @@ const COMPOUND_RULES = [
   // first so it wins over penalty_against's broader test.
   { name:'penalty_passive', test:t=>/\bpenaliz\w*\s+by\b/.test(t) || /\bpenalty\b.*\bby\b/.test(t), build:(t,a1,a2,base,game)=>{
       if(onlyMentionIsCredited(a1,a2,t)){ const events=[{...base, playerId:a1.playerId, playerCap:a1.cap, side:a1.side, stat_type:'penalty_drawn'}]; const note=buildDriveNote(t,base,a1); if(note) events.push(note); return events; }
-      const events=[{...base, playerId:a1.playerId, playerCap:a1.cap, side:a1.side, stat_type:'exclusion'}];
+      const events=[{...base, playerId:a1.playerId, playerCap:a1.cap, side:a1.side, stat_type:'penalty'}];
       if(a2){ const drawer = withSide(a2, oppositeSide(a1.side), game); events[0].vsCap = drawer.cap; events[0].vsId = drawer.playerId; events.push({...base, playerId:drawer.playerId, playerCap:drawer.cap, side:drawer.side, stat_type:'penalty_drawn', vsCap:a1.cap, vsId:a1.playerId}); const note=buildDriveNote(t,base,drawer); if(note) events.push(note); }
       return events;
     } },
   { name:'penalty_against', test:t=>/penalty (against|on)\b/.test(t), build:(t,a1,a2,base,game)=>{
       if(a2){
         const committed = withSide(a2, oppositeSide(a1.side), game);
-        const events = [{...base, playerId:a1.playerId, playerCap:a1.cap, side:a1.side, stat_type:'penalty_drawn', vsCap:committed.cap, vsId:committed.playerId}, {...base, playerId:committed.playerId, playerCap:committed.cap, side:committed.side, stat_type:'exclusion', vsCap:a1.cap, vsId:a1.playerId}];
+        const events = [{...base, playerId:a1.playerId, playerCap:a1.cap, side:a1.side, stat_type:'penalty_drawn', vsCap:committed.cap, vsId:committed.playerId}, {...base, playerId:committed.playerId, playerCap:committed.cap, side:committed.side, stat_type:'penalty', vsCap:a1.cap, vsId:a1.playerId}];
         const note = buildDriveNote(t, base, a1); if(note) events.push(note);
         return events;
       }
-      return [{...base, playerId:a1.playerId, playerCap:a1.cap, side:a1.side, stat_type:'exclusion'}];
+      return [{...base, playerId:a1.playerId, playerCap:a1.cap, side:a1.side, stat_type:'penalty'}];
     } },
   { name:'penalty_drawn_solo', test:t=>/(penalty drawn|drew (a )?penalty|draws penalty)/.test(t), build:(t,a1,a2,base)=>{
       return [{...base, playerId:a1.playerId, playerCap:a1.cap, side:a1.side, stat_type:'penalty_drawn'}];
     } },
-  // "Turnover against X" — same shape as "penalty against X": the actor named first gets credit
-  // for forcing it (a steal), the actor named after "against" is the one who actually turned it
-  // over. Without a second name it's just a plain turnover on whoever was named.
-  { name:'turnover_against', test:t=>/\bturnover (against|on)\b/.test(t), build:(t,a1,a2,base,game)=>{
-      if(a2){
-        const turned = withSide(a2, oppositeSide(a1.side), game);
-        return [{...base, playerId:a1.playerId, playerCap:a1.cap, side:a1.side, stat_type:'steal', vsCap:turned.cap, vsId:turned.playerId}, {...base, playerId:turned.playerId, playerCap:turned.cap, side:turned.side, stat_type:'turnover', vsCap:a1.cap, vsId:a1.playerId}];
-      }
-      return [{...base, playerId:a1.playerId, playerCap:a1.cap, side:a1.side, stat_type:'turnover'}];
+  // "dark 3 turnover on/against light 6" — dark 3 turned it over; light 6 is just who it went to,
+  // linked for context. Nobody gets a steal unless a steal is actually said ("stolen by",
+  // "steal") — a turnover can be a bad pass or an offensive foul with nobody stealing anything.
+  { name:'turnover_against', test:t=>/\bturnover (against|on|to)\b/.test(t) && !/\b(stole|stolen|steals?)\b/.test(t), build:(t,a1,a2,base,game)=>{
+      const ev = {...base, playerId:a1.playerId, playerCap:a1.cap, side:a1.side, stat_type:'turnover'};
+      if(a2){ const other = withSide(a2, oppositeSide(a1.side), game); ev.vsCap = other.cap; ev.vsId = other.playerId; }
+      return [ev];
     } },
   // "X [great] pass to Y for a goal/scores" — a same-team assist-and-goal in one breath, without
   // needing the word "assist" at all. The quality word ("great"/"nice"/"good"/"perfect"/"beautiful")
@@ -7470,7 +7477,66 @@ function detectManStateContext(text){
   if(/\bnatural\b|\beven\s*strength\b/.test(text)) return 'even';
   return null;
 }
-function parsePhrase(rawText, offsetMs){ const text=rawText.toLowerCase().trim().replace(/[.,!?]/g,''); if(/\b(undo|scratch that)\b/.test(text)) return {type:'undo'};
+// Words that carry the STAT itself or sentence glue — anything else left over in a phrase is the
+// coach's own description, kept as a note ("dark 3 goal great shot from the left").
+const NOTE_STRUCT_WORDS = new Set(('dark light cap number goalie keeper goal goals score scores scored scoring assist assists assisted '+
+  'exclusion excluded exclude ejection ejected eject drew draws drawn draw earned earns earn penalty penalized foul '+
+  'steal steals stole stolen turnover turnovers turned block blocks blocked save saves saved sprint won wins lost loses '+
+  'rebound putback put back kicked out attempt by on to from against versus vs the a an of for with and his her their '+
+  'it is was got gets in at man up down power play natural even strength v six five shot shoots um uh uhh umm yeah like so').split(' '));
+function leftoverNoteText(text, mentions){
+  let t = text; mentions.slice().sort((a,b)=>b.start-a.start).forEach(m=>{ t = t.slice(0,m.start)+' '+t.slice(m.end); });
+  // Stat phrases already recorded on the event ("hits the bar" as the miss reason) aren't a note.
+  PATTERN_INDEX.forEach(p=>{ if(p.phrase.includes(' ')) t = t.split(p.phrase).join(' '); });
+  const words = t.split(/\s+/).filter(Boolean);
+  const isStruct = w => NOTE_STRUCT_WORDS.has(w) || /^\d+[a-z]?$/.test(w) || NUM_WORDS.hasOwnProperty(w);
+  const idx = words.map((w,i)=>isStruct(w)?-1:i).filter(i=>i>=0);
+  if(idx.length < 2) return '';
+  return words.slice(idx[0], idx[idx.length-1]+1).join(' ');
+}
+const LEAD_NOTE_RE = /^\s*(great|nice|good|bad|poor|perfect|beautiful|amazing|terrible|awful|smart|lazy|careless)\s+(pass|drive|move|cut|fake|entry|shot|defense|d|play|look|feed)\s*$/;
+function parsePhrase(rawText, offsetMs){
+  const text = rawText.toLowerCase().trim().replace(/[.,!?]/g,'');
+  if(/\b(undo|scratch that)\b/.test(text)) return {type:'undo'};
+  const game = app.selectedGameId ? findGame(app.selectedGameId) : null;
+  const base = {wall_time_offset_ms:offsetMs, raw_phrase:rawText};
+  const mentions = findMentions(text);
+  // "dark 3 good pass light 12 excluded by dark 5" is two calls in one breath: a note on dark 3,
+  // then a complete play. Split off the leading "<player> <quality> <pass/drive/...>" clause and
+  // parse the rest on its own, instead of every rule reading dark 3 as the main actor.
+  if(mentions.length>=2){
+    const between = text.slice(mentions[0].end, mentions[1].start);
+    const lead = LEAD_NOTE_RE.exec(between);
+    if(lead){
+      const rest = parsePhraseCore(rawText, offsetMs, text.slice(mentions[1].start));
+      if(rest.type==='events' && !rest.events.some(e=>e.stat_type==='unmatched')){
+        const a = mentions[0];
+        return {type:'events', events:[{...base, playerId:a.playerId, playerCap:a.cap, side:a.side, stat_type:'note', note:`${lead[1]} ${lead[2]}`}, ...rest.events]};
+      }
+    }
+  }
+  const result = parsePhraseCore(rawText, offsetMs, text);
+  if(result.type!=='events') return result;
+  // "scores on penalty" with nobody named: the goal belongs to the side that just drew the penalty —
+  // credited to the player who drew it (say "dark 8 scores on penalty" if someone else shot it).
+  if(!mentions.length && /\bpenalt/.test(text) && /\b(score|scores|scored|goal)\b/.test(text) && game){
+    const q = game.quarters[app.currentQ]||[];
+    const drawn = [...q].reverse().find(ev=>ev.stat_type==='penalty_drawn' && ev.playerCap!=null && offsetMs - (ev.wall_time_offset_ms||0) <= 180000);
+    if(drawn){
+      const goalEv = {...base, playerId:drawn.playerId, playerCap:drawn.playerCap, side:drawn.side, stat_type:'goal'};
+      return {type:'events', events:[goalEv]};
+    }
+  }
+  // Extra description after a recognized stat is kept as a note instead of being dropped.
+  const evs = result.events;
+  if(mentions.length && evs.length && !evs.some(e=>e.stat_type==='note' || e.stat_type==='unmatched')){
+    const extra = leftoverNoteText(text, mentions);
+    const who = evs[0];
+    if(extra) evs.push({...base, playerId:who.playerId, playerCap:who.playerCap, side:who.side, stat_type:'note', note:extra});
+  }
+  return result;
+}
+function parsePhraseCore(rawText, offsetMs, textOverride){ const text=textOverride!=null ? textOverride : rawText.toLowerCase().trim().replace(/[.,!?]/g,'');
   const game = app.selectedGameId ? findGame(app.selectedGameId) : null;
   const mentions=findMentions(text); let actor1=mentions[0]||null; const actor2=mentions[1]||null; const actor3=mentions[2]||null; const base={wall_time_offset_ms:offsetMs, raw_phrase:rawText};
   if(actor1){ app.lastVoiceActor = actor1; app.lastVoiceActorAt = Date.now(); }
@@ -9351,7 +9417,7 @@ function computePlayerValueScore(p, oppContext){
   if(p.bigGames && p.bigGames.length){ score += 1.5; breakdown.push('breakout-game history'); }
   const shooting = seasonShootingPct(p.id) || (box && box.shPct!=null ? {goals:box.g, attempts:box.sh, pct:box.shPct} : null);
   if(shooting){ const delta = shooting.pct - 0.35; score += delta * 10; breakdown.push(`${Math.round(shooting.pct*100)}% shooting (${shooting.goals}/${shooting.attempts})`); }
-  if(p.gameExGiven>=2){ score -= 3; breakdown.push('2 exclusions already this game'); }
+  if(p.gameExGiven>=2){ score -= 3; breakdown.push('2 personal fouls already this game'); }
   if(p.gameTurnovers>=2){ score -= 1.5; breakdown.push(`${p.gameTurnovers} turnovers already this game`); }
   const sprint = seasonSprintPct(p.id);
   if(sprint && sprint.pct>=0.65){ score += 1; breakdown.push(`${Math.round(sprint.pct*100)}% sprint win rate`); }
@@ -9471,7 +9537,7 @@ function buildTacticsSituation(game){
   const onField = our.map(t=>{
     const p = roster.find(rp=>rp.id===t.refId); if(!p) return null;
     const ownLog = ownPlayerGameLog(p, game.id);
-    return { ...p, fatigue: t.fatigue||'Low', gameExGiven: thisGameStat(game,p.id,'exclusion'), gameExDrawn: thisGameStat(game,p.id,'exclusion_drawn'), gameTurnovers: thisGameStat(game,p.id,'turnover'), seasonExDrawn: seasonStat(p.id,'exclusion_drawn'), seasonExGiven: seasonStat(p.id,'exclusion'), seasonGoals: seasonStat(p.id,'goal'),
+    return { ...p, fatigue: t.fatigue||'Low', gameExGiven: thisGameStat(game,p.id,'exclusion') + thisGameStat(game,p.id,'penalty'), gameExDrawn: thisGameStat(game,p.id,'exclusion_drawn'), gameTurnovers: thisGameStat(game,p.id,'turnover'), seasonExDrawn: seasonStat(p.id,'exclusion_drawn'), seasonExGiven: seasonStat(p.id,'exclusion'), seasonGoals: seasonStat(p.id,'goal'),
       careerVsOpp: careerFor(oppContext, p.name), goalsVsCurrentGoalie: oppGoalieEntry ? careerGoalsVsGoalie(oppContext, p.name, oppGoalieEntry.name) : 0,
       situationalVsOpp: oppContext ? oppContext.situational[(p.name||'').toLowerCase()] : null,
       form: computeStreak(ownLog), bigGames: findBigGames(ownLog), noteFlags: buildPlayerNoteTally(p, 5), situational: sitFindingsFor(sitIdx, p.id, sitCurDims), box: boxRatesFor(p), bigForm: gameType.big ? bigGameForm(p, game) : null, vsOppLines: Object.values(meetHist.ours).find(e=>sameNameKey(e.name, p.name)) || null };
@@ -9516,7 +9582,7 @@ function tacticsRuleEngine(sit, game){
   // --- Current situation: who's in foul/fatigue trouble right now ---
   sit.onField.forEach(p=>{
     if(p.gameExGiven>=2){
-      push(`#${p.cap} ${p.name||''} has 2 exclusions already this game — one more and they're out for the rest of the game. Consider subbing.`, 9, 'Foul trouble', p.cap);
+      push(`#${p.cap} ${p.name||''} has 2 personal fouls (exclusions/penalties) already this game — one more and they're out for the rest of the game. Consider subbing.`, 9, 'Foul trouble', p.cap);
       const bestBench = [...sit.bench].sort((a,b)=>(b.seasonExDrawn-b.seasonExGiven)-(a.seasonExDrawn-a.seasonExGiven))[0];
       if(bestBench) lineupNotes.push(`Sub #${bestBench.cap} ${bestBench.name||''} in for #${p.cap} ${p.name||''} (foul trouble).`);
     }
