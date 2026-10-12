@@ -8090,7 +8090,7 @@ async function openClockSync(){
   const game = findGame(app.selectedGameId);
   if(!game || !hasManagePermission(game)){ alert('You do not have permission to manage this game.'); return; }
   const m = document.getElementById('clockSyncModal'); m.style.display='flex'; m.classList.remove('hidden'); m.classList.remove('minimized'); m.onclick = null;
-  clockSyncBox = null; clockSyncLastAppliedMs = null; clockSyncPulledThisSession = false; clockSyncLastSyncFlashAt = 0; clockSyncTrust = null; clockSyncPending = null;
+  clockSyncBox = null; clockSyncLastAppliedMs = null; clockSyncPulledThisSession = false; clockSyncLastSyncFlashAt = 0; clockSyncTrust = null; clockSyncPending = null; clockSyncFrameVotes = [];
   document.getElementById('clockSyncStatus').textContent = 'Starting camera…';
   document.getElementById('clockSyncReading').textContent = '--:--';
   try{
@@ -8188,7 +8188,7 @@ function onClockSyncDisplayTypeChange(val){
 function startClockSyncCalibration(){
   if(clockSyncInterval){ clearInterval(clockSyncInterval); clockSyncInterval=null; }
   if(clockSyncOcrInterval){ clearInterval(clockSyncOcrInterval); clockSyncOcrInterval=null; }
-  clockSyncBox = null; clockSyncTrust = null; clockSyncPending = null;
+  clockSyncBox = null; clockSyncTrust = null; clockSyncPending = null; clockSyncFrameVotes = [];
   const statusEl = document.getElementById('clockSyncStatus');
   if(statusEl) statusEl.textContent = 'Drag a box around the clock digits, then release.';
   const overlay = document.getElementById('clockSyncOverlay');
@@ -8469,13 +8469,29 @@ let clockSyncTrust = null;   // {ms, at}: last accepted reading and when it was 
 let clockSyncPending = null; // {ms, at, count}: a run of readings that disagree with clockSyncTrust
 function clockReadingAccepted(ms){
   const now = Date.now();
+  // Longer than a whole period ("34:03" in an 8:00 quarter) can't be real — never accept it.
+  if(ms > clockSyncPeriodMs + 1000) return false;
   const consistent = (prev) => ms <= prev.ms + 1000 && ms >= prev.ms - (now - prev.at) - 1500;
   if(clockSyncTrust && consistent(clockSyncTrust)){ clockSyncTrust = {ms, at:now}; clockSyncPending = null; return true; }
-  if(clockSyncPending && consistent(clockSyncPending)){ clockSyncPending = {ms, at:now, count:clockSyncPending.count+1}; }
-  else clockSyncPending = {ms, at:now, count:1};
-  const needed = clockSyncTrust ? 3 : 2;
-  if(clockSyncPending.count >= needed){ clockSyncTrust = {ms, at:now}; clockSyncPending = null; return true; }
+  if(clockSyncPending && consistent(clockSyncPending)){ clockSyncPending = {ms, at:now, count:clockSyncPending.count+1, since:clockSyncPending.since}; }
+  else clockSyncPending = {ms, at:now, count:1, since:now};
+  // A clock jumping back to (nearly) a full period is a new quarter — believable after 3 reads. Any
+  // other jump (up, or down faster than time passes) is almost always a misread that a camera keeps
+  // repeating for a moment (glare on one digit), so it needs 6 agreeing reads over 2+ seconds.
+  const isReset = ms >= clockSyncPeriodMs - 60000;
+  const needed = !clockSyncTrust ? 2 : (isReset ? 3 : 6);
+  const longEnough = !clockSyncTrust || isReset || (now - clockSyncPending.since) >= 2000;
+  if(clockSyncPending.count >= needed && longEnough){ clockSyncTrust = {ms, at:now}; clockSyncPending = null; return true; }
   return false;
+}
+// Each camera frame's digits go through a small vote: a time is only used once it's the majority of
+// the last 5 frames, so one glitchy frame (a reflection, a flicker) never reaches the clock at all.
+let clockSyncFrameVotes = [];
+function clockVotedReading(ms){
+  clockSyncFrameVotes.push(ms); if(clockSyncFrameVotes.length > 5) clockSyncFrameVotes.shift();
+  const counts = {}; clockSyncFrameVotes.forEach(v=>{ counts[v] = (counts[v]||0)+1; });
+  const [best, n] = Object.entries(counts).sort((a,b)=>b[1]-a[1])[0];
+  return n >= 3 ? Number(best) : null;
 }
 function beginClockSyncReadingSegment(){
   const video = document.getElementById('clockSyncVideo');
@@ -8508,15 +8524,17 @@ function beginClockSyncReadingSegment(){
     const seconds = parseInt(digits.slice(clockSyncDigitCount-secondsDigitCount).join(''),10);
     if(isNaN(minutes) || isNaN(seconds) || seconds>59) return;
     const ms = (minutes*60+seconds)*1000;
+    const voted = clockVotedReading(ms);
+    if(voted===null) return;
     const readingEl = document.getElementById('clockSyncReading');
-    if(readingEl) readingEl.textContent = fmtClockMs(ms);
+    if(readingEl) readingEl.textContent = fmtClockMs(voted);
     // A running clock is SUPPOSED to change every second — requiring several consecutive samples
     // to all read the exact same value fights against the thing being read. Every digit position
     // decoded cleanly above (no ✗s) is already the real bar for trusting a reading; applying it
     // immediately, every time it changes, is what "just use the time it's already reading" means.
     // applyClockSyncReading no-ops on its own once the value repeats, so this costs nothing extra
     // once the clock holds steady between ticks.
-    if(clockReadingAccepted(ms)) applyClockSyncReading(ms);
+    if(clockReadingAccepted(voted)) applyClockSyncReading(voted);
   }, 200);
 }
 let clockSyncApplying = false, clockSyncPulledThisSession = false, clockSyncPendingMs = null;
