@@ -7808,6 +7808,20 @@ function parsePhrase(rawText, offsetMs, splitDepth){
   // "great pass 7 for a goal": a number right after "pass" is who it went to
   text = text.replace(/\bpass\s+(\d{1,2}[ab]?)\b/g, 'pass to $1');
   const base = {wall_time_offset_ms:offsetMs, raw_phrase:rawText};
+  // The phone often sends one call in two pieces ("dark 3 rebound" ... "great pass to dark 4 for a
+  // goal"). A pass with no passer named was made by whoever was just named — not by its target.
+  if(!splitDepth && /\b(pass|passes|passed|feed|feeds|fed|outlet|finds|found)\b/.test(text) && app.lastVoiceActor && (Date.now()-app.lastVoiceActorAt)<=ACTOR_CARRY_FORWARD_MS){
+    const ms0 = findMentions(text);
+    const words = pos => text.slice(0,pos).trim().split(/\s+/).filter(Boolean);
+    const hasSubject = ms0.some(x=>{ if(x.side==null && !x.playerId) return false; const w = words(x.start); const last = w[w.length-1];
+      if(last==='from' && /^(pass|passes|passed|feed|assist|ball)$/.test(w[w.length-2]||'')) return true;
+      return !PLAY_OBJECT_PREPS.has(last); });
+    if(!hasSubject){
+      const a = app.lastVoiceActor, ourColor = ((game && game.ourColor) || 'Dark').toLowerCase();
+      const color = a.side==='team' ? ourColor : (ourColor==='dark' ? 'light' : 'dark');
+      if(a.cap!=null) text = `${color} ${a.cap} ${text}`;
+    }
+  }
   const mentions = findMentions(text);
   // "dark 3 good pass light 12 excluded by dark 5" is two calls in one breath: a note on dark 3,
   // then a complete play. Split off the leading "<player> <quality> <pass/drive/...>" clause and
