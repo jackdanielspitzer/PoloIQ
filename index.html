@@ -1555,13 +1555,18 @@ async function pullSharedStateFromServer(applyIfNewer){
     if(applyIfNewer && serverTime <= _syncState.lastPushedAt){ _syncState.pulledOnce = true; return; }
     if(serverTime <= _syncState.lastPulledAt){ _syncState.pulledOnce = true; return; } // already have this exact version, skip the N-chunk fetch
 
-    let full = '';
-    for(let i=0;i<meta.totalChunks;i++){
-      const res = await fetch(SHARED_STATE_URL+'?chunk='+i);
-      if(!res.ok) throw new Error('chunk '+i+' HTTP '+res.status);
-      const json = await res.json();
-      full += (json && json.chunk) || '';
+    // 8 chunks at a time instead of one by one — a new phone's first download (accounts included,
+    // so nobody can log in until it lands) goes from a minute or two to a few seconds.
+    const parts = new Array(meta.totalChunks);
+    for(let i=0;i<meta.totalChunks;i+=8){
+      await Promise.all(Array.from({length:Math.min(8, meta.totalChunks-i)}, async (_,j)=>{
+        const res = await fetch(SHARED_STATE_URL+'?chunk='+(i+j));
+        if(!res.ok) throw new Error('chunk '+(i+j)+' HTTP '+res.status);
+        const json = await res.json();
+        parts[i+j] = (json && json.chunk) || '';
+      }));
     }
+    const full = parts.join('');
     let data;
     try{ data = JSON.parse(full); }
     catch(parseErr){
@@ -1909,7 +1914,7 @@ async function saveUser(){
   }
   if(loginMode){ // attempt login
     const existing = app.users.find(u=>u.email===email);
-    if(!existing){ showUserFormError('No account found for this email.'); return; }
+    if(!existing){ showUserFormError(_syncState.pulledOnce ? 'No account found for this email.' : 'Still downloading accounts on this device — wait a few seconds and try again.'); if(!_syncState.pulledOnce) pullSharedStateFromServer(false); return; }
     const hash = await hashPassword(password);
     if(existing.passwordHash !== hash){ showUserFormError('Incorrect password.'); return; }
     app.currentUserId = existing.id; saveState(); hideUserForm(); renderAccount(); renderAll(); return; }
