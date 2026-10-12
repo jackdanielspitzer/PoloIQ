@@ -7766,14 +7766,24 @@ const LEAD_NOTE_RE = /^\s*(great|nice|good|bad|poor|perfect|beautiful|amazing|te
 function parsePhrase(rawText, offsetMs, splitDepth){
   // Phone speech-to-text writes "six on five" as "6:05", "6-5", "6-on-5" or "6 v. 5" — normalize those
   // to "6 on 5" before anything else reads the phrase.
-  const text = rawText.toLowerCase().trim()
+  let text = rawText.toLowerCase().trim()
     .replace(/\b([56])\s*[-:]\s*0?([56])\b/g, (m,a,b)=>a!==b ? `${a} on ${b}` : m)
     .replace(/\b([56])\s*-\s*on\s*-\s*([56])\b/g, '$1 on $2')
     // speech-to-text spellings of "steal"
     .replace(/\b(steel|steele|stela|stele|steal's|steals's)\b/g, 'steal')
+    // "pass to 4" heard as "past to 4", "pass too 4", "pass 2 4", "pass two 4"
+    .replace(/\b(past|passed|pas|pass's|passes)\s+(to|too|two|2)\s+/g, 'pass to ')
+    .replace(/\bpass\s+(too|two|2)\s+(?=\S)/g, 'pass to ')
+    .replace(/\b(assist|assisted)\s+(too|two|2)\s+(?=\S)/g, '$1 to ')
     .replace(/[.,!?]/g,'');
   if(/\b(undo|scratch that)\b/.test(text)) return {type:'undo'};
   const game = app.selectedGameId ? findGame(app.selectedGameId) : null;
+  if(game && /\bpass\s+2\d\b/.test(text)){
+    const caps = new Set(getActiveGameRoster(game).map(p=>String(p.cap)));
+    text = text.replace(/\bpass\s+2(\d)\b/g, (m,d)=>caps.has('2'+d) ? `pass to 2${d}` : `pass to ${d}`);
+  }
+  // "great pass 7 for a goal": a number right after "pass" is who it went to
+  text = text.replace(/\bpass\s+(\d{1,2}[ab]?)\b/g, 'pass to $1');
   const base = {wall_time_offset_ms:offsetMs, raw_phrase:rawText};
   const mentions = findMentions(text);
   // "dark 3 good pass light 12 excluded by dark 5" is two calls in one breath: a note on dark 3,
