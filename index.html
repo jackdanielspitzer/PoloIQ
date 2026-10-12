@@ -7706,6 +7706,15 @@ function segmentPlays(text){
     if(!w || ['a','an','the','on','with','after','from','off','his','her','their','another'].includes(w)) continue;
     cuts.set(m.index, m.index);
   }
+  // "dark 3 rebound pass to 4 for a goal": a plain pass starts the next play too
+  const passRe = /\b(pass(es|ed)?\s+to|feeds|fed|finds|found|outlet(s|ted)?\s+to)\b/g;
+  while((m = passRe.exec(text))){
+    if(!mentions.some(x=>x.end <= m.index)) continue;
+    const prev = before(m.index); const w = prev[prev.length-1];
+    if(!w || ['a','an','the','on','with','after','from','off','his','her','their','another','great','good','nice','bad','poor','perfect','beautiful','amazing','terrible','awful','smart','lazy','careless'].includes(w)) continue;
+    if(mentions.some(x=>x.end <= m.index && !text.slice(x.end, m.index).trim())) continue; // "dark 3 pass to 4": that player's pass
+    cuts.set(m.index, m.index);
+  }
   if(!cuts.size) return [text];
   const pos = [...cuts.keys()].sort((p,q)=>p-q);
   const segs = []; let start = 0;
@@ -7719,14 +7728,26 @@ function parseMultiplePlays(text, offsetMs){
   const out = []; let lastActorText = null, pendingPass = null;
   for(const seg of segs){
     const ms = findMentions(seg);
-    const named = ms.find(x=>x.side!=null || x.playerId);
+    const segWords = pos => seg.slice(0,pos).trim().split(/\s+/).filter(Boolean);
+    // "pass FROM light 4": the player after "pass/feed/assist from" is the passer — the subject
+    const isObject = x => { const w = segWords(x.start); const last = w[w.length-1];
+      if(last==='from' && /^(pass|passes|passed|feed|assist|ball)$/.test(w[w.length-2]||'')) return false;
+      return PLAY_OBJECT_PREPS.has(last); };
+    const named = ms.find(x=>(x.side!=null || x.playerId) && !isObject(x));
     // a play with nobody named ("great pass to 4 for a goal") was made by the last player named
     const segText = named ? seg : (lastActorText ? lastActorText+' '+seg : null);
     if(!segText) return null;
     const r = parsePhrase(segText, offsetMs, 1);
-    if(r.type!=='events' || !r.events.length || r.events.some(e=>e.stat_type==='unmatched')) return null;
-    QUALITY_PLAY_RE.lastIndex = 0;
-    if(r.events.every(e=>e.stat_type==='note') && !QUALITY_PLAY_RE.test(segText)) return null; // not a play, just words
+    // A pass on its own ("outlet to dark 4", "pass to 7") is a real part of the play even with no stat
+    // yet — it becomes the assist if that player scores next.
+    const passOnly = /\b(pass(es|ed)?\s+to|outlet(s|ted)?\s+to|feeds|fed|finds|found)\b/.test(segText);
+    if(r.type!=='events') return null;
+    if(passOnly && (!r.events.length || r.events.every(e=>e.stat_type==='note' || e.stat_type==='unmatched'))) r.events = r.events.filter(e=>e.stat_type==='note' && /\b(great|good|nice|perfect|beautiful|amazing|bad|poor)\b/.test(e.note||''));
+    else {
+      if(!r.events.length || r.events.some(e=>e.stat_type==='unmatched')) return null;
+      QUALITY_PLAY_RE.lastIndex = 0;
+      if(r.events.every(e=>e.stat_type==='note') && !QUALITY_PLAY_RE.test(segText)) return null; // not a play, just words
+    }
     // "dark 1 great pass to dark 9, dark 9 goal": a pass to someone who scores in the very next play
     // is the assist, even though it was called as its own play.
     if(pendingPass){
@@ -7735,7 +7756,7 @@ function parseMultiplePlays(text, offsetMs){
         out.push({...pendingPass.base, playerId:pendingPass.from.playerId, playerCap:pendingPass.from.cap, side:pendingPass.from.side, stat_type:'assist', assistTo:goal.playerCap, ...(pendingPass.quality?{passQuality:pendingPass.quality}:{})});
     }
     pendingPass = null;
-    const toIdx = segText.search(/\bpass(ed)?\s+to\b/);
+    const toIdx = segText.search(/\b(pass(es|ed)?\s+to|outlet(s|ted)?\s+to|feeds|fed|finds|found)\b/);
     if(toIdx!==-1 && !r.events.some(e=>e.stat_type==='goal' || e.stat_type==='assist')){
       const segMs = findMentions(segText); const from = segMs.find(x=>x.start < toIdx && (x.side!=null || x.playerId)); const to = segMs.find(x=>x.start > toIdx);
       if(from && to){ const q = /\b(great|nice|good|perfect|beautiful|amazing)\s+pass\b/.exec(segText); pendingPass = {from, to: withSide(to, from.side, findGame(app.selectedGameId)), quality: q ? q[1] : null, base:{wall_time_offset_ms:offsetMs}}; }
@@ -7769,6 +7790,8 @@ function parsePhrase(rawText, offsetMs, splitDepth){
   let text = rawText.toLowerCase().trim()
     .replace(/\b([56])\s*[-:]\s*0?([56])\b/g, (m,a,b)=>a!==b ? `${a} on ${b}` : m)
     .replace(/\b([56])\s*-\s*on\s*-\s*([56])\b/g, '$1 on $2')
+    // speech-to-text spellings of "great"
+    .replace(/\b(greeat|grate|grape|grreat|greet|gr8|grat)\s+(pass|drive|move|feed|shot|save|block|steal|defense|entry)\b/g, 'great $2')
     // speech-to-text spellings of "steal"
     .replace(/\b(steel|steele|stela|stele|steal's|steals's)\b/g, 'steal')
     // "pass to 4" heard as "past to 4", "pass too 4", "pass 2 4", "pass two 4"
