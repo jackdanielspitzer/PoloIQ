@@ -7673,7 +7673,9 @@ function detectManStateContext(text){
 // ---- Multi-play phrases ----
 // Words after which a named player is the OBJECT of the current play ("goal against light 2", "steal
 // from light 3", "excluded by dark 5", "pass to 4") rather than the start of a new one.
-const PLAY_OBJECT_PREPS = new Set(['on','to','from','by','against','versus','vs','for','with','at','over','of','in','into','past','behind','beat','beats','beating','and']);
+const PLAY_OBJECT_PREPS = new Set(['on','to','from','by','against','versus','vs','for','with','at','over','of','in','into','past','behind','beat','beats','beating','and',
+  // verbs whose object is the next player named: "dark 3 excluded light 4", "blocked light 7"
+  'excluded','excludes','exclude','ejected','ejects','kicked','blocked','blocks','fouled','fouls','drew','draws','stripped','strips','stole','robbed','outswam','outsprinted','assisted','fed','found','hit','passed','beaten','beat']);
 const QUALITY_PLAY_RE = /\b(great|good|nice|bad|poor|perfect|beautiful|amazing|terrible|awful|smart|lazy|careless)\s+(pass|drive|feed|entry|move|cut|fake)\b/g;
 function segmentPlays(text){
   const mentions = findMentions(text);
@@ -7825,6 +7827,21 @@ function parsePhrase(rawText, offsetMs, splitDepth){
   const drawnEv = evs.find(e=>e.stat_type==='penalty_drawn');
   if(drawnEv && !evs.some(e=>e.stat_type==='goal') && /\b(score|scores|scored|goal)\b/.test(text.replace(/\bgoal\s?(ie|keeper|tender)s?\b/g,''))){
     evs.push({...base, playerId:drawnEv.playerId, playerCap:drawnEv.playerCap, side:drawnEv.side, stat_type:'goal'});
+  }
+  // "...on a great pass from dark 2" on a play that ISN'T a goal (an exclusion drawn, a shot): the
+  // passer set it up — note it on the passer, not on whoever was named first.
+  if(/\bpass\s+from\b/.test(text) && !evs.some(e=>e.stat_type==='assist') && evs.length){
+    const fromIdx = text.search(/\bpass\s+from\b/);
+    const passerM = mentions.find(x=>x.start > fromIdx);
+    const lead = evs[0];
+    if(passerM){
+      const passer = withSide(passerM, lead.side, game);
+      const q = /\b(great|nice|good|perfect|beautiful|amazing)\s+pass\b/.exec(text);
+      const what = evs.find(e=>e.stat_type==='exclusion_drawn') ? 'exclusion drawn' : evs.find(e=>e.stat_type==='penalty_drawn') ? 'penalty drawn' : 'play';
+      for(let i=evs.length-1;i>=0;i--) if(evs[i].stat_type==='note' && String(evs[i].playerCap)!==String(passer.cap)) evs.splice(i,1); // drop a misattributed leftover note
+      evs.push({...base, playerId:passer.playerId, playerCap:passer.cap, side:passer.side, stat_type:'note', note:`${q?q[1]+' ':''}pass to #${lead.playerCap} (${what})`});
+      return result;
+    }
   }
   // Extra description after a recognized stat is kept as a note instead of being dropped.
   if(mentions.length && evs.length && !evs.some(e=>e.stat_type==='note' || e.stat_type==='unmatched')){
