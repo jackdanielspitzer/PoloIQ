@@ -7446,7 +7446,7 @@ const COMPOUND_RULES = [
   // "X scored/goal on Y" — Y is whoever was beaten (almost always the goalie). Only attach it when
   // Y resolved from an explicit color mention, never a bare number: "scored on 6v5" tokenizes "6"
   // and "5" as bare, side-less numbers too, and those must never get mistaken for a defender.
-  { name:'scored_on', test:t=>/\b(score|scores|scored|goal)\s+on\b/.test(t), build:(t,a1,a2,base,game)=>{
+  { name:'scored_on', test:t=>/\b(score|scores|scored|goal)\s+(on|against|versus|vs)\b/.test(t), build:(t,a1,a2,base,game)=>{
       const goalEv = {...base, playerId:a1.playerId, playerCap:a1.cap, side:a1.side, stat_type:'goal'};
       const manState = detectManStateContext(t); if(manState) goalEv.manState = manState;
       // "Scored on 15" (no color repeated) always means the opposing player at that cap — "scoring
@@ -7454,8 +7454,10 @@ const COMPOUND_RULES = [
       // must NOT fire is "scored on 6 v 5"/"scored on 6 on 5": there, "6" and "5" tokenize as bare
       // numbers too, but they're the man-state phrase, not a real player — detectManStateContext
       // catching that phrase is exactly the signal to skip attaching a defender here.
+      // (Numbers inside "6 on 5" are filtered out of the mentions in findMentions, so a2 here is
+      // always a real player — "scored against light 2 on 6 on 5" keeps both the goalie AND the tag.)
       const events = [goalEv];
-      if(a2 && !manState){
+      if(a2){
         const beaten = withSide(a2, oppositeSide(a1.side), game);
         goalEv.vsCap = beaten.cap;
         goalEv.vsId = beaten.playerId;
@@ -7527,7 +7529,12 @@ function leftoverNoteText(text, mentions){
 }
 const LEAD_NOTE_RE = /^\s*(great|nice|good|bad|poor|perfect|beautiful|amazing|terrible|awful|smart|lazy|careless)\s+(pass|drive|move|cut|fake|entry|shot|defense|d|play|look|feed)\s*$/;
 function parsePhrase(rawText, offsetMs){
-  const text = rawText.toLowerCase().trim().replace(/[.,!?]/g,'');
+  // Phone speech-to-text writes "six on five" as "6:05", "6-5", "6-on-5" or "6 v. 5" — normalize those
+  // to "6 on 5" before anything else reads the phrase.
+  const text = rawText.toLowerCase().trim()
+    .replace(/\b([56])\s*[-:]\s*0?([56])\b/g, (m,a,b)=>a!==b ? `${a} on ${b}` : m)
+    .replace(/\b([56])\s*-\s*on\s*-\s*([56])\b/g, '$1 on $2')
+    .replace(/[.,!?]/g,'');
   if(/\b(undo|scratch that)\b/.test(text)) return {type:'undo'};
   const game = app.selectedGameId ? findGame(app.selectedGameId) : null;
   const base = {wall_time_offset_ms:offsetMs, raw_phrase:rawText};
