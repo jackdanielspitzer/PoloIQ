@@ -1248,11 +1248,44 @@ async function idbLoadStateString(){
 // silently stopped accepting new saves — adopt it and repaint. Re-running the ensure* seed
 // functions afterward is safe (they're all idempotent) and covers a snapshot that predates seed
 // data added to this build since it was saved.
+// Imported results (a final score from a school's site, ~1,350 games) carry ~30 synthetic goal events
+// each, built only so the score adds up. Those were 5.8 MB of the 6.4 MB saved state — enough to blow
+// the browser's ~5 MB local cache and to make every sync upload ~320 chunks. They're rebuilt exactly
+// from the final score (buildPlaceholderQuarterEvents is deterministic), so storage and sync carry
+// only {importedScore:[team,opp]} and the events are rebuilt whenever state is read back in.
+function isPackableImportedGame(g){
+  if(!g || !g.quarters || (g.extraPeriods||[]).length) return false;
+  const keys = Object.keys(g.quarters);
+  if(keys.some(k=>!['1','2','3','4'].includes(k))) return false;
+  const evs = keys.flatMap(k=>g.quarters[k]||[]);
+  if(!evs.length || !evs.every(e=>e && e.raw_phrase==='(imported result)' && Array.isArray(e.scoreAfter))) return false;
+  const t = evs.filter(e=>e.side==='team').length, o = evs.filter(e=>e.side==='opponent').length;
+  // Only pack when rebuilding gives back exactly what's there — anything else is kept as-is.
+  const rebuilt = {1:[],2:[],3:[],4:[]}; buildPlaceholderQuarterEvents(t, o).forEach(ev=>rebuilt[ev.q].push(ev.event));
+  return [1,2,3,4].every(q=>JSON.stringify(rebuilt[q])===JSON.stringify(g.quarters[q]||[]));
+}
+function packGame(g){
+  if(!isPackableImportedGame(g)) return g;
+  const evs = Object.values(g.quarters).flat();
+  return {...g, quarters:{1:[],2:[],3:[],4:[]}, importedScore:[evs.filter(e=>e.side==='team').length, evs.filter(e=>e.side==='opponent').length]};
+}
+function unpackGame(g){
+  if(!g || !Array.isArray(g.importedScore)) return g;
+  const q = g.quarters || {};
+  if([1,2,3,4].some(k=>(q[k]||[]).length)){ delete g.importedScore; return g; } // already has events
+  g.quarters = {...q, 1:[],2:[],3:[],4:[]};
+  buildPlaceholderQuarterEvents(g.importedScore[0], g.importedScore[1]).forEach(ev=>g.quarters[ev.q].push(ev.event));
+  delete g.importedScore;
+  return g;
+}
+function unpackGames(games){ if(Array.isArray(games)) games.forEach(unpackGame); return games; }
+function serializeAppState(){ return JSON.stringify({...app, games:(app.games||[]).map(packGame)}); }
 async function reconcileWithIndexedDb(){
   const raw = await idbLoadStateString();
   if(!raw){ saveState(); return; } // nothing in IndexedDB yet — this save also seeds it for next time
-  if(raw === JSON.stringify(app)) return; // already in sync
+  if(raw === serializeAppState()) return; // already in sync
   let stored; try{ stored = JSON.parse(raw); }catch(e){ return; }
+  if(stored) unpackGames(stored.games);
   if(!stored) return;
   Object.assign(app, { page: app.page, selectedTeamId: app.selectedTeamId, selectedGameId: app.selectedGameId, selectedPlayerId: app.selectedPlayerId, manageMode: app.manageMode, currentQ: app.currentQ, listening:false, recognition:null, pendingBuffer:'', pendingTimer:null, lastVoiceActor:null, lastVoiceActorAt:0 }, stored);
   if(!Array.isArray(app.opponents)) app.opponents = [];
@@ -1261,7 +1294,7 @@ async function reconcileWithIndexedDb(){
   renderAll();
 }
 function saveState(){
-  const _stateJson = JSON.stringify(app);
+  const _stateJson = serializeAppState();
   try{
     localStorage.setItem('poloai-app-state', _stateJson);
   }catch(e){
@@ -1287,7 +1320,7 @@ function saveState(){
 async function pushSharedStateToServer(){
   if(_syncState.pushing || !_syncState.backendAvailable || !sharedStateConfigured()) return;
   _syncState.pushing = true;
-  const payload = {}; SHARED_KEYS.forEach(k=>payload[k]=app[k]);
+  const payload = {}; SHARED_KEYS.forEach(k=>payload[k]=app[k]); payload.games = (app.games||[]).map(packGame);
   const full = JSON.stringify(payload);
   const chunks = []; for(let i=0;i<full.length;i+=SHARED_STATE_CHUNK_SIZE) chunks.push(full.slice(i,i+SHARED_STATE_CHUNK_SIZE));
   if(chunks.length===0) chunks.push('');
@@ -1436,7 +1469,7 @@ async function pullSharedStateFromServer(applyIfNewer){
       const json = await res.json();
       full += (json && json.chunk) || '';
     }
-    const data = JSON.parse(full);
+    const data = JSON.parse(full); if(data) unpackGames(data.games);
     let changed = false;
     // Only apply fields the server actually has — never let a partial/malformed remote payload
     // (an old write, a hand-edited sheet, a bug) blank out good local data for a field it's simply
@@ -1479,7 +1512,7 @@ async function pullSharedStateFromServer(applyIfNewer){
     // a pure "take what the server has" sync, nothing more.
     _syncState.lastPulledAt = serverTime;
     if(changed){
-      localStorage.setItem('poloai-app-state', JSON.stringify(app)); _syncState.lastPushedAt = serverTime; checkGameStateNotifications(app.games);
+      try{ localStorage.setItem('poloai-app-state', serializeAppState()); }catch(e){} _syncState.lastPushedAt = serverTime; checkGameStateNotifications(app.games);
       // A background sync landing mid-tap is exactly what made buttons "stop working": renderAll()
       // tears down and rebuilds the current page's DOM, and a real touch/click has just enough
       // latency between finger-down and the click event firing that it can land on a node that got
@@ -1558,7 +1591,7 @@ function updateLiveClockDisplay(){
 }
 setInterval(updateLiveClockDisplay, 1000);
 
-function loadState(){ try{ const raw = localStorage.getItem('poloai-app-state'); if(raw){ const stored = JSON.parse(raw); Object.assign(app, {page:'home', selectedTeamId:null, selectedGameId:null, selectedPlayerId:null, manageMode:false, currentQ:1, listening:false, recognition:null, pendingBuffer:'', pendingTimer:null, lastVoiceActor:null, lastVoiceActorAt:0}, stored); } } catch(e){ console.warn('load failed',e); }
+function loadState(){ try{ const raw = localStorage.getItem('poloai-app-state'); if(raw){ const stored = JSON.parse(raw); unpackGames(stored && stored.games); Object.assign(app, {page:'home', selectedTeamId:null, selectedGameId:null, selectedPlayerId:null, manageMode:false, currentQ:1, listening:false, recognition:null, pendingBuffer:'', pendingTimer:null, lastVoiceActor:null, lastVoiceActorAt:0}, stored); } } catch(e){ console.warn('load failed',e); }
   // migrate: seed the opponents list from any opponent names already used on games,
   // so older saved data (from before there was a dropdown) still shows up as options.
   if(!Array.isArray(app.opponents)) app.opponents = [];
@@ -9999,7 +10032,7 @@ function importAppData(evt){
   const reader = new FileReader();
   reader.onload = ()=>{
     try{
-      const parsed = JSON.parse(reader.result);
+      const parsed = JSON.parse(reader.result); unpackGames(parsed && parsed.games);
       if(!confirm('This will overwrite your current data in this browser with the imported file. Continue?')) return;
       Object.assign(app, parsed);
       saveState(); renderAll();
