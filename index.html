@@ -1478,16 +1478,32 @@ function mergeGamesFromServer(localGames, remoteGames){
 // came first, which is stable run to run.
 function dedupeGamesByMatchup(games){
   const bestByKey = new Map(); const order = [];
+  const evs = g => g.quarters ? Object.values(g.quarters).flatMap(arr=>Array.isArray(arr)?arr:[]) : [];
+  const isLive = g => evs(g).some(e=>!isImportedSeedEvent(e) && e.raw_phrase!=='(imported result)');
   games.forEach(g=>{
     if(!g) return;
     const key = g.teamId+'|'+g.date+'|'+g.opponent+'|'+(g.gameNumber||1);
-    const eventCount = g.quarters ? Object.values(g.quarters).reduce((s,arr)=>s+(Array.isArray(arr)?arr.length:0),0) : 0;
     const existing = bestByKey.get(key);
-    if(!existing){ bestByKey.set(key, {g, eventCount}); order.push(key); }
-    else if(eventCount > existing.eventCount){ bestByKey.set(key, {g, eventCount}); }
+    if(!existing){ bestByKey.set(key, g); order.push(key); return; }
+    const a = existing, aLive = isLive(a), bLive = isLive(g);
+    let keep;
+    if(aLive && bLive){
+      // two live-tracked copies of one game (two phones): keep BOTH sets of stats
+      const baseId = evs(a).length >= evs(g).length ? a.id : g.id;
+      keep = {...mergeGameCopies(a, g), id: baseId};
+    } else if(aLive !== bLive){
+      keep = aLive ? a : g; // live stats beat an imported final score — never mix the imported goals in
+    } else {
+      const ca = evs(a).length, cb = evs(g).length;
+      keep = cb > ca ? g : (cb < ca ? a : (String(g.id) < String(a.id) ? g : a)); // same id on every device
+    }
+    if(keep.id !== a.id || keep.id !== g.id){ const dropped = keep.id===a.id ? g.id : a.id; _gameIdRemap[dropped] = keep.id; }
+    bestByKey.set(key, keep);
   });
-  return order.map(k=>bestByKey.get(k).g);
+  return order.map(k=>bestByKey.get(k));
 }
+// ids folded into another copy by dedupeGamesByMatchup — the open game follows its survivor
+const _gameIdRemap = {};
 // Generic "merge by id, remote wins on a shared id, never drop a local-only entry" merge — used for
 // both teams and users. For users specifically this matters just as much as it does for games: a
 // wholesale replace with a stale/thin remote `users` snapshot can silently drop the row for the
@@ -1608,6 +1624,7 @@ async function pullSharedStateFromServer(applyIfNewer){
     if(typeof data.games!=='undefined'){
       const mergedGames = mergeGamesFromServer(app.games, data.games);
       if(JSON.stringify(app.games) !== JSON.stringify(mergedGames)){ app.games = mergedGames; changed = true; }
+      if(app.selectedGameId && _gameIdRemap[app.selectedGameId] && !findGame(app.selectedGameId)) app.selectedGameId = _gameIdRemap[app.selectedGameId];
     }
     if(typeof data.users!=='undefined'){
       const mergedUsers = mergeByIdKeepLocal(app.users, data.users);
@@ -4164,6 +4181,133 @@ const SEED_SCHOOL_2026_SCHEDULE = {
     {date:'2026-11-20', opponent:'Mid-Atlantic Championship (field TBD)', site:'Lewisburg, PA'},
     {date:'2026-12-04', opponent:'NCAA Championship (field TBD)', site:'La Jolla, CA'},
   ],
+  // Upcoming games (fetched 2026-10-12 from each school's own schedule page) for the teams added after
+  // the first schedule seed — without these Navy and the East teams had nothing to open on game day.
+  'Navy': [
+    {date:'2026-10-17', opponent:'Harvard', time:'10:30', site:'@ Cambridge, Mass.'},
+    {date:'2026-10-17', opponent:'LIU', time:'16:30', site:'Neutral — Cambridge, Mass.'},
+    {date:'2026-10-18', opponent:'Brown', time:'11:30', site:'@ Providence, R.I.'},
+    {date:'2026-10-23', opponent:'George Washington', time:'19:30', site:'Home — Annapolis, Md. Lejeune Hall'},
+    {date:'2026-10-25', opponent:'Fordham', time:'10:00', site:'Home — Annapolis, Md. Lejeune Hall'},
+    {date:'2026-11-01', opponent:'Mercyhurst', time:'10:00', site:'Home — Annapolis, Md. Lejeune Hall'},
+    {date:'2026-11-01', opponent:'Bucknell', time:'15:00', site:'Home — Annapolis, Md. Lejeune Hall'},
+    {date:'2026-11-07', opponent:"Mount St. Mary's", time:'10:00', site:'Home — Annapolis, Md. Lejeune Hall'},
+    {date:'2026-11-07', opponent:'Wagner', time:'17:00', site:'Home — Annapolis, Md. Lejeune Hall'},
+    {date:'2026-11-08', opponent:'George Washington', time:'13:00', site:'@ Washington, D.C.'},
+    {date:'2026-11-20', opponent:'MAWPC Championships (field TBD)', time:'', site:'Neutral — Lewisburg, Pa.'},
+    {date:'2026-12-04', opponent:'NCAA Championship (field TBD)', time:'', site:'Neutral — La Jolla, Calif.'},
+  ],
+  'Iona': [
+    {date:'2026-10-14', opponent:'LIU', time:'', site:'@ Brooklyn, NY LIU Pool'},
+    {date:'2026-10-15', opponent:'Fordham', time:'17:30', site:'@ Bronx, NY Messmore Aquatic Center'},
+    {date:'2026-10-23', opponent:'UC Merced', time:'18:20', site:'Neutral — Santa Clara, CA Sullivan Aquatic Center'},
+    {date:'2026-10-24', opponent:'Pacific', time:'14:40', site:'Neutral — Santa Clara, CA Sullivan Aquatic Center'},
+    {date:'2026-10-24', opponent:'Fresno Pacific', time:'', site:'Neutral — Santa Clara, CA Sullivan Aquatic Center'},
+    {date:'2026-10-25', opponent:'Santa Clara', time:'12:20', site:'@ Santa Clara, CA Sullivan Aquatic Center'},
+    {date:'2026-10-31', opponent:'Princeton', time:'', site:'@ Princeton, NJ Denunzio Pool'},
+    {date:'2026-11-07', opponent:'Brown', time:'', site:'@ Providence, RI Coleman Aquatics Center'},
+    {date:'2026-11-08', opponent:'Harvard', time:'', site:'@ Cambridge, MA Blodgett Pool'},
+    {date:'2026-11-08', opponent:'MIT', time:'', site:'@ Cambridge, MA MIT Alumni Pool'},
+    {date:'2026-11-20', opponent:'NWPC Championships (field TBD)', time:'', site:'Neutral — Cambridge, MA Blodgett Pool'},
+  ],
+  "Mount St. Mary's": [
+    {date:'2026-10-17', opponent:'Wagner', time:'', site:'Home — Staten Island, NY'},
+    {date:'2026-10-17', opponent:'Fordham', time:'', site:'Home — New York, NY'},
+    {date:'2026-10-24', opponent:'George Washington', time:'', site:'Home — Emmitsburg, MD ARCC Swimming Pool'},
+    {date:'2026-10-31', opponent:'Mercyhurst', time:'', site:'Home — Emmitsburg, MD ARCC Swimming Pool'},
+    {date:'2026-11-07', opponent:'Navy', time:'', site:'Home — Annapolis, MD'},
+    {date:'2026-11-07', opponent:'George Washington', time:'', site:'Home — Washington, D.C'},
+    {date:'2026-11-08', opponent:'Wagner', time:'', site:'Home — Emmitsburg, MD ARCC Swimming Pool'},
+    {date:'2026-11-20', opponent:'MAWPC Championships (field TBD)', time:'', site:'Neutral — Lewisburg, PA'},
+  ],
+  'Bucknell': [
+    {date:'2026-10-17', opponent:'Fordham', time:'', site:'@ New York, N.Y.'},
+    {date:'2026-10-17', opponent:'Wagner', time:'', site:'@ Staten Island, N.Y.'},
+    {date:'2026-10-23', opponent:"Saint Mary's", time:'', site:'Neutral — Santa Clara, Calif.'},
+    {date:'2026-10-24', opponent:'Pomona-Pitzer', time:'14:40', site:'Neutral — Santa Clara, Calif.'},
+    {date:'2026-10-24', opponent:'Pacific', time:'18:40', site:'Neutral — Santa Clara, Calif.'},
+    {date:'2026-10-25', opponent:'San Jose State', time:'12:20', site:'@ San Jose, Calif.'},
+    {date:'2026-11-01', opponent:'George Washington', time:'', site:'@ Washington, D.C'},
+    {date:'2026-11-01', opponent:'Navy', time:'', site:'@ Annapolis, Md.'},
+    {date:'2026-11-20', opponent:'MAWPC Championships (field TBD)', time:'', site:'Home — Lewisburg, Pa.'},
+  ],
+  'Johns Hopkins': [
+    {date:'2026-10-23', opponent:'Penn State Behrend', time:'', site:'Home — Baltimore, MD Barbara & Jerry Procton Pool'},
+    {date:'2026-10-24', opponent:'Austin College', time:'', site:'Home — Baltimore, MD Barbara & Jerry Procton Pool'},
+    {date:'2026-10-25', opponent:'Connecticut College', time:'', site:'Home — Baltimore, MD Barbara & Jerry Procton Pool'},
+    {date:'2026-10-25', opponent:'Washington and Jefferson', time:'', site:'Home — Baltimore, MD Barbara & Jerry Procton Pool'},
+    {date:'2026-11-06', opponent:'Augustana (IL)', time:'', site:'Home — Rock Island, IL'},
+    {date:'2026-11-07', opponent:'Connecticut College', time:'', site:'Neutral — Rock Island, IL'},
+    {date:'2026-11-07', opponent:'Wheaton (MA)', time:'', site:'Neutral — Rock Island, IL'},
+    {date:'2026-11-08', opponent:'Penn State Behrend', time:'', site:'Neutral — Rock Island, IL'},
+    {date:'2026-11-20', opponent:'MPSF Championships (field TBD)', time:'', site:'Neutral — Los Angeles, CA'},
+  ],
+  'George Washington': [
+    {date:'2026-10-23', opponent:'Navy', time:'19:30', site:'@ Annapolis, MD'},
+    {date:'2026-10-24', opponent:"Mount St. Mary's", time:'14:00', site:'@ Emmitsburg, MD'},
+    {date:'2026-10-25', opponent:'Fordham', time:'14:00', site:'Home — Annapolis, MD'},
+    {date:'2026-11-01', opponent:'Bucknell', time:'10:00', site:'Home — Springfield, VA'},
+    {date:'2026-11-01', opponent:'Mercyhurst', time:'15:00', site:'Home — Springfield, VA'},
+    {date:'2026-11-07', opponent:'Wagner', time:'10:00', site:'Home — Arlington, VA'},
+    {date:'2026-11-07', opponent:"Mount St. Mary's", time:'17:00', site:'Home — Arlington, VA'},
+    {date:'2026-11-08', opponent:'Navy', time:'13:00', site:'Home — Arlington, VA'},
+    {date:'2026-11-20', opponent:'MAWPC Championships (field TBD)', time:'', site:'Neutral — Lewisburg, PA'},
+  ],
+  'Harvard': [
+    {date:'2026-10-17', opponent:'Navy', time:'10:30', site:'Home — Cambridge, MA Blodgett Pool'},
+    {date:'2026-10-17', opponent:'UC Merced', time:'18:00', site:'Home — Cambridge, MA Blodgett Pool'},
+    {date:'2026-10-18', opponent:'Pomona-Pitzer', time:'10:00', site:'Home — Cambridge, MA Blodgett Pool'},
+    {date:'2026-10-23', opponent:'Pacific', time:'14:20', site:'Neutral — Santa Clara, CA'},
+    {date:'2026-10-24', opponent:'Pepperdine', time:'13:20', site:'Neutral — San Jose, CA'},
+    {date:'2026-10-24', opponent:'UC Davis', time:'17:20', site:'Neutral — Santa Clara, CA'},
+    {date:'2026-10-25', opponent:'Santa Clara', time:'11:00', site:'@ Santa Clara, CA'},
+    {date:'2026-10-31', opponent:'Brown', time:'11:00', site:'@ Providence, RI'},
+    {date:'2026-11-01', opponent:'MIT', time:'12:00', site:'Home — Cambridge, MA Blodgett Pool'},
+    {date:'2026-11-07', opponent:'Princeton', time:'12:00', site:'Home — Cambridge, MA Blodgett Pool'},
+    {date:'2026-11-07', opponent:'LIU', time:'16:00', site:'Home — Cambridge, MA Blodgett Pool'},
+    {date:'2026-11-08', opponent:'Iona', time:'10:00', site:'Home — Cambridge, MA Blodgett Pool'},
+  ],
+  'Brown': [
+    {date:'2026-10-17', opponent:'Salem', time:'14:30', site:'Home — Providence, R.I.'},
+    {date:'2026-10-17', opponent:'Pomona-Pitzer', time:'', site:'Home — Providence, R.I.'},
+    {date:'2026-10-18', opponent:'Navy', time:'11:30', site:'Home — Providence, R.I.'},
+    {date:'2026-10-18', opponent:'UC Merced', time:'', site:'Home — Providence, R.I.'},
+    {date:'2026-10-23', opponent:'San Jose State', time:'15:30', site:'Neutral — Santa Clara, Calif.'},
+    {date:'2026-10-24', opponent:'Santa Clara', time:'', site:'@ Santa Clara, Calif.'},
+    {date:'2026-10-24', opponent:'Pepperdine', time:'17:20', site:'Neutral — Santa Clara, Calif.'},
+    {date:'2026-10-30', opponent:'Wheaton (MA)', time:'19:30', site:'Home — Providence, R.I.'},
+    {date:'2026-10-31', opponent:'Harvard', time:'', site:'Home — Providence, R.I.'},
+    {date:'2026-10-31', opponent:'MIT', time:'', site:'Home — Providence, R.I.'},
+    {date:'2026-11-07', opponent:'Iona', time:'', site:'Home — Providence, R.I.'},
+    {date:'2026-11-08', opponent:'LIU', time:'', site:'Home — Providence, R.I.'},
+    {date:'2026-11-08', opponent:'Princeton', time:'', site:'Home — Providence, R.I.'},
+    {date:'2026-11-20', opponent:'NWPC Championships (field TBD)', time:'', site:'Home — Cambridge, Mass.'},
+  ],
+  'MIT': [
+    {date:'2026-10-17', opponent:'Biola', time:'09:00', site:'Neutral — Cambridge, MA / Harvard'},
+    {date:'2026-10-17', opponent:'UC Merced', time:'13:30', site:'Neutral — Cambridge, MA / Harvard'},
+    {date:'2026-10-18', opponent:'Connecticut College', time:'08:30', site:'Neutral — Cambridge, MA / Harvard'},
+    {date:'2026-10-18', opponent:'Pomona-Pitzer', time:'14:30', site:'Neutral — Cambridge, MA / Harvard'},
+    {date:'2026-10-31', opponent:'Brown', time:'18:00', site:'@ Providence, RI'},
+    {date:'2026-11-01', opponent:'Harvard', time:'12:00', site:'@ Cambridge, MA'},
+    {date:'2026-11-07', opponent:'LIU', time:'09:00', site:'Home — Cambridge, MA Zesiger Center Pool'},
+    {date:'2026-11-07', opponent:'Princeton', time:'19:00', site:'Home — Cambridge, MA Zesiger Center Pool'},
+    {date:'2026-11-08', opponent:'Iona', time:'15:00', site:'Home — Cambridge, MA Zesiger Center Pool'},
+    {date:'2026-11-20', opponent:'NWPC Championships (field TBD)', time:'', site:'Neutral — Cambridge, MA / Harvard'},
+    {date:'2026-12-05', opponent:'USA Water Polo DIII Championships (field TBD)', time:'', site:'Neutral — TBA'},
+  ],
+  "Saint Mary's": [
+    {date:'2026-10-16', opponent:'Air Force', time:'18:30', site:'Home — Moraga, CA'},
+    {date:'2026-10-17', opponent:'Pacific', time:'13:00', site:'Home — Moraga, CA'},
+    {date:'2026-10-23', opponent:'Bucknell', time:'10:00', site:'Neutral — Santa Clara, CA'},
+    {date:'2026-10-24', opponent:'Pomona-Pitzer', time:'15:40', site:'Neutral — San Jose, CA'},
+    {date:'2026-10-25', opponent:'Harvard', time:'08:00', site:'Neutral — Santa Clara, CA'},
+    {date:'2026-10-30', opponent:'Santa Clara', time:'14:30', site:'@ Santa Clara, CA'},
+    {date:'2026-11-01', opponent:'UC Davis', time:'13:00', site:'@ Davis, CA'},
+    {date:'2026-11-06', opponent:'Pepperdine', time:'18:30', site:'Home — Moraga, CA'},
+    {date:'2026-11-08', opponent:'San Jose State', time:'12:00', site:'@ San Jose, CA'},
+    {date:'2026-11-14', opponent:'UC San Diego', time:'12:00', site:'@ San Diego, CA'},
+  ],
 };
 // Backfills each school's real 2026 schedule the same way ensureSeedTeamsAndSchedule() does for
 // Cal — guarded by date+opponent (not just "team has zero games") since these teams already carry
@@ -4187,7 +4331,11 @@ function ensureSchoolSeed2026Schedule(){
     SEED_SCHOOL_2026_SCHEDULE[teamName].forEach(s=>{
       if(exists(s.date, s.opponent)) return;
       const game = blankGame(team.id);
+      // Same id on every phone (built from team + date + opponent, not random), so two people opening
+      // "Navy vs Harvard" are logging into ONE game rather than two copies that later collide.
+      game.id = 'sched-' + (teamName+'-'+s.date+'-'+s.opponent).toLowerCase().replace(/[^a-z0-9]+/g,'-');
       game.opponent = s.opponent; game.date = s.date; game.location = s.site; game.status = 'upcoming';
+      if(s.time) game.time = s.time;
       addOpponent(s.opponent, false);
       app.games.push(game);
       team.games.push(game.id);
