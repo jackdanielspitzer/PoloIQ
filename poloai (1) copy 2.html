@@ -1579,6 +1579,7 @@ async function pullSharedStateFromServer(applyIfNewer){
     // 8 chunks at a time instead of one by one — a new phone's first download (accounts included,
     // so nobody can log in until it lands) goes from a minute or two to a few seconds.
     const parts = new Array(meta.totalChunks);
+    _syncState.pullProgress = {done:0, total:meta.totalChunks};
     for(let i=0;i<meta.totalChunks;i+=8){
       await Promise.all(Array.from({length:Math.min(8, meta.totalChunks-i)}, async (_,j)=>{
         // Each piece retries on its own — one dropped request on a phone connection used to fail
@@ -1589,7 +1590,7 @@ async function pullSharedStateFromServer(applyIfNewer){
             const res = await fetch(SHARED_STATE_URL+'?chunk='+(i+j));
             if(!res.ok) throw new Error('chunk '+(i+j)+' HTTP '+res.status);
             const json = await res.json();
-            parts[i+j] = (json && json.chunk) || ''; return;
+            parts[i+j] = (json && json.chunk) || ''; _syncState.pullProgress.done++; showPendingLoginProgress(); return;
           }catch(e){ lastErr = e; await new Promise(r=>setTimeout(r, 400*(attempt+1))); }
         }
         throw lastErr;
@@ -1660,6 +1661,7 @@ async function pullSharedStateFromServer(applyIfNewer){
     _syncState.lastPulledAt = serverTime;
     _syncState.pulledOnce = true;
     resetSyncBaseline();
+    setTimeout(finishPendingLogin, 0);
     if(_syncState.localAhead || _syncState.pushWanted){ _syncState.localAhead = false; schedulePush(); }
     if(changed){
       try{ localStorage.setItem('poloai-app-state', serializeAppState()); }catch(e){} _syncState.lastPushedAt = serverTime; checkGameStateNotifications(app.games);
@@ -1674,7 +1676,7 @@ async function pullSharedStateFromServer(applyIfNewer){
       if(!modalOpen) renderAll();
     }
   }catch(e){ _syncState.backendAvailable = false; console.warn('shared-state pull failed:', e); }
-  finally{ _syncState.pulling = false; }
+  finally{ _syncState.pulling = false; if(_syncState.pulledOnce && _pendingLogin) setTimeout(finishPendingLogin, 0); }
 }
 
 function startSharedStatePolling(){ setInterval(()=>pullSharedStateFromServer(true), 8000); }
@@ -1927,6 +1929,20 @@ function showUserForm(opts){
 }
 function hideUserForm(){ const m=document.getElementById('userFormPanel'); m.style.display='none'; m.classList.add('hidden'); _editUserId=null; }
 function showUserFormError(msg){ const el=document.getElementById('userFormError'); el.textContent=msg; el.style.display='block'; }
+let _pendingLogin = null;
+function showPendingLoginProgress(){
+  if(!_pendingLogin) return;
+  const pr = _syncState.pullProgress; const pct = pr && pr.total ? Math.round(100*pr.done/pr.total) : 0;
+  showUserFormError(`Downloading team data${pct?` (${pct}%)`:''}… keep this page open — you'll be logged in automatically.`);
+}
+async function finishPendingLogin(){
+  if(!_pendingLogin) return;
+  const {email, password} = _pendingLogin; _pendingLogin = null;
+  const existing = app.users.find(u=>u.email===email);
+  if(!existing){ showUserFormError('No account found for this email.'); return; }
+  if(existing.passwordHash !== await hashPassword(password)){ showUserFormError('Incorrect password.'); return; }
+  app.currentUserId = existing.id; saveState(); hideUserForm(); renderAccount(); renderAll();
+}
 async function saveUser(){
   const errEl=document.getElementById('userFormError'); errEl.style.display='none';
   const name=document.getElementById('userNameInput').value.trim(); const email=document.getElementById('userEmailInput').value.trim().toLowerCase(); const password=document.getElementById('userPasswordInput').value || ''; const loginMode = document.getElementById('userLoginMode').checked; const role=document.getElementById('userRoleInput').value; const teamId=document.getElementById('userTeamAssign').value || null;
@@ -1944,7 +1960,16 @@ async function saveUser(){
   }
   if(loginMode){ // attempt login
     const existing = app.users.find(u=>u.email===email);
-    if(!existing){ showUserFormError(_syncState.pulledOnce ? 'No account found for this email.' : 'Still downloading accounts on this device — wait a few seconds and try again.'); if(!_syncState.pulledOnce) pullSharedStateFromServer(false); return; }
+    if(!existing && !_syncState.pulledOnce){
+      // The team data (accounts included) is still downloading on this phone — on pool/cell data that
+      // can take a minute. Don't make them keep retrying: remember the login and finish it the moment
+      // the download lands.
+      _pendingLogin = {email, password};
+      showPendingLoginProgress();
+      if(!_syncState.pulling) pullSharedStateFromServer(false);
+      return;
+    }
+    if(!existing){ showUserFormError('No account found for this email.'); return; }
     const hash = await hashPassword(password);
     if(existing.passwordHash !== hash){ showUserFormError('Incorrect password.'); return; }
     app.currentUserId = existing.id; saveState(); hideUserForm(); renderAccount(); renderAll(); return; }
