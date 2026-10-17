@@ -7999,6 +7999,16 @@ function parsePhrase(rawText, offsetMs, splitDepth){
     .replace(/\bpass\s+(too|two|2)\s+(?=\S)/g, 'pass to ')
     .replace(/\b(assist|assisted)\s+(too|two|2)\s+(?=\S)/g, '$1 to ')
     .replace(/[.,!?]/g,'');
+  // Safari's recognizer mishears the two cap colors all the time ("light 5" -> "night 5"/"write 5"/
+  // "right 5", "dark 3" -> "dock 3"/"dart 3"). A color word is only ever read next to its cap number,
+  // so only rewrite one of these look-alikes when a number (digit, number word, or the "to/too/for/a"
+  // slips of "two/four/eight") comes straight after it — everywhere else they stay ordinary words.
+  const capNumRe = '(?:\\d{1,2}[ab]?|' + Object.keys(NUM_WORDS).join('|') + '|cap)';
+  text = text
+    .replace(new RegExp('\\b(?:night|nite|write|right|rite|lite|lyte|bite|lied|lights?)\\s+(?=' + capNumRe + '\\b)','g'), 'light ')
+    .replace(new RegExp('\\b(?:night|nite|lite|lyte)\\s+(?=(?:to|too|for|a)\\b)','g'), 'light ')
+    .replace(new RegExp('\\b(?:dock|dart|dork|duck|darc|darck|darke|dar|doc)\\s+(?=' + capNumRe + '\\b)','g'), 'dark ')
+    .replace(new RegExp('\\b(?:dock|dart|dork|duck|darc|darck|darke)\\s+(?=(?:to|too|for|a)\\b)','g'), 'dark ');
   if(/\b(undo|scratch that)\b/.test(text)) return {type:'undo'};
   const game = app.selectedGameId ? findGame(app.selectedGameId) : null;
   if(game && /\bpass\s+2\d\b/.test(text)){
