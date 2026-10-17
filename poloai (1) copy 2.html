@@ -1354,6 +1354,22 @@ function schedulePush(delay){
   _syncState.pushTimer = setTimeout(()=>{ _syncState.pushTimer = null; _syncState.pushDueAt = 0; pushSharedStateToServer(); }, delay);
 }
 
+// A request that never answers used to hang the whole sync forever ("still downloading" with no way
+// out): every backend request now gives up after 25 s, and the caller's retry takes over.
+function fetchWithTimeout(url, opts, ms){
+  const ctl = (typeof AbortController!=='undefined') ? new AbortController() : null;
+  const timer = ctl ? setTimeout(()=>ctl.abort(), ms||25000) : null;
+  return fetch(url, ctl ? {...(opts||{}), signal:ctl.signal} : opts).finally(()=>{ if(timer) clearTimeout(timer); });
+}
+// Built-in schedule/result games are already inside every copy of the app, so only games someone has
+// actually touched (live-tracked, edited, marked final, tactics logged) or created need to travel
+// through the shared backend. Sending all ~1,500 made every download ~120 slow requests.
+function gameNeedsSync(g){
+  if(!g) return false;
+  if(!isSeedGame(g)) return true;
+  if(g.modifiedAt || (g.tacticalLog||[]).length) return true;
+  return Object.values(g.quarters||{}).some(arr=>(arr||[]).some(e=>e && !Array.isArray(e.scoreAfter) && e.raw_phrase!=='(imported result)'));
+}
 async function pushSharedStateToServer(){
   if(!sharedStateConfigured()) return;
   if(!_syncState.pulledOnce) return; // the first successful pull pushes anything still pending
@@ -1364,12 +1380,12 @@ async function pushSharedStateToServer(){
     // so this upload can't roll back what another device just logged.
     while(_syncState.pulling) await new Promise(r=>setTimeout(r,150));
     try{
-      const metaRes = await fetch(SHARED_STATE_URL);
+      const metaRes = await fetchWithTimeout(SHARED_STATE_URL, undefined, 20000);
       if(metaRes.ok){ const meta = await metaRes.json(); const serverTime = Date.parse(meta && meta.updatedAt) || 0;
         if(serverTime > Math.max(_syncState.lastPulledAt, _syncState.lastPushedAt)) await pullSharedStateFromServer(false); }
     }catch(e){ /* offline: the upload below fails harmlessly and retries on the next change */ }
     clearTimeout(_syncState.pushTimer); _syncState.pushTimer = null; _syncState.pushDueAt = 0; _syncState.pushWanted = false; // this upload covers anything queued so far
-    const payload = {}; SHARED_KEYS.forEach(k=>payload[k]=app[k]); payload.games = (app.games||[]).map(packGame);
+    const payload = {}; SHARED_KEYS.forEach(k=>payload[k]=app[k]); payload.games = (app.games||[]).filter(gameNeedsSync).map(packGame);
     const full = JSON.stringify(payload);
     const chunks = []; for(let i=0;i<full.length;i+=SHARED_STATE_CHUNK_SIZE) chunks.push(full.slice(i,i+SHARED_STATE_CHUNK_SIZE));
     if(chunks.length===0) chunks.push('');
@@ -1378,7 +1394,7 @@ async function pushSharedStateToServer(){
         // Deliberately no Content-Type header: a plain string body defaults to text/plain, which is
         // a CORS-safelisted request type and skips the preflight — Apps Script Web Apps have no
         // doOptions handler, so a preflighted request would fail outright.
-        const res = await fetch(SHARED_STATE_URL, { method:'POST', body: JSON.stringify({chunkIndex:i, totalChunks:chunks.length, chunk:chunks[i]}) });
+        const res = await fetchWithTimeout(SHARED_STATE_URL, { method:'POST', body: JSON.stringify({chunkIndex:i, totalChunks:chunks.length, chunk:chunks[i]}) }, 40000);
         if(!res.ok) throw new Error('chunk '+i+' HTTP '+res.status);
         const json = await res.json();
         if(json && json.error) throw new Error(json.error);
@@ -1566,7 +1582,7 @@ function dedupeTeamsByName(teams, preferIds){
 async function pullSharedStateFromServer(applyIfNewer){
   if(_syncState.pulling || !sharedStateConfigured()) return; _syncState.pulling = true;
   try{
-    const metaRes = await fetch(SHARED_STATE_URL);
+    const metaRes = await fetchWithTimeout(SHARED_STATE_URL, undefined, 20000);
     if(!metaRes.ok){ _syncState.backendAvailable = false; return; }
     _syncState.backendAvailable = true;
     const meta = await metaRes.json();
@@ -1587,7 +1603,7 @@ async function pullSharedStateFromServer(applyIfNewer){
         let lastErr;
         for(let attempt=0; attempt<3; attempt++){
           try{
-            const res = await fetch(SHARED_STATE_URL+'?chunk='+(i+j));
+            const res = await fetchWithTimeout(SHARED_STATE_URL+'?chunk='+(i+j), undefined, 25000);
             if(!res.ok) throw new Error('chunk '+(i+j)+' HTTP '+res.status);
             const json = await res.json();
             parts[i+j] = (json && json.chunk) || ''; _syncState.pullProgress.done++; showPendingLoginProgress(); return;
