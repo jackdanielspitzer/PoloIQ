@@ -1,2 +1,9 @@
 .DS_Store
 test/
+
+pipeline/.cache/
+__pycache__/
+# pipeline scratch: raw downloaded pages and one-off survey output (scripts + boxdata/ are committed)
+pipeline/*.html
+pipeline/all_recaps.txt
+pipeline/survey_box.json

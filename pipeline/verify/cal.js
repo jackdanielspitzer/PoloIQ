@@ -1,0 +1,15 @@
+const fs = require('fs'); const vm = require('vm');
+const src = fs.readFileSync(require('path').join(__dirname,'..','..','index.html'),'utf8');
+let code = src.match(/<script>([\s\S]*)<\/script>/)[1] + '\nglobalThis.__e={app,ensureSeedTeamsAndSchedule,ensurePastSeasonResults,ensureOpponentSchoolResults,ensureSchoolSeed2026Schedule,SEED_2026_SCHEDULE,SEED_PAST_RESULTS};';
+const sb={console,document:{addEventListener(){},readyState:'complete',getElementById(){return null;},querySelector(){return null;},querySelectorAll(){return [];},createElement(){return {style:{},classList:{add(){},remove(){}},setAttribute(){},appendChild(){},addEventListener(){}};},body:{appendChild(){},classList:{add(){},remove(){}}}},window:{addEventListener(){},location:{href:''},localStorage:{getItem(){return null;},setItem(){},removeItem(){}},matchMedia(){return{matches:false,addEventListener(){}};},navigator:{serviceWorker:undefined}},localStorage:{getItem(){return null;},setItem(){},removeItem(){}},navigator:{serviceWorker:undefined,onLine:true},fetch:async()=>({ok:false,json:async()=>({})}),setTimeout:()=>0,clearTimeout,setInterval:()=>0,clearInterval,requestAnimationFrame:()=>0,crypto:{randomUUID:()=>'x'}};
+sb.globalThis=sb; vm.createContext(sb); vm.runInContext(code,sb);
+const {app,ensureSeedTeamsAndSchedule,ensurePastSeasonResults,ensureOpponentSchoolResults,ensureSchoolSeed2026Schedule,SEED_2026_SCHEDULE,SEED_PAST_RESULTS}=sb.__e;
+ensureSeedTeamsAndSchedule();ensurePastSeasonResults();ensureOpponentSchoolResults();ensureSchoolSeed2026Schedule();
+const cal=app.teams.find(t=>t.name==='California');
+const g=app.games.filter(x=>x.teamId===cal.id).sort((a,b)=>a.date<b.date?-1:1);
+const ev=x=>Object.values(x.quarters).reduce((s,a)=>s+a.length,0);
+console.log('cal games',g.length,'2026:',g.filter(x=>x.date.startsWith('2026')).length);
+g.filter(x=>x.date.startsWith('2026')).forEach(x=>console.log(x.date,x.opponent,x.status,'events',ev(x)));
+console.log('past results sample',JSON.stringify(SEED_PAST_RESULTS[0]),SEED_PAST_RESULTS.length);
+console.log('sched sample',JSON.stringify(SEED_2026_SCHEDULE.slice(0,3)));
+process.exit(0);
