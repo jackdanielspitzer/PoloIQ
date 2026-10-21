@@ -1074,11 +1074,7 @@
       <div class="panel">
         <h2>Box scores you've pasted in (per opponent)</h2>
         <div id="customMatchupList"></div>
-      </div>
-      <div class="panel" id="cloudImportPanel" style="display:none;">
-        <h2>Move data from the old backend</h2>
-        <p style="color:var(--text-dim);font-size:13px;">One time only: copies teams, rosters, live-tracked games and shared lists from the old Google Sheet into the new database. Old accounts can't be copied — each person signs up again once.</p>
-        <button class="primary-btn action-btn" id="cloudImportBtn" onclick="cloudImportFromOldBackend()">Import from old backend</button>
+
       </div>
     </section>
   </main>
@@ -10667,7 +10663,6 @@ function renderOpponentsList(){
   el.innerHTML = app.opponents.map(o=>`<div class="item" style="display:flex;align-items:center;justify-content:space-between;gap:10px;"><strong style="margin:0;">${o}</strong><button class="ghost-btn" style="color:var(--bad);border-color:var(--accent-dim);" onclick="removeOpponent('${o.replace(/'/g,"\\'")}')">Remove</button></div>`).join('');
 }
 function renderDataPage(){
-  { const panel = document.getElementById('cloudImportPanel'); const cu = currentUser(); if(panel) panel.style.display = (CLOUD && cu && cu.role==='admin') ? '' : 'none'; }
   renderOpponentsList();
   const el = document.getElementById('customMatchupList');
   const cm = app.customMatchupGames || {};
