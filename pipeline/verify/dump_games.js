@@ -19,5 +19,10 @@ for (const n of names) {
     return {date:g.date, opponent:g.opponent, ts:s.team, os:s.opponent, gn:g.gameNumber||null, pbp: ev.some(e=>!X.isPlaceholderSeedEvent(e) && e.stat_type)}; }).sort((a,b)=>a.date.localeCompare(b.date));
 }
 fs.writeFileSync(require('path').join(__dirname,'..','boxdata','app_games.json'), JSON.stringify(out));
+// every name each tracked school has on file (roster + stat rows), so 6-8 matching can check which cap colour each school really wore
+const rosters = {};
+const stats = vm.runInContext('typeof SEED_SCHOOL_PLAYER_STATS!=="undefined" ? SEED_SCHOOL_PLAYER_STATS : {}', sb);
+for (const n of names) { const t = app.teams.find(x=>x.name===n); rosters[n] = Array.from(new Set([...(t ? t.players.map(p=>p.name) : []), ...Object.keys(stats[n]||{})])).filter(Boolean); }
+fs.writeFileSync(require('path').join(__dirname,'..','boxdata','team_names.json'), JSON.stringify(rosters));
 for (const [k,v] of Object.entries(out)) console.log(k.padEnd(18), v.length, 'finals,', v.filter(g=>g.pbp).length, 'with real events');
 process.exit(0);

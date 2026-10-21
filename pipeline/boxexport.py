@@ -14,7 +14,7 @@ import re
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from names import norm
+from names import norm, same_school
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
@@ -73,6 +73,11 @@ def entry(rec, flip):
         "s": rec["boxUrl"],
         "k": rec.get("kind") or ("scoresheet" if b.get("limited") else "sidearm"),
     }
+    if rec.get("pb"):
+        # the game's full play-by-play lives in pbp/<id>.json (neutral dark/light); pc = this team's colour
+        out["pb"] = rec["pb"]
+        mine = rec.get("side") or "dark"
+        out["pc"] = ({"dark": "light", "light": "dark"}[mine] if flip else mine)[0]
     if b.get("pairs"):
         out["pr"] = [[k, "u" if tm == me else "v", a, o, n] for k, tm, a, o, n in b["pairs"]]
     partial = []
@@ -90,18 +95,30 @@ def entry(rec, flip):
 def build():
     recs = []
     for f in sorted(glob.glob(os.path.join(HERE, "boxdata", "*.json"))):
-        if os.path.basename(f) == "app_games.json":
+        if os.path.basename(f) in ("app_games.json", "team_names.json", "sixeight_score_mismatches.json"):
             continue
         recs += json.load(open(f))
-    # school-published box scores first, then scoresheets, then 6-8 live scoring, so the best source wins a duplicate
-    order = {"sidearm": 0, "scoresheet": 1, "6-8": 2}
+    # 6-8 Sports live scoring first (full play-by-play: every action, the game clock, who it was against),
+    # then school-published box scores, then scoresheets. A school box score for a game 6-8 also has only
+    # lends its goalie lines (saves and minutes, which are official there).
+    order = {"6-8": 0, "sidearm": 1, "scoresheet": 2}
     recs.sort(key=lambda r: order.get(r.get("kind") or ("scoresheet" if (r.get("box") or {}).get("limited") else "sidearm"), 0))
     seed = {}
     stats = {"records": 0, "swapped": 0, "skipped": 0}
 
     seen_opp = {}
+    six = {}  # (team, date) -> [(opponent label, key)] of 6-8 entries
+    stats["schoolGoaliesBorrowed"] = 0
 
     def put(team, date, ts, os_, e):
+        if e.get("k") != "6-8":
+            for label, k6 in six.get((team, date), []):
+                if same_school(label, e["o"]):
+                    s6 = seed[k6]
+                    if any(g[2] or g[4] for g in e["gu"] + e["gv"]):
+                        s6["gu"], s6["gv"], s6["gs"] = e["gu"], e["gv"], e["s"]
+                        stats["schoolGoaliesBorrowed"] += 1
+                    return False
         base = f"{team}|{date}|{ts}-{os_}"
         opp = re.sub(r"[^a-z0-9]", "", norm(e["o"]))
         k, n = base, 1
@@ -115,6 +132,8 @@ def build():
             k = f"{base}#{n}"
         seed[k] = e
         seen_opp[k] = opp
+        if e.get("k") == "6-8":
+            six.setdefault((team, date), []).append((e["o"], k))
         return True
 
     for rec in recs:

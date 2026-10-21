@@ -1,0 +1,145 @@
+[
+ {
+  "team": "Fordham",
+  "date": "2026-08-29",
+  "opponent": "Gannon",
+  "app": [
+   26,
+   5
+  ],
+  "sixeight": [
+   25,
+   5
+  ]
+ },
+ {
+  "team": "Fordham",
+  "date": "2026-08-30",
+  "opponent": "Iona",
+  "app": [
+   23,
+   7
+  ],
+  "sixeight": [
+   25,
+   7
+  ]
+ },
+ {
+  "team": "Iona",
+  "date": "2026-08-30",
+  "opponent": "Gannon",
+  "app": [
+   15,
+   17
+  ],
+  "sixeight": [
+   14,
+   17
+  ]
+ },
+ {
+  "team": "Iona",
+  "date": "2026-08-30",
+  "opponent": "Fordham",
+  "app": [
+   7,
+   23
+  ],
+  "sixeight": [
+   7,
+   25
+  ]
+ },
+ {
+  "team": "Iona",
+  "date": "2026-09-19",
+  "opponent": "Wheaton",
+  "app": [
+   27,
+   6
+  ],
+  "sixeight": [
+   27,
+   7
+  ]
+ },
+ {
+  "team": "Johns Hopkins",
+  "date": "2025-09-20",
+  "opponent": "Connecticut College",
+  "app": [
+   18,
+   10
+  ],
+  "sixeight": [
+   18,
+   11
+  ]
+ },
+ {
+  "team": "Harvard",
+  "date": "2026-09-05",
+  "opponent": "California",
+  "app": [
+   7,
+   16
+  ],
+  "sixeight": [
+   6,
+   16
+  ]
+ },
+ {
+  "team": "Brown",
+  "date": "2026-10-17",
+  "opponent": "Salem",
+  "app": [
+   17,
+   7
+  ],
+  "sixeight": [
+   17,
+   6
+  ]
+ },
+ {
+  "team": "California",
+  "date": "2024-10-12",
+  "opponent": "UC Merced",
+  "app": [
+   25,
+   7
+  ],
+  "sixeight": [
+   25,
+   8
+  ]
+ },
+ {
+  "team": "UC Davis",
+  "date": "2026-08-29",
+  "opponent": "Brown",
+  "app": [
+   18,
+   4
+  ],
+  "sixeight": [
+   17,
+   4
+  ]
+ },
+ {
+  "team": "UC Davis",
+  "date": "2026-09-20",
+  "opponent": "California Baptist",
+  "app": [
+   16,
+   17
+  ],
+  "sixeight": [
+   14,
+   15
+  ]
+ }
+]

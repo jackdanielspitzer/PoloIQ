@@ -8,6 +8,8 @@ import hashlib
 import http.client
 import json
 import os
+import shutil
+import subprocess
 import time
 import urllib.error
 import urllib.request
@@ -23,6 +25,28 @@ def _cache_path(url):
     return os.path.join(CACHE_DIR, h[:2], h)
 
 
+def _curl(url):
+    """Fetch with curl: Python's own HTTP client gets bodies cut short by the network proxy (the cut ends
+    cleanly, so nothing raises), while curl receives them whole. None = not available or failed."""
+    if not shutil.which("curl"):
+        return None
+    try:
+        r = subprocess.run(["curl", "-sL", "--compressed", "--max-time", "90", "-A", UA, "-w", "\n%{http_code}", url],
+                           capture_output=True, timeout=120)
+    except Exception:
+        return None
+    out = r.stdout
+    cut = out.rfind(b"\n")
+    code = out[cut + 1:].decode().strip() if cut >= 0 else ""
+    if r.returncode != 0 or not code.isdigit():
+        return None
+    if code == "404":
+        return ""
+    if code != "200":
+        return None
+    return out[:cut].decode("utf-8", errors="replace")
+
+
 def get(url, max_age=None, retries=5, pace=0.5):
     """Return the response body as text. max_age=None means cache forever."""
     path = _cache_path(url)
@@ -30,6 +54,22 @@ def get(url, max_age=None, retries=5, pace=0.5):
         if max_age is None or time.time() - os.path.getmtime(path) < max_age:
             with open(path, encoding="utf-8") as f:
                 return f.read()
+    for attempt in range(3):
+        wait = pace - (time.time() - _last_request[0])
+        if wait > 0:
+            time.sleep(wait)
+        _last_request[0] = time.time()
+        body = _curl(url)
+        if body == "":
+            return None
+        if body is not None:
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(body)
+            return body
+        if not shutil.which("curl"):
+            break
+        time.sleep(2 * (attempt + 1))
     last_err = None
     for attempt in range(retries):
         wait = pace - (time.time() - _last_request[0])
@@ -73,15 +113,21 @@ def get_json(url, max_age=None):
     body = get(url, max_age=max_age)
     if body is None:
         return None
-    try:
-        return json.loads(body)
-    except ValueError:
-        # a truncated copy was cached earlier: drop it and fetch again
-        p = _cache_path(url)
-        if os.path.exists(p):
-            os.remove(p)
-        body = get(url, max_age=max_age)
-        return None if body is None else json.loads(body)
+    for attempt in range(4):
+        try:
+            return json.loads(body)
+        except ValueError:
+            # the proxy cut the body short (it ends cleanly, so no error was raised): drop the bad copy
+            # and fetch again; after a few tries give up loudly instead of silently losing the data
+            p = _cache_path(url)
+            if os.path.exists(p):
+                os.remove(p)
+            if attempt == 3:
+                raise
+            time.sleep(1 + attempt)
+            body = get(url, max_age=max_age)
+            if body is None:
+                return None
 
 
 def _resume(url, partial, tries=4):
