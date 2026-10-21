@@ -13,4 +13,4 @@ storage.js    saved/synced state stays small (imported-score filler packed) and 
 accounts.js   admin (owner-only), Navy manager scoped to Navy, login/password
 clockread.js  camera clock reader on synthetic clocks: solid, dot-matrix, slanted, blurry/noisy, small, amber, loose box
 cloud.js      several devices against a fake Supabase with the schema's row rules: sign-up/confirm/login, admin guard, stats as rows, live updates, undo, offline queue, permissions, visitor read-only, reload, roster edit
-gameday.js    tap-to-log grid + follow-up details, man-up tracking, shot spots, stop/start/set clock, second-phone clock, special teams, scouting report, export
+gameday.js    tap-to-log grid + follow-up details, man-up tracking, shot spots, second-phone clock, special teams, scouting report, export

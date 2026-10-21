@@ -1,5 +1,5 @@
 // Game-day tools, offline: tap-to-log grid and its follow-up details, man-up tracking, shot spots,
-// the stat-taker's clock (stop/start, set), a second phone's clock arriving, special-teams math,
+// a second phone's camera clock arriving, special-teams math,
 // scouting report and export rows. Never touches any backend.
 const vm=require('vm');
 const {makeDocument}=require('./dom.js');
@@ -86,18 +86,6 @@ check('shot chart counts the left-wing goal', chart.zones.lw.goals===1 && chart.
 tryRun('render insights', ()=>c.renderGameInsights(g));
 check('special teams panel rendered', /Man-up/.test(D('gameSituationsBody').innerHTML) && /shot-zone/.test(D('gameShotBody').innerHTML));
 
-// ---- the stat-taker's clock ----
-c.gameElapsedNow(g); g.quarterStart[1]=Date.now()-90000; // 1:30 into Q1
-tryRun('stop clock', ()=>c.tapToggleClock());
-check('clock stops', c.isGameClockPaused(g));
-const held=c.gameElapsedNow(g);
-g.quarterStart[1]-=5000; // time passes while stopped (simulated)
-check('stopped clock holds its time', c.gameElapsedNow(g)===held);
-pick(B); tryRun('steal while stopped', ()=>c.tapLog('steal'));
-check('event during a stoppage stamped at the stopped time', evs().filter(e=>e.stat_type==='steal').pop().wall_time_offset_ms===held);
-tryRun('start clock', ()=>c.tapToggleClock());
-check('clock runs again from where it stopped', !c.isGameClockPaused(g) && Math.abs(c.gameElapsedNow(g)-held)<50);
-
 // ---- a second phone's camera clock arrives ----
 tryRun('remote reading', ()=>c.onRemoteClock(g.id, {q:'2', r:300000, p:480000, h:0}));
 check('follows the camera phone into Q2', String(app.currentQ)==='2');
@@ -105,16 +93,8 @@ check('Q2 clock set from the camera phone', Math.abs((480000-c.gameElapsedNow(g)
 const before=JSON.stringify(g.quarterStart);
 [{q:'2',r:900000,p:480000},{q:'9',r:1000,p:480000},{q:'2',r:'x',p:480000},null,'junk'].forEach(pl=>c.onRemoteClock(g.id, pl));
 check('bad clock messages are ignored', JSON.stringify(g.quarterStart)===before);
-c.onRemoteClock(g.id, {q:'2', r:250000, p:480000, h:1});
-check('a stopped camera clock stops this phone too', c.isGameClockPaused(g) && 480000-c.gameElapsedNow(g)===250000);
-c.onRemoteClock(g.id, {q:'2', r:249000, p:480000, h:0});
-check('and restarts it', !c.isGameClockPaused(g));
 c.onRemoteClock('some-other-game', {q:'3', r:1000, p:480000});
 check('clock for another game ignored', String(app.currentQ)==='2');
-
-// ---- hold-to-talk without speech support does nothing harmful ----
-tryRun('ptt down/up', ()=>{ c.pttDown(); c.pttUp(); });
-check('mic not left on', !app.listening);
 
 // ---- scouting report, export ----
 const sg=c.blankGame(cal.id); sg.opponent='Stanford'; sg.date='2026-11-01';

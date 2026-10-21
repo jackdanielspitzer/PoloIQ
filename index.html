@@ -338,10 +338,6 @@
   .tap-chip.on{background:var(--cyan); border-color:var(--cyan); color:#03171a;}
   .tap-chip.on small{color:#03171a;}
   .tap-small{padding:7px 12px; font-size:12px;}
-  .tap-bottom{display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-top:14px;}
-  .tap-ptt{flex:1 1 220px; min-height:54px; border-radius:var(--radius-md); border:1px solid var(--accent); background:var(--accent-dim); color:var(--text); font-weight:700; font-size:15px; cursor:pointer; touch-action:none; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none;}
-  .tap-ptt.on{background:var(--bad); border-color:var(--bad); color:#fff;}
-  .tap-clock{display:flex; gap:8px; align-items:center; flex-wrap:wrap;}
   .tap-link{margin-top:8px; font-size:12px; color:var(--text-faint);}
   .tap-toast{position:fixed; left:50%; bottom:22px; transform:translateX(-50%) translateY(20px); opacity:0; pointer-events:none; background:var(--surface-3); border:1px solid var(--good); color:var(--text); padding:10px 16px; border-radius:999px; font-weight:600; font-size:14px; transition:all .2s; z-index:95;}
   .tap-toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
@@ -1742,20 +1738,16 @@ function updateLiveClockDisplay(){
   const start = game.quarterStart && game.quarterStart[app.currentQ];
   if(!start){ clockEl.textContent='--:--'; return; }
   const remaining = Math.max(0, gamePeriodLengthMs(game, app.currentQ) - gameElapsedNow(game));
-  clockEl.textContent = fmtClockMs(remaining) + (isGameClockPaused(game) ? ' ⏸' : '');
+  clockEl.textContent = fmtClockMs(remaining);
   updateTapClockRow(game);
 }
-// Time into the current period for stamping an event. Normally the clock runs from quarterStart; while
-// the stat-taker has the clock stopped (whistle, timeout) it holds at the moment it was stopped.
+// Time into the current period for stamping an event (starts the period's clock if it hasn't yet).
 function gameElapsedNow(game, q){
   q = q==null ? app.currentQ : q;
   if(!game.quarterStart) game.quarterStart = {};
-  const held = game.clockPaused && game.clockPaused[q];
-  if(held!=null) return held;
   if(!game.quarterStart[q]) game.quarterStart[q] = Date.now();
   return Date.now() - game.quarterStart[q];
 }
-function isGameClockPaused(game, q){ q = q==null ? app.currentQ : q; return !!(game && game.clockPaused && game.clockPaused[q]!=null); }
 setInterval(updateLiveClockDisplay, 1000);
 
 function loadState(){ try{ const raw = localStorage.getItem('poloai-app-state'); if(raw){ const stored = JSON.parse(raw); unpackGames(stored && stored.games); Object.assign(app, {page:'home', selectedTeamId:null, selectedGameId:null, selectedPlayerId:null, manageMode:false, currentQ:1, listening:false, recognition:null, pendingBuffer:'', pendingTimer:null, lastVoiceActor:null, lastVoiceActorAt:0}, stored); } } catch(e){ console.warn('load failed',e); }
@@ -8300,10 +8292,10 @@ function setupRecognition(){ if(!SR){ document.getElementById('micBtn').disabled
       else { app.pendingBuffer=(app.pendingBuffer+' '+t).trim(); }
       clearTimeout(app.pendingTimer); app.pendingTimer=setTimeout(flushBuffer, 1300); } else { interim += res[0].transcript; } } if(interim){ document.getElementById('micStatus').textContent = app.pendingBuffer ? `…${app.pendingBuffer} ${interim}` : interim; } };
   app.recognition.onerror = (e)=>{ if(e.error==='not-allowed' || e.error==='service-not-allowed'){ toggleMic(false); document.getElementById('micStatus').textContent='Mic permission blocked'; return; } if(e.error==='no-speech') return; document.getElementById('micStatus').textContent = 'Mic issue: '+e.error; };
-  app.recognition.onend = ()=>{ if(app.pttFlush){ app.pttFlush = false; setTimeout(flushBuffer, 60); } if(!app.listening) return; setTimeout(()=>{ if(app.listening){ try{ app.recognition.start(); }catch(e){} } }, 350); };
+  app.recognition.onend = ()=>{ if(!app.listening) return; setTimeout(()=>{ if(app.listening){ try{ app.recognition.start(); }catch(e){} } }, 350); };
 }
 
-function flushBuffer(){ clearTimeout(app.pendingTimer); if(!app.pendingBuffer) return; const text=app.pendingBuffer; app.pendingBuffer=''; handleParsedPhrase(text); if(app.ptt==='latched') pttStop(); }
+function flushBuffer(){ clearTimeout(app.pendingTimer); if(!app.pendingBuffer) return; const text=app.pendingBuffer; app.pendingBuffer=''; handleParsedPhrase(text); }
 
 function toggleMic(force){ if(force===false){ stopListening(); return; } if(!app.recognition) return; if(app.listening){ stopListening(); } else { startListening(); } }
 function stopListening(){ app.listening=false; flushBuffer(); if(app.recognition){ try{ app.recognition.stop(); }catch(e){} } document.getElementById('micBtn').textContent='Start listening'; document.getElementById('micStatus').textContent='Mic off'; }
@@ -8843,7 +8835,6 @@ async function applyClockSyncReading(remainingMs){
     }
     const elapsedMs = clockSyncPeriodMs - remainingMs;
     game.quarterStart[app.currentQ] = Date.now() - Math.max(0, elapsedMs);
-    if(game.clockPaused) delete game.clockPaused[app.currentQ]; // the real clock wins over a manual stop
     // Remember the period length this reading was taken against so the game log can convert
     // elapsed-since-start back into the actual scoreboard reading later, even after this camera
     // session ends — per-period, since an overtime period often runs shorter than regulation.
@@ -11118,7 +11109,7 @@ async function cloudLogout(){ try{ await sb.auth.signOut(); }catch(e){} app.curr
 
 
 // ===================================================================================================
-// Game-day tools: tap-to-log grid, hold-to-talk, a second phone as the clock camera, special-teams and
+// Game-day tools: tap-to-log grid, a second phone as the clock camera, special-teams and
 // shot-location stats, a one-page scouting report, and box score export (CSV and print/PDF).
 // Everything here logs through the same event shape as voice and the manual form, so stats, undo,
 // cloud sync and every existing page treat a tapped event exactly like a spoken one.
@@ -11204,17 +11195,8 @@ function renderTapLog(game){
     <div class="tap-actions">${TAP_ACTIONS.map(a=>`<button type="button" class="tap-act ${a.tone||''}" onclick="tapLog('${a.stat}')"${picked?'':' disabled'}>${a.label}</button>`).join('')}</div>
     <div class="tap-hint">${picked ? `${capColorFor(game,tapState.side)} ${escHtml(picked.cap)}${picked.name&&picked.cap!=='?'?' · '+escHtml(picked.name):''} — now tap what happened` : 'Tap a cap number, then what happened. Details like the assist or shot spot can wait.'}</div>
     <div id="tapFollow">${renderTapFollow(game)}</div>
-    <div class="tap-bottom">
-      <button id="pttBtn" class="tap-ptt" type="button">🎙 Hold to talk</button>
-      <div class="tap-clock">
-        <span class="pill" id="tapClockTime">--:--</span>
-        <button type="button" class="ghost-btn tap-small" id="tapClockToggle" onclick="tapToggleClock()">⏸ Clock stopped</button>
-        <button type="button" class="ghost-btn tap-small" onclick="tapSetClock()">Set time</button>
-      </div>
-    </div>
     <div class="tap-link" id="tapLinkNote"></div>
     <div class="tap-toast" id="tapToast"></div>`;
-  wirePtt(document.getElementById('pttBtn'));
   updateTapClockRow(game);
 }
 
@@ -11307,63 +11289,9 @@ function tapFollowZone(zone){
   saveState(); renderGame();
 }
 
-// ---- hold-to-talk ----
-// Hold the button while speaking and let go to log, so crowd noise between calls never triggers
-// anything. A quick tap instead keeps the mic on for one call (needed where the browser only lets the
-// mic start on a full tap); it switches off by itself once that call is logged.
-let _pttDownAt = 0;
-function wirePtt(btn){
-  if(!btn) return;
-  if(!SR){ btn.disabled = true; btn.textContent = '🎙 Voice not supported in this browser'; return; }
-  btn.addEventListener('pointerdown', e=>{ e.preventDefault(); pttDown(); });
-  btn.addEventListener('pointerup', e=>{ e.preventDefault(); pttUp(); });
-  btn.addEventListener('pointercancel', ()=>pttUp());
-  btn.addEventListener('contextmenu', e=>e.preventDefault());
-  pttPaint();
-}
-function pttPaint(){
-  const btn = document.getElementById('pttBtn'); if(!btn) return;
-  btn.classList.toggle('on', !!app.ptt);
-  btn.textContent = app.ptt==='hold' ? '🎙 Listening — let go to log' : app.ptt==='latched' ? '🎙 Listening for one call — tap to cancel' : '🎙 Hold to talk';
-}
-function pttDown(){
-  const game = findGame(app.selectedGameId);
-  if(!game || !hasManagePermission(game) || !app.recognition) return;
-  if(app.ptt==='latched'){ _pttDownAt = -1; return; } // second tap cancels
-  if(app.listening && !app.ptt){ tapToast('The mic is already on (Start listening)'); return; }
-  _pttDownAt = Date.now(); app.ptt = 'hold'; app.listening = true; gameElapsedNow(game);
-  try{ app.recognition.start(); }catch(e){}
-  const ms = document.getElementById('micStatus'); if(ms) ms.textContent = 'Hold-to-talk…';
-  pttPaint();
-}
-function pttUp(){
-  if(_pttDownAt===-1){ _pttDownAt = 0; pttStop(); return; }
-  if(app.ptt!=='hold') return;
-  const held = Date.now() - _pttDownAt; _pttDownAt = 0;
-  if(held < 400){ app.ptt = 'latched'; try{ app.recognition.start(); }catch(e){} pttPaint(); return; }
-  pttStop();
-}
-function pttStop(){
-  if(!app.ptt) return;
-  app.ptt = null; app.listening = false; app.pttFlush = true;
-  setTimeout(()=>{ try{ app.recognition && app.recognition.stop(); }catch(e){} }, 350); // let the last word land
-  const ms = document.getElementById('micStatus'); if(ms) ms.textContent = 'Mic off';
-  pttPaint();
-}
-if(typeof window!=='undefined' && window.addEventListener) window.addEventListener('pointerup', ()=>{ if(app.ptt==='hold' && Date.now()-_pttDownAt>=400) pttStop(); });
-
-// ---- the game clock on the stat-taker's phone ----
+// ---- man-up countdown and the camera-phone note, refreshed every second ----
 function updateTapClockRow(game){
-  const t = document.getElementById('tapClockTime'); if(!t || !game) return;
-  const q = app.currentQ;
-  if(!isClockedPeriod(q)){ t.textContent = periodLabel(q); }
-  else {
-    const started = game.quarterStart && game.quarterStart[q];
-    t.textContent = `${periodLabel(q)} · ${started ? fmtClockMs(Math.max(0, gamePeriodLengthMs(game,q) - gameElapsedNow(game))) : '--:--'}`;
-  }
-  const paused = isGameClockPaused(game);
-  const tog = document.getElementById('tapClockToggle');
-  if(tog){ tog.textContent = paused ? '▶ Clock running' : '⏸ Clock stopped'; tog.classList.toggle('primary-btn', paused); }
+  if(!game) return;
   const man = document.getElementById('tapManLeft');
   if(man){
     const before = tapState.man; tapManStateFor();
@@ -11377,32 +11305,6 @@ function updateTapClockRow(game){
     else note.innerHTML = 'Two phones? Put one on a tripod with <b>📷 Sync clock from camera</b> on this game. This phone follows its clock automatically.';
   }
 }
-function tapToggleClock(){
-  const game = findGame(app.selectedGameId); if(!game || !hasManagePermission(game)) return;
-  const q = app.currentQ; if(!isClockedPeriod(q)) return;
-  if(!game.quarterStart) game.quarterStart = {};
-  if(isGameClockPaused(game)){ game.quarterStart[q] = Date.now() - game.clockPaused[q]; delete game.clockPaused[q]; }
-  else { const el = gameElapsedNow(game); game.clockPaused = game.clockPaused || {}; game.clockPaused[q] = el; }
-  const len = gamePeriodLengthMs(game, q);
-  clockLinkSend(game, q, len - gameElapsedNow(game), len, isGameClockPaused(game));
-  saveState(); updateLiveClockDisplay();
-}
-function tapSetClock(){
-  const game = findGame(app.selectedGameId); if(!game || !hasManagePermission(game)) return;
-  const q = app.currentQ; if(!isClockedPeriod(q)) return;
-  const len = gamePeriodLengthMs(game, q);
-  const shown = fmtClockMs(Math.max(0, len - gameElapsedNow(game)));
-  const input = prompt(`Time left on the game clock for ${periodLabel(q)} (m:ss)`, shown);
-  if(input==null) return;
-  const ms = parseClockToMs(input);
-  if(ms==null || ms>len){ alert('Type the time like 5:42'); return; }
-  if(!game.quarterStart) game.quarterStart = {};
-  game.quarterStart[q] = Date.now() - (len - ms);
-  if(isGameClockPaused(game)) game.clockPaused[q] = len - ms;
-  clockLinkSend(game, q, ms, len, isGameClockPaused(game));
-  saveState(); updateLiveClockDisplay();
-}
-
 // ---- a second phone as the clock camera ----
 // The phone reading the scoreboard broadcasts each reading on a per-game live channel; every other
 // phone with that game open adopts it within a second (no waiting on the database round trip).
@@ -11422,9 +11324,9 @@ function clockLinkLeave(){
   if(clockLink.channel){ try{ sb.removeChannel(clockLink.channel); }catch(e){} }
   clockLink.channel = null; clockLink.gameId = null; clockLink.lastAt = 0;
 }
-function clockLinkSend(game, q, remainingMs, periodMs, held){
+function clockLinkSend(game, q, remainingMs, periodMs){
   if(!game || !clockLink.channel || clockLink.gameId!==game.id || typeof clockLink.channel.send!=='function') return;
-  try{ clockLink.channel.send({ type:'broadcast', event:'clock', payload:{ q:String(q), r:Math.round(remainingMs), p:Math.round(periodMs), h:held?1:0 } }); }catch(e){}
+  try{ clockLink.channel.send({ type:'broadcast', event:'clock', payload:{ q:String(q), r:Math.round(remainingMs), p:Math.round(periodMs) } }); }catch(e){}
 }
 function onRemoteClock(gameId, pl){
   if(!pl || typeof pl!=='object') return;
@@ -11440,8 +11342,6 @@ function onRemoteClock(gameId, pl){
   if(!game.quarters[q]) game.quarters[q] = [];
   game.periodLengthMsByPeriod[q] = p;
   game.quarterStart[q] = Date.now() - (p - r) - 150; // ~150 ms in flight
-  if(pl.h){ game.clockPaused = game.clockPaused || {}; game.clockPaused[q] = p - r; }
-  else if(game.clockPaused) delete game.clockPaused[q];
   const qChanged = String(app.currentQ)!==qs; if(qChanged) app.currentQ = q;
   clockLink.lastAt = Date.now();
   if(hasManagePermission(game)) saveState({quietPush:true});
