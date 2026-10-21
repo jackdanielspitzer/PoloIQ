@@ -8600,7 +8600,10 @@ function loadTesseractScript(){
   if(tesseractLoadPromise) return tesseractLoadPromise;
   tesseractLoadPromise = new Promise((resolve, reject)=>{
     const script = document.createElement('script');
-    script.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+    // pinned to one exact version, and the browser refuses the file if it was altered
+    script.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
+    script.integrity = 'sha384-GJqSu7vueQ9qN0E9yLPb3Wtpd7OrgK8KmYzC8T1IysG1bcvxvIO4qtYR/D3A991F';
+    script.crossOrigin = 'anonymous';
     script.onload = resolve;
     script.onerror = ()=>{ tesseractLoadPromise = null; reject(new Error('Could not load the text-recognition library — check your internet connection.')); };
     document.head.appendChild(script);
@@ -8612,7 +8615,11 @@ async function getTesseractWorker(){
   const statusEl = document.getElementById('clockSyncStatus');
   if(statusEl) statusEl.textContent = 'Loading text recognition (first time only)…';
   await loadTesseractScript();
-  tesseractWorker = await Tesseract.createWorker('eng');
+  tesseractWorker = await Tesseract.createWorker('eng', 1, {
+    workerPath: 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/worker.min.js',
+    corePath: 'https://cdn.jsdelivr.net/npm/tesseract.js-core@5.1.1',
+    langPath: 'https://cdn.jsdelivr.net/npm/@tesseract.js-data/eng@1.0.0/4.0.0_best_int',
+  });
   await tesseractWorker.setParameters({ tessedit_char_whitelist: '0123456789:' });
   return tesseractWorker;
 }
@@ -10754,8 +10761,31 @@ function eventDataOf(e){ const {eid, _seq, ...rest} = e; return rest; }
 function profileToUser(p){ return { id:p.id, email:p.email, name:p.name, role:p.role, teamId:p.team_id, profilePic:p.profile_pic }; }
 const CLOUD_LIST_KEYS = ['opponents','plays','customMatchupGames'];
 
+// ---- everything from the database is cleaned before the app ever shows it ----
+// Names, notes, opponents etc. are shown inside HTML all over the app. Anything another account typed
+// could otherwise contain markup or script (a player named <img onerror=…>) that runs in everyone
+// else's browser and could steal their login. So every text value from the database has the
+// characters that can break out of HTML or a quoted attribute/JS string swapped for harmless
+// look-alikes (< > " and backslash), ids must be plain, and pictures must be real images. Apostrophes are
+// kept (team names like Saint Mary's must still match); the one handler that embeds text escapes them.
+const SAFE_ID = /^[A-Za-z0-9._:-]{1,160}$/;
+const SAFE_IMAGE = /^data:image\/(png|jpe?g|gif|webp);base64,[A-Za-z0-9+\/=]+$/;
+function cleanText(v){ return typeof v!=='string' ? v : v.replace(/</g,'‹').replace(/>/g,'›').replace(/"/g,'”').replace(/\\/g,'∖'); }
+function cleanDeep(v, key){
+  if(typeof v==='string'){
+    if(key==='profilePic' || key==='logo' || key==='profile_pic') return SAFE_IMAGE.test(v) ? v : null;
+    if(/(^id$|Id$|_id$)/.test(key||'')) return SAFE_ID.test(v) ? v : null;
+    return cleanText(v);
+  }
+  if(Array.isArray(v)) return v.map(x=>cleanDeep(x, key==='games' ? 'gameId' : undefined));
+  if(v && typeof v==='object'){ const o = {}; Object.keys(v).forEach(k=>{ if(/^[A-Za-z0-9_$-]{1,60}$/.test(k)) o[k] = cleanDeep(v[k], k); }); return o; }
+  return v;
+}
+function cleanRow(row, idKeys){ if(!row) return null; for(const k of idKeys){ if(row[k]!=null && !SAFE_ID.test(String(row[k]))) return null; } return cleanDeep(row); }
+
 // ---- applying rows from the database ----
 function applyCloudTeam(row){
+  row = cleanRow(row, ['id']); if(!row) return;
   const t = {...(row.data||{}), id:row.id, name:row.name};
   if(!Array.isArray(t.players)) t.players = []; if(!Array.isArray(t.games)) t.games = [];
   const i = app.teams.findIndex(x=>x.id===row.id);
@@ -10763,6 +10793,7 @@ function applyCloudTeam(row){
   cloud.syncedTeams.set(t.id, JSON.stringify(t));
 }
 function applyCloudGame(row){
+  row = cleanRow(row, ['id','team_id']); if(!row) return;
   let g = app.games.find(x=>x.id===row.id);
   if(!g){ g = blankGame(row.team_id); g.id = row.id; app.games.push(g); const t = findTeam(row.team_id); if(t && !(t.games||[]).includes(g.id)) (t.games=t.games||[]).push(g.id); }
   const quarters = g.quarters;
@@ -10777,6 +10808,7 @@ function insertEventInOrder(arr, ev){
   arr.splice(at, 0, ev);
 }
 function applyCloudEvent(row){
+  row = cleanRow(row, ['id','game_id','period']); if(!row) return false;
   const g = findGame(row.game_id); if(!g) return false;
   const q = row.period; if(!g.quarters[q]){ g.quarters[q] = []; if(!/^[1-4]$/.test(q) && !(g.extraPeriods||[]).includes(q)) (g.extraPeriods=g.extraPeriods||[]).push(q); }
   if(Object.values(g.quarters).some(arr=>(arr||[]).some(e=>e.eid===row.id))) return false;
@@ -10823,7 +10855,7 @@ async function cloudLoadProfile(){
   const { data:{ session } } = await sb.auth.getSession();
   if(!session){ app.currentUserId = null; app.users = []; cloud.syncedProfile = null; return; }
   const { data, error } = await sb.from('profiles').select('*');
-  app.users = (data||[]).map(profileToUser);
+  app.users = (data||[]).map(p=>cleanRow(p, ['id','team_id'])).filter(Boolean).map(profileToUser);
   app.currentUserId = session.user.id;
   if(!app.users.some(u=>u.id===session.user.id)) app.users.push({ id:session.user.id, email:session.user.email, name:(session.user.user_metadata||{}).name||'', role:'player', teamId:null });
   const me = app.users.find(u=>u.id===session.user.id);
@@ -10841,7 +10873,7 @@ async function cloudLoadData(){
     (data||[]).forEach(applyCloudEvent);
     if(!data || data.length < 1000) break;
   }
-  (lists.data||[]).forEach(r=>{ if(CLOUD_LIST_KEYS.includes(r.key)){ app[r.key] = r.value; cloud.syncedLists.set(r.key, JSON.stringify(r.value)); } });
+  (lists.data||[]).forEach(r0=>{ const r = cleanRow(r0, []); if(r && CLOUD_LIST_KEYS.includes(r.key)){ app[r.key] = r.value; cloud.syncedLists.set(r.key, JSON.stringify(r.value)); } });
   // baselines: everything as loaded counts as "already saved"
   app.teams.forEach(t=>{ if(!cloud.syncedTeams.has(t.id)) cloud.syncedTeams.set(t.id, JSON.stringify(t)); });
   app.games.forEach(g=>{ if(!cloud.syncedGames.has(g.id)) cloud.syncedGames.set(g.id, gameSyncJson(g)); });
@@ -11072,7 +11104,7 @@ async function cloudImportFromOldBackend(){
       }));
       if(btn) btn.textContent = `Importing… ${Math.round(100*Math.min(i+8,meta.totalChunks)/meta.totalChunks)}%`;
     }
-    const data = JSON.parse(parts.join('')); unpackGames(data.games);
+    const data = cleanDeep(JSON.parse(parts.join(''))); unpackGames(data.games);
     const oldTeams = data.teams||[]; const oldGames = (data.games||[]).filter(g=>Object.values(g.quarters||{}).some(arr=>(arr||[]).some(isLiveEvent)) || g.modifiedAt || (g.tacticalLog||[]).length || !isSeedGame(g));
     assignStableIds(oldTeams, oldGames, []);
     let teamsIn=0, gamesIn=0;
