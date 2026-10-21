@@ -2728,8 +2728,7 @@ const SEED_SCHOOL_RESULTS = {
     {date:'2026-10-04', opponent:'Bucknell', teamScore:15, oppScore:8},
     {date:'2026-10-10', opponent:'Fordham', teamScore:13, oppScore:16},
     {date:'2026-10-11', opponent:'Wagner', teamScore:11, oppScore:9},
-    // 2026-10-17 Harvard (L 10-15 per navysports.com) deliberately not added yet: tests/cloud.js uses
-    // g-navy-2026-10-17-harvard as its upcoming live-tracking fixture. Navy's 2026 stats rows already include it.
+    {date:'2026-10-17', opponent:'Harvard', teamScore:10, oppScore:15},
     {date:'2026-10-17', opponent:'LIU', teamScore:17, oppScore:10},
     {date:'2026-10-18', opponent:'Brown', teamScore:18, oppScore:14},
   ],
@@ -6127,7 +6126,7 @@ function buildPlayerNoteTally(player, recentGames){
 // the date of the latest completed 2026 game already reflected in SEED_SCHOOL_RESULTS AND counted in the
 // 2026 rows below. A game can be in RESULTS but missing from stats only where noted in that team's comment
 // (e.g. Saint Mary's exhibitions).
-//   Navy               2026-10-18 (full-season stats PDF through 10/18, incl. 10/17 Harvard, whose result is held back for tests/cloud.js; the PDF credits the last 10/17 LIU goal to Cashman, the recap says Parks)
+//   Navy               2026-10-18 (full-season stats PDF through 10/18, incl. 10/17 Harvard; the PDF credits the last 10/17 LIU goal to Cashman, the recap says Parks)
 //   Fordham            2026-10-17 (10/15-10/17 goals from recaps, which name only some scorers)
 //   Iona               2026-10-15 (cume page through 10/10; 10/14 LIU and 10/15 Fordham from the recaps, no box scores published)
 //   Mount St. Mary's   2026-10-17
