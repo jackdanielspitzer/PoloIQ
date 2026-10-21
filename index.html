@@ -304,6 +304,100 @@
   @keyframes toastIn{from{opacity:0;transform:translateX(24px);}to{opacity:1;transform:translateX(0);}}
   @keyframes toastOut{from{opacity:1;}to{opacity:0;transform:translateX(24px);}}
   @media (prefers-reduced-motion: reduce){.app-toast{animation:none;}.app-toast.leaving{animation:none;opacity:0;}}
+
+  /* ---- tap-to-log grid ---- */
+  .tap-log{margin:4px 0 16px; padding-bottom:16px; border-bottom:1px solid var(--line);}
+  .tap-top{display:flex; flex-wrap:wrap; gap:10px; align-items:center;}
+  .tap-group{display:inline-flex; border:1px solid var(--line); border-radius:999px; overflow:hidden;}
+  .tap-seg{background:transparent; border:0; color:var(--text-dim); padding:9px 14px; font-size:13px; font-weight:600; cursor:pointer;}
+  .tap-seg + .tap-seg{border-left:1px solid var(--line);}
+  .tap-seg.on{background:var(--cyan); color:#03171a;}
+  .tap-seg:disabled{opacity:.35; cursor:not-allowed;}
+  .tap-man-left{font-size:12px; color:var(--lane);}
+  .tap-caps{display:grid; grid-template-columns:repeat(auto-fill, minmax(56px, 1fr)); gap:8px; margin-top:12px;}
+  .tap-cap{min-height:52px; border-radius:var(--radius-md); border:1px solid var(--line); background:var(--surface-2); color:var(--text); cursor:pointer; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; padding:4px 2px; user-select:none; -webkit-user-select:none;}
+  .tap-cap b{font-size:19px; line-height:1;}
+  .tap-cap small{font-size:10px; color:var(--text-faint); max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .tap-cap.gk{border-style:dashed;}
+  .tap-cap.on{background:var(--cyan); border-color:var(--cyan); color:#03171a;}
+  .tap-cap.on small{color:#03171a;}
+  .tap-actions{display:grid; grid-template-columns:repeat(auto-fill, minmax(104px, 1fr)); gap:8px; margin-top:12px;}
+  .tap-act{min-height:48px; border-radius:var(--radius-md); border:1px solid var(--line); background:var(--surface); color:var(--text); font-weight:700; font-size:13.5px; cursor:pointer; user-select:none; -webkit-user-select:none;}
+  .tap-act.good{border-color:rgba(74,222,128,.35);}
+  .tap-act.bad{border-color:rgba(242,107,91,.4);}
+  .tap-act:not(:disabled):active{transform:scale(.97); background:var(--surface-3);}
+  .tap-act:disabled{opacity:.4; cursor:not-allowed;}
+  .tap-hint{margin-top:8px; font-size:12px; color:var(--text-faint);}
+  .tap-follow{margin-top:12px; padding:12px; border:1px solid var(--cyan-dim); border-radius:var(--radius-md); background:var(--cyan-glow);}
+  .tap-follow-head{display:flex; align-items:center; gap:10px; font-size:13px; margin-bottom:6px;}
+  .tap-follow-head span{color:var(--text-dim); flex:1;}
+  .tap-follow-row{display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-top:8px;}
+  .tap-follow-row > span{font-size:12px; color:var(--text-dim); min-width:110px;}
+  .tap-chip{border:1px solid var(--line); background:var(--surface-2); color:var(--text); border-radius:999px; padding:8px 12px; font-size:13px; font-weight:600; cursor:pointer;}
+  .tap-chip small{color:var(--text-faint); font-weight:500;}
+  .tap-chip.on{background:var(--cyan); border-color:var(--cyan); color:#03171a;}
+  .tap-chip.on small{color:#03171a;}
+  .tap-small{padding:7px 12px; font-size:12px;}
+  .tap-bottom{display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-top:14px;}
+  .tap-ptt{flex:1 1 220px; min-height:54px; border-radius:var(--radius-md); border:1px solid var(--accent); background:var(--accent-dim); color:var(--text); font-weight:700; font-size:15px; cursor:pointer; touch-action:none; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none;}
+  .tap-ptt.on{background:var(--bad); border-color:var(--bad); color:#fff;}
+  .tap-clock{display:flex; gap:8px; align-items:center; flex-wrap:wrap;}
+  .tap-link{margin-top:8px; font-size:12px; color:var(--text-faint);}
+  .tap-toast{position:fixed; left:50%; bottom:22px; transform:translateX(-50%) translateY(20px); opacity:0; pointer-events:none; background:var(--surface-3); border:1px solid var(--good); color:var(--text); padding:10px 16px; border-radius:999px; font-weight:600; font-size:14px; transition:all .2s; z-index:95;}
+  .tap-toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+  .tap-toast.bad{border-color:var(--bad);}
+  /* ---- special teams and shot chart ---- */
+  .sit-grid{display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:10px;}
+  .sit-card{border:1px solid var(--line); border-radius:var(--radius-md); padding:10px 12px; background:var(--surface);}
+  .sit-card span{display:block; font-size:11px; color:var(--text-faint); text-transform:uppercase; letter-spacing:.04em;}
+  .sit-card strong{display:block; font-size:22px; margin:4px 0 2px;}
+  .sit-card small{font-size:12px; color:var(--text-dim);}
+  .sit-note, .sit-empty{font-size:12px; color:var(--text-faint); margin-top:8px; line-height:1.5;}
+  .shot-pool{border:1px solid var(--line); border-radius:var(--radius-md); background:linear-gradient(180deg, rgba(79,168,224,.12), rgba(79,168,224,.04)); padding:10px;}
+  .shot-cage{width:34%; height:8px; margin:0 auto 10px; border:2px solid var(--text-dim); border-top:0; border-radius:0 0 4px 4px;}
+  .shot-grid{display:grid; grid-template-columns:repeat(3, 1fr); gap:6px;}
+  .shot-zone{border:1px dashed var(--line); border-radius:var(--radius-sm); padding:8px 4px; text-align:center;}
+  .shot-zone.has{border-style:solid; background:var(--surface-2);}
+  .shot-zone span{display:block; font-size:10.5px; color:var(--text-faint);}
+  .shot-zone strong{display:block; font-size:17px;}
+  .shot-zone small{font-size:11px; color:var(--text-dim);}
+  .shot-zone.z-top{grid-column:1 / span 2;}
+  /* ---- export menu, scouting report ---- */
+  .export-wrap{position:relative;}
+  .export-menu{display:none; position:absolute; right:0; top:calc(100% + 6px); background:var(--surface-2); border:1px solid var(--line); border-radius:var(--radius-md); padding:6px; z-index:30; min-width:190px; box-shadow:var(--shadow-card);}
+  .export-menu.open{display:block;}
+  .export-menu button{display:block; width:100%; text-align:left; background:none; border:0; color:var(--text); padding:9px 10px; border-radius:var(--radius-sm); font-size:13px; cursor:pointer;}
+  .export-menu button:hover{background:var(--surface-3);}
+  .scout-panel{width:min(860px, 94vw); max-height:90vh; overflow:auto;}
+  .scout-actions{display:flex; gap:8px; justify-content:flex-end; position:sticky; top:0; padding-bottom:8px; background:inherit;}
+  .scout-doc h1{font-size:22px; margin:0 0 4px;}
+  .scout-doc h2{font-size:15px; margin:18px 0 8px; color:var(--cyan);}
+  .scout-doc table{width:100%; border-collapse:collapse; font-size:13px;}
+  .scout-doc th, .scout-doc td{padding:5px 6px; border-bottom:1px solid var(--line-soft); text-align:center;}
+  .scout-doc p{font-size:13.5px; line-height:1.6; color:var(--text-dim); margin:0;}
+  .scout-sub{color:var(--text-faint); font-size:13px;}
+  .scout-kpis{display:flex; gap:12px; flex-wrap:wrap; margin-bottom:10px;}
+  .scout-kpis div{border:1px solid var(--line); border-radius:var(--radius-md); padding:8px 14px;}
+  .scout-kpis b{display:block; font-size:20px;} .scout-kpis span{font-size:11px; color:var(--text-faint);}
+  .scout-roster span{display:inline-block; margin:0 12px 4px 0;}
+  .scout-note, .scout-none{font-size:12px !important; color:var(--text-faint) !important; margin-top:6px !important;}
+  #printHost{display:none;}
+  @media print{
+    body.printing{background:#fff !important;}
+    body.printing > *:not(#printHost){display:none !important;}
+    body.printing #printHost{display:block; color:#000; font:11.5px/1.45 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;}
+    #printHost h1{font-size:20px; margin:0 0 2px;} #printHost h2{font-size:14px; margin:16px 0 6px; color:#000;}
+    #printHost .scout-sub, #printHost .scout-note, #printHost .scout-none, #printHost .print-foot{color:#555 !important;}
+    #printHost p{color:#000; margin:0;}
+    #printHost table{width:100%; border-collapse:collapse; margin-bottom:6px; page-break-inside:auto;}
+    #printHost tr{page-break-inside:avoid;}
+    #printHost th, #printHost td{border:1px solid #bbb; padding:3px 5px; text-align:center; color:#000; background:#fff;}
+    #printHost td.pcell{text-align:left;}
+    #printHost .scout-kpis{display:flex; gap:10px;} #printHost .scout-kpis div{border:1px solid #bbb; padding:6px 10px;}
+    #printHost .scout-kpis b{font-size:16px; display:block;}
+    #printHost .scout-roster span{display:inline-block; margin:0 10px 3px 0;}
+    #printHost .print-foot{margin-top:14px; font-size:10px;}
+  }
 </style>
 </head>
 <body>
@@ -685,6 +779,13 @@
               <div class="stats-grid"><div class="stat-card"><h3>Total games</h3><div class="value" id="teamGamesCount">0</div></div></div>
               <ul id="teamGamesList" class="minimal-list" style="margin-top:14px;"></ul>
             </div>
+            <div class="panel" id="teamInsightsPanel" style="display:none;">
+              <h2>Special teams</h2>
+              <div class="sit-note" id="teamInsightsNote" style="margin-bottom:10px;"></div>
+              <div id="teamSituationsBody"></div>
+              <h2 style="margin-top:18px;">Where we shoot from</h2>
+              <div id="teamShotBody"></div>
+            </div>
           </div>
         </div>
       </div>
@@ -767,6 +868,15 @@
             <div class="entity-meta"><span id="gameInfoDate"></span><span id="gameInfoOpponent"></span><span id="gameInfoLocation"></span></div>
           </div>
           <button class="ghost-btn" id="gameModeBtn" onclick="toggleManageMode()">View only</button>
+          <button class="ghost-btn" onclick="openScoutReport()">Scouting report</button>
+          <div class="export-wrap">
+            <button class="ghost-btn" onclick="toggleExportMenu()">Export ▾</button>
+            <div class="export-menu" id="gameExportMenu" onclick="toggleExportMenu()">
+              <button type="button" onclick="printBoxScore()">Print / save PDF</button>
+              <button type="button" onclick="exportBoxScoreCsv()">Box score (CSV)</button>
+              <button type="button" onclick="exportPlayByPlayCsv()">Play by play (CSV)</button>
+            </div>
+          </div>
           <button class="primary-btn action-btn" onclick="navigate('tactics', app.selectedGameId)">Tactics board</button>
         </div>
 
@@ -792,6 +902,7 @@
           <div id="gameControlsCol">
             <div class="panel" id="gameControlsPanel">
               <h2>Game controls</h2>
+              <div id="tapLogPanel" class="tap-log"></div>
               <div class="data-row" style="align-items:center; gap:12px; flex-wrap:wrap;">
                 <button class="primary-btn action-btn" id="micBtn" onclick="toggleMic()">Start listening</button>
                 <span class="pill" id="micStatus">Mic off</span>
@@ -858,6 +969,12 @@
             <div class="panel" id="gamePairsPanel" style="display:none;">
               <h2>Who did what to whom</h2>
               <div id="gamePairsBody"></div>
+            </div>
+            <div class="panel" id="gameInsightsPanel" style="display:none;">
+              <h2>Special teams</h2>
+              <div id="gameSituationsBody"></div>
+              <h2 style="margin-top:18px;">Shot chart</h2>
+              <div id="gameShotBody"></div>
             </div>
             <div class="panel">
               <h2>Roster</h2>
@@ -1198,9 +1315,6 @@ function blankTeam(){ return { id:'t'+Date.now()+Math.random().toString(36).slic
 function blankGame(teamId){ return { id:'g'+Date.now()+Math.random().toString(36).slice(2,6), teamId, opponent:'', date:'', time:'', location:'', status:'upcoming', quarters:{1:[],2:[],3:[],4:[]}, notes:'', createdAt:Date.now(), tacticalTokens:[], oppRoster:[], tacticalLog:[], ourColor:null, quarterStart:{}, extraPeriods:[], periodLengthMs:null, periodLengthMsByPeriod:{} }; }
 function blankPlayer(teamId){ return { id:'p'+Date.now()+Math.random().toString(36).slice(2,6), teamId, cap:'', name:'', role:'player', wpPosition:'', aliases:[], active:true }; }
 
-// Paste your deployed Google Apps Script Web App URL here (Deploy > New deployment > Web app).
-// It looks like https://script.google.com/macros/s/AKfycb.../exec — see appsscript/README.md.
-const SHARED_STATE_URL = 'https://script.google.com/macros/s/AKfycbzV01H15tqK9uN0ifWKjEpxaB4Geqi-AWJnU7YmmoPELzW1-29_qtPAcOfwWD5VRtYd/exec';
 
 // Only these fields are genuinely shared team data. Everything else on `app` (current page,
 // who's logged in on THIS device, mic state, form buffers, etc.) is per-browser and must never
@@ -1237,7 +1351,7 @@ function resetSyncBaseline(){
   _syncBaseline = { gameId: g ? g.id : null, gameJson: g ? syncJsonOf(g) : null, teams: new Map((app.teams||[]).map(t=>[t.id, syncJsonOf(t)])) };
 }
 
-function sharedStateConfigured(){ return SHARED_STATE_URL && !SHARED_STATE_URL.startsWith('PASTE_'); }
+function sharedStateConfigured(){ return false; } // the old shared backend is retired
 
 // localStorage's few-MB-per-origin cap is what the storage warning above was about — two full
 // seasons of tracked games (hundreds of games, thousands of individual events) is a genuinely large
@@ -1389,40 +1503,7 @@ function gameNeedsSync(g){
   if(g.modifiedAt || (g.tacticalLog||[]).length) return true;
   return Object.values(g.quarters||{}).some(arr=>(arr||[]).some(e=>e && !Array.isArray(e.scoreAfter) && e.raw_phrase!=='(imported result)'));
 }
-async function pushSharedStateToServer(){
-  if(CLOUD || !sharedStateConfigured()) return;
-  if(!_syncState.pulledOnce) return; // the first successful pull pushes anything still pending
-  if(_syncState.pushing){ clearTimeout(_syncState.pushTimer); _syncState.pushTimer = null; _syncState.pushDueAt = 0; schedulePush(1500); return; }
-  _syncState.pushing = true;
-  try{
-    // Someone else saved since we last synced? Merge their copy in first (newer edits win per game),
-    // so this upload can't roll back what another device just logged.
-    while(_syncState.pulling) await new Promise(r=>setTimeout(r,150));
-    try{
-      const metaRes = await fetchWithTimeout(SHARED_STATE_URL, undefined, 20000);
-      if(metaRes.ok){ const meta = await metaRes.json(); const serverTime = Date.parse(meta && meta.updatedAt) || 0;
-        if(serverTime > Math.max(_syncState.lastPulledAt, _syncState.lastPushedAt)) await pullSharedStateFromServer(false); }
-    }catch(e){ /* offline: the upload below fails harmlessly and retries on the next change */ }
-    clearTimeout(_syncState.pushTimer); _syncState.pushTimer = null; _syncState.pushDueAt = 0; _syncState.pushWanted = false; // this upload covers anything queued so far
-    const payload = {}; SHARED_KEYS.forEach(k=>payload[k]=app[k]); payload.games = (app.games||[]).filter(gameNeedsSync).map(packGame);
-    const full = JSON.stringify(payload);
-    const chunks = []; for(let i=0;i<full.length;i+=SHARED_STATE_CHUNK_SIZE) chunks.push(full.slice(i,i+SHARED_STATE_CHUNK_SIZE));
-    if(chunks.length===0) chunks.push('');
-    try{
-      for(let i=0;i<chunks.length;i++){
-        // Deliberately no Content-Type header: a plain string body defaults to text/plain, which is
-        // a CORS-safelisted request type and skips the preflight — Apps Script Web Apps have no
-        // doOptions handler, so a preflighted request would fail outright.
-        const res = await fetchWithTimeout(SHARED_STATE_URL, { method:'POST', body: JSON.stringify({chunkIndex:i, totalChunks:chunks.length, chunk:chunks[i]}) }, 40000);
-        if(!res.ok) throw new Error('chunk '+i+' HTTP '+res.status);
-        const json = await res.json();
-        if(json && json.error) throw new Error(json.error);
-        if(json && json.committed) _syncState.lastPushedAt = Date.parse(json.updatedAt) || Date.now();
-      }
-    }catch(e){ _syncState.pushWanted = true; console.warn('shared-state push failed (will retry on next change):', e); }
-  }finally{ _syncState.pushing = false; }
-}
-
+async function pushSharedStateToServer(){}
 // Pull the shared fields from the backend and merge them in. `applyIfNewer=false` (used by the
 // startup pull) always applies; the polling loop passes true so it never clobbers a local edit
 // that's still in flight to the server. Always checks the cheap metadata endpoint first and only
@@ -1598,122 +1679,9 @@ function dedupeTeamsByName(teams, preferIds){
   });
   return { teams: dedupedTeams, remap };
 }
-async function pullSharedStateFromServer(applyIfNewer){
-  if(CLOUD || _syncState.pulling || !sharedStateConfigured()) return; _syncState.pulling = true;
-  try{
-    const metaRes = await fetchWithTimeout(SHARED_STATE_URL, undefined, 20000);
-    if(!metaRes.ok){ _syncState.backendAvailable = false; return; }
-    _syncState.backendAvailable = true;
-    const meta = await metaRes.json();
-    if(!meta || meta.error) return; // the backend errored — keep what we loaded locally, don't upload over it
-    if(!meta.totalChunks){ _syncState.pulledOnce = true; if(_syncState.pushWanted) schedulePush(); return; } // nothing saved yet — safe to upload
-    const serverTime = Date.parse(meta.updatedAt) || 0;
-    if(applyIfNewer && serverTime <= _syncState.lastPushedAt){ _syncState.pulledOnce = true; return; }
-    if(serverTime <= _syncState.lastPulledAt){ _syncState.pulledOnce = true; return; } // already have this exact version, skip the N-chunk fetch
-
-    // 8 chunks at a time instead of one by one — a new phone's first download (accounts included,
-    // so nobody can log in until it lands) goes from a minute or two to a few seconds.
-    const parts = new Array(meta.totalChunks);
-    _syncState.pullProgress = {done:0, total:meta.totalChunks};
-    for(let i=0;i<meta.totalChunks;i+=8){
-      await Promise.all(Array.from({length:Math.min(8, meta.totalChunks-i)}, async (_,j)=>{
-        // Each piece retries on its own — one dropped request on a phone connection used to fail
-        // the whole download and start all 117 over.
-        let lastErr;
-        for(let attempt=0; attempt<3; attempt++){
-          try{
-            const res = await fetchWithTimeout(SHARED_STATE_URL+'?chunk='+(i+j), undefined, 25000);
-            if(!res.ok) throw new Error('chunk '+(i+j)+' HTTP '+res.status);
-            const json = await res.json();
-            parts[i+j] = (json && json.chunk) || ''; _syncState.pullProgress.done++; showPendingLoginProgress(); return;
-          }catch(e){ lastErr = e; await new Promise(r=>setTimeout(r, 400*(attempt+1))); }
-        }
-        throw lastErr;
-      }));
-    }
-    const full = parts.join('');
-    let data;
-    try{ data = JSON.parse(full); }
-    catch(parseErr){
-      // A read can land mid-write (rows half-updated) and fail once — but the SAME version still
-      // failing 20+ seconds later means the stored copy itself is broken (two uploads interleaved).
-      // Let this device's good copy repair it rather than every device refusing to upload forever.
-      const seen = _syncState.corruptSeen;
-      if(seen && seen.serverTime===serverTime && Date.now()-seen.at > 20000){ _syncState.pulledOnce = true; _syncState.lastPulledAt = serverTime; schedulePush(); }
-      else if(!seen || seen.serverTime!==serverTime) _syncState.corruptSeen = {serverTime, at:Date.now()};
-      throw parseErr;
-    }
-    _syncState.corruptSeen = null;
-    if(data) unpackGames(data.games);
-    _syncState.localAhead = false;
-    let changed = false;
-    // Only apply fields the server actually has — never let a partial/malformed remote payload
-    // (an old write, a hand-edited sheet, a bug) blank out good local data for a field it's simply
-    // missing. teams/games merge by id (see mergeTeamsFromServer/mergeGamesFromServer) so a thin or
-    // stale remote snapshot can never silently delete baked-in seed history; users merge by id too
-    // (mergeByIdKeepLocal) so it can't silently log you out by dropping your own account row; the
-    // rest are small, user-authored lists where a wholesale replace is safe.
-    if(typeof data.teams!=='undefined'){
-      const mergedTeams = mergeTeamsFromServer(app.teams, data.teams);
-      if(JSON.stringify(app.teams) !== JSON.stringify(mergedTeams)){ app.teams = mergedTeams; changed = true; }
-    }
-    if(typeof data.games!=='undefined'){
-      const mergedGames = mergeGamesFromServer(app.games, data.games);
-      if(JSON.stringify(app.games) !== JSON.stringify(mergedGames)){ app.games = mergedGames; changed = true; }
-      if(app.selectedGameId && _gameIdRemap[app.selectedGameId] && !findGame(app.selectedGameId)) app.selectedGameId = _gameIdRemap[app.selectedGameId];
-    }
-    if(typeof data.users!=='undefined'){
-      const mergedUsers = mergeByIdKeepLocal(app.users, data.users);
-      if((app.users||[]).some(u=>u && u.id && !(data.users||[]).some(r=>r && r.id===u.id))) _syncState.localAhead = true;
-      if(JSON.stringify(app.users) !== JSON.stringify(mergedUsers)){ app.users = mergedUsers; changed = true; }
-    }
-    ['opponents','plays','customMatchupGames'].forEach(k=>{ if(typeof data[k]==='undefined') return; if(JSON.stringify(app[k]) !== JSON.stringify(data[k])){ app[k] = data[k]; changed = true; } });
-    // Collapse any teams that ended up duplicated by name (independent sessions/devices each seeding
-    // their own copy of, say, "California" with a different random id) and repoint every game that
-    // referenced a discarded duplicate onto the surviving team — otherwise a Team page would quietly
-    // show only half that team's games, split across two team ids nobody can tell apart by name.
-    const teamDedupe = dedupeTeamsByName(app.teams, new Set((data.teams||[]).map(t=>t && t.id)));
-    if(teamDedupe.remap.size){
-      app.teams = teamDedupe.teams;
-      const rm = id => teamDedupe.remap.has(id) ? teamDedupe.remap.get(id) : id;
-      app.games.forEach(g=>{ if(teamDedupe.remap.has(g.teamId)) g.teamId = teamDedupe.remap.get(g.teamId); });
-      (app.users||[]).forEach(u=>{ if(u && u.teamId) u.teamId = rm(u.teamId); });
-      (app.practiceGames||[]).forEach(g=>{ g.teamId = rm(g.teamId); });
-      app.selectedTeamId = app.selectedTeamId ? rm(app.selectedTeamId) : app.selectedTeamId;
-      if(app.statFor && app.statFor.teamId) app.statFor.teamId = rm(app.statFor.teamId);
-      app.games = dedupeGamesByMatchup(app.games);
-      changed = true;
-    }
-    (app.teams||[]).forEach(applyBrandingIfKnown);
-    // Deliberately NOT re-running ensureSeedTeamsAndSchedule() (or the other ensure* functions) here.
-    // A pulled snapshot really can predate the seed data baked into this build, but re-seeding on
-    // every background pull is unsafe: ensureSeedTeamsAndSchedule() creates a team with a brand-new
-    // random ID whenever one is missing by name, and a pull can legitimately (if rarely) land mid-race
-    // with an in-flight save and momentarily show a team as "missing." Doing that on an 8-second poll
-    // risks silently recreating a team + its entire game set over and over. If seed data is ever
-    // missing after a pull, that's what the normal page-load seeding (loadState) is for — this stays
-    // a pure "take what the server has" sync, nothing more.
-    _syncState.lastPulledAt = serverTime;
-    _syncState.pulledOnce = true;
-    resetSyncBaseline();
-    setTimeout(finishPendingLogin, 0);
-    if(_syncState.localAhead || _syncState.pushWanted){ _syncState.localAhead = false; schedulePush(); }
-    if(changed){
-      try{ localStorage.setItem('poloai-app-state', serializeAppState()); }catch(e){} _syncState.lastPushedAt = serverTime; checkGameStateNotifications(app.games);
-      // A background sync landing mid-tap is exactly what made buttons "stop working": renderAll()
-      // tears down and rebuilds the current page's DOM, and a real touch/click has just enough
-      // latency between finger-down and the click event firing that it can land on a node that got
-      // replaced out from under it a moment earlier — worst of all inside an open setup modal, where
-      // losing the in-progress dropdown/selection reads as "the buttons are broken." If a modal is
-      // open right now, skip the rebuild for this cycle — the merged data is already saved above, so
-      // nothing is lost, and the very next poll (or the modal closing) picks the render back up.
-      const modalOpen = document.querySelector('.modal-overlay:not(.hidden)');
-      if(!modalOpen) renderAll();
-    }
-  }catch(e){ _syncState.backendAvailable = false; console.warn('shared-state pull failed:', e); }
-  finally{ _syncState.pulling = false; if(_syncState.pulledOnce && _pendingLogin) setTimeout(finishPendingLogin, 0); }
-}
-
+// The old Google Apps Script backend is retired (all shared data lives in Supabase now). Without the
+// Supabase library the app simply runs on this device alone, so there is nothing to pull or push.
+async function pullSharedStateFromServer(){}
 function startSharedStatePolling(){ setInterval(()=>pullSharedStateFromServer(true), 8000); }
 
 // ---- In-app notifications ----
@@ -1773,9 +1741,21 @@ function updateLiveClockDisplay(){
   if(!isClockedPeriod(app.currentQ)){ clockEl.textContent='—'; return; }
   const start = game.quarterStart && game.quarterStart[app.currentQ];
   if(!start){ clockEl.textContent='--:--'; return; }
-  const remaining = Math.max(0, gamePeriodLengthMs(game, app.currentQ) - (Date.now()-start));
-  clockEl.textContent = fmtClockMs(remaining);
+  const remaining = Math.max(0, gamePeriodLengthMs(game, app.currentQ) - gameElapsedNow(game));
+  clockEl.textContent = fmtClockMs(remaining) + (isGameClockPaused(game) ? ' ⏸' : '');
+  updateTapClockRow(game);
 }
+// Time into the current period for stamping an event. Normally the clock runs from quarterStart; while
+// the stat-taker has the clock stopped (whistle, timeout) it holds at the moment it was stopped.
+function gameElapsedNow(game, q){
+  q = q==null ? app.currentQ : q;
+  if(!game.quarterStart) game.quarterStart = {};
+  const held = game.clockPaused && game.clockPaused[q];
+  if(held!=null) return held;
+  if(!game.quarterStart[q]) game.quarterStart[q] = Date.now();
+  return Date.now() - game.quarterStart[q];
+}
+function isGameClockPaused(game, q){ q = q==null ? app.currentQ : q; return !!(game && game.clockPaused && game.clockPaused[q]!=null); }
 setInterval(updateLiveClockDisplay, 1000);
 
 function loadState(){ try{ const raw = localStorage.getItem('poloai-app-state'); if(raw){ const stored = JSON.parse(raw); unpackGames(stored && stored.games); Object.assign(app, {page:'home', selectedTeamId:null, selectedGameId:null, selectedPlayerId:null, manageMode:false, currentQ:1, listening:false, recognition:null, pendingBuffer:'', pendingTimer:null, lastVoiceActor:null, lastVoiceActorAt:0}, stored); } } catch(e){ console.warn('load failed',e); }
@@ -2241,7 +2221,7 @@ function claimTeamAsCurrentUser(teamId){
   if(app.page==='team') renderTeam();
 }
 
-function renderTeam(){ const team = findTeam(app.selectedTeamId); if(!team){ navigate('teams'); return; }
+function renderTeam(){ const team = findTeam(app.selectedTeamId); if(!team){ navigate('teams'); return; } try{ renderTeamInsights(team); }catch(e){ console.warn('team insights', e); }
   document.getElementById('teamTitle').textContent = team.name;
   document.getElementById('teamMascot').textContent = team.mascot || '';
   document.getElementById('teamCoach').textContent = team.coach ? `Coach: ${team.coach}` : '';
@@ -5651,6 +5631,9 @@ function renderGame(){ const game = findGame(app.selectedGameId); if(!game){ nav
   try{ renderGamePairs(game); }catch(e){ console.warn('pairs panel', e); }
   renderOpponentStats(game);
   renderGameNotes(game);
+  try{ renderGameInsights(game); }catch(e){ console.warn('insights panel', e); }
+  clockLinkJoin(game);
+  if(controlsVisible) renderTapLog(game);
   renderManualSelectors(game);
   document.getElementById('micStatus').textContent = app.listening ? `Listening ${periodLabel(app.currentQ)}` : 'Mic off';
   const clockSyncBtn = document.getElementById('clockSyncBtn');
@@ -8248,7 +8231,7 @@ function eventLabelInfo(ev){
   return {text:def.label+(tags.length?` (${tags.join(', ')})`:''), tone:def.tone, cap};
 }
 
-function handleParsedPhrase(rawText){ const game=findGame(app.selectedGameId); if(!game) return; if(!game.quarterStart) game.quarterStart={}; if(!game.quarterStart[app.currentQ]) game.quarterStart[app.currentQ]=Date.now(); const offset=Date.now()-game.quarterStart[app.currentQ]; const result=parsePhrase(rawText, offset);
+function handleParsedPhrase(rawText){ const game=findGame(app.selectedGameId); if(!game) return; if(!game.quarterStart) game.quarterStart={}; if(!game.quarterStart[app.currentQ]) game.quarterStart[app.currentQ]=Date.now(); const offset=gameElapsedNow(game); const result=parsePhrase(rawText, offset);
   if(result.type==='undo'){ undoEvent(); return; }
   // prevent parsed/voice events from being applied by unauthorized users
   if(!hasManagePermission(game)){
@@ -8263,7 +8246,14 @@ function handleParsedPhrase(rawText){ const game=findGame(app.selectedGameId); i
   const batchId = 'b'+Date.now()+Math.random().toString(36).slice(2,6);
   // A goal with no explicit man-state call is even strength by default — showing "even" instead of
   // nothing removes the ambiguity between "even strength" and "man-state just wasn't tracked."
-  result.events.forEach(ev=>{ if(ev.stat_type==='goal' && !ev.manState) ev.manState='even'; });
+  // The man-up/down set on the tap grid (or flipped there by an exclusion) carries over to spoken goals,
+  // and "from the left wing"-style words tag where the shot came from.
+  { const tapMan = tapManStateFor(), zone = detectShotZone(rawText);
+    result.events.forEach(ev=>{
+      if(ev.stat_type==='goal' && !ev.manState) ev.manState = tapMan || 'even';
+      if(zone && (ev.stat_type==='goal' || ev.stat_type==='shot_attempt') && !ev.zone) ev.zone = zone;
+    });
+    if(result.events.some(ev=>ev.stat_type==='goal')) tapSetMan('even', true); }
   // "Scores on a penalty" is a distinct, higher-value kind of goal (an awarded 5m shot) worth its
   // own note in the feed, not indistinguishable from an ordinary field goal.
   if(/\bpenalty\b/i.test(rawText)){
@@ -8310,10 +8300,10 @@ function setupRecognition(){ if(!SR){ document.getElementById('micBtn').disabled
       else { app.pendingBuffer=(app.pendingBuffer+' '+t).trim(); }
       clearTimeout(app.pendingTimer); app.pendingTimer=setTimeout(flushBuffer, 1300); } else { interim += res[0].transcript; } } if(interim){ document.getElementById('micStatus').textContent = app.pendingBuffer ? `…${app.pendingBuffer} ${interim}` : interim; } };
   app.recognition.onerror = (e)=>{ if(e.error==='not-allowed' || e.error==='service-not-allowed'){ toggleMic(false); document.getElementById('micStatus').textContent='Mic permission blocked'; return; } if(e.error==='no-speech') return; document.getElementById('micStatus').textContent = 'Mic issue: '+e.error; };
-  app.recognition.onend = ()=>{ if(!app.listening) return; setTimeout(()=>{ if(app.listening){ try{ app.recognition.start(); }catch(e){} } }, 350); };
+  app.recognition.onend = ()=>{ if(app.pttFlush){ app.pttFlush = false; setTimeout(flushBuffer, 60); } if(!app.listening) return; setTimeout(()=>{ if(app.listening){ try{ app.recognition.start(); }catch(e){} } }, 350); };
 }
 
-function flushBuffer(){ clearTimeout(app.pendingTimer); if(!app.pendingBuffer) return; const text=app.pendingBuffer; app.pendingBuffer=''; handleParsedPhrase(text); }
+function flushBuffer(){ clearTimeout(app.pendingTimer); if(!app.pendingBuffer) return; const text=app.pendingBuffer; app.pendingBuffer=''; handleParsedPhrase(text); if(app.ptt==='latched') pttStop(); }
 
 function toggleMic(force){ if(force===false){ stopListening(); return; } if(!app.recognition) return; if(app.listening){ stopListening(); } else { startListening(); } }
 function stopListening(){ app.listening=false; flushBuffer(); if(app.recognition){ try{ app.recognition.stop(); }catch(e){} } document.getElementById('micBtn').textContent='Start listening'; document.getElementById('micStatus').textContent='Mic off'; }
@@ -8853,6 +8843,7 @@ async function applyClockSyncReading(remainingMs){
     }
     const elapsedMs = clockSyncPeriodMs - remainingMs;
     game.quarterStart[app.currentQ] = Date.now() - Math.max(0, elapsedMs);
+    if(game.clockPaused) delete game.clockPaused[app.currentQ]; // the real clock wins over a manual stop
     // Remember the period length this reading was taken against so the game log can convert
     // elapsed-since-start back into the actual scoreboard reading later, even after this camera
     // session ends — per-period, since an overtime period often runs shorter than regulation.
@@ -8861,6 +8852,7 @@ async function applyClockSyncReading(remainingMs){
     clockSyncLastAppliedMs = remainingMs;
     clockSyncLastAppliedQ = app.currentQ;
     clockSyncQuarterMaxMs[app.currentQ] = Math.max(clockSyncQuarterMaxMs[app.currentQ]||0, remainingMs);
+    clockLinkSend(game, app.currentQ, remainingMs, clockSyncPeriodMs); // phones following this camera update within a second
     // Clock corrections happen every second or so: save them on this device right away, but only
     // upload them every 30 s (a logged stat still uploads immediately and carries the clock along).
     saveState({quietPush:true});
@@ -8888,7 +8880,7 @@ function addManualEvent(){ const game=findGame(app.selectedGameId); if(!game) re
   const enforcedSide = forced ? app.statFor.side : null;
   const finalSide = enforcedSide || side;
   if(!game.quarterStart) game.quarterStart={};
-  const offset=Date.now()- (game.quarterStart[app.currentQ] || (game.quarterStart[app.currentQ]=Date.now()));
+  const offset=gameElapsedNow(game);
   let evs = [];
   if(side==='team'){
     if(!playerId || !stat) return; const player=findPlayer(playerId); if(!player) return;
@@ -8915,7 +8907,7 @@ function addManualNote(){
   const note=noteInput.value.trim(); if(!note) return;
   const player=findPlayer(playerId); if(!player) return;
   if(!game.quarterStart) game.quarterStart={};
-  const offset=Date.now()-(game.quarterStart[app.currentQ] || (game.quarterStart[app.currentQ]=Date.now()));
+  const offset=gameElapsedNow(game);
   const ev={playerId, playerCap:player.cap, stat_type:'note', note, side:'team', wall_time_offset_ms:offset, raw_phrase:`(manual note) #${player.cap} ${note}`};
   game.quarters[app.currentQ].push(ev);
   noteInput.value='';
@@ -9089,7 +9081,7 @@ function renderTactics(){
 function renderTacticsLiveStatus(game){
   const el = document.getElementById('tacticsLiveStatus'); if(!el) return;
   const score = computeGameScore(game);
-  const elapsedMs = game.quarterStart && game.quarterStart[app.currentQ] ? Date.now()-game.quarterStart[app.currentQ] : null;
+  const elapsedMs = game.quarterStart && game.quarterStart[app.currentQ] ? gameElapsedNow(game) : null;
   const remainingMs = (elapsedMs!=null && isClockedPeriod(app.currentQ)) ? Math.max(0, gamePeriodLengthMs(game, app.currentQ)-elapsedMs) : null;
   const events = getGameEvents(game).filter(e=>e.stat_type && e.stat_type!=='unmatched');
   const count = (side,key) => events.filter(e=>(e.side||'team')===side && e.stat_type===key).length;
@@ -11124,35 +11116,586 @@ async function cloudSaveUser(){
 }
 async function cloudLogout(){ try{ await sb.auth.signOut(); }catch(e){} app.currentUserId = null; app.users = []; cloud.syncedProfile = null; renderAccount(); renderAll(); }
 
-// ---- one-time move from the old shared backend (admin only) ----
-async function cloudImportFromOldBackend(){
-  const u = currentUser();
-  if(!u || u.role!=='admin'){ alert('Log in with the Admin account first.'); return; }
-  if(!confirm('Copy teams, rosters, live-tracked games and shared lists from the old backend into the new database?')) return;
-  const btn = document.getElementById('cloudImportBtn'); if(btn){ btn.disabled = true; btn.textContent = 'Importing…'; }
-  try{
-    const meta = await (await fetchWithTimeout(SHARED_STATE_URL, undefined, 20000)).json();
-    const parts = new Array(meta.totalChunks);
-    for(let i=0;i<meta.totalChunks;i+=8){
-      await Promise.all(Array.from({length:Math.min(8, meta.totalChunks-i)}, async (_,j)=>{
-        for(let a=0;a<3;a++){ try{ const r = await fetchWithTimeout(SHARED_STATE_URL+'?chunk='+(i+j), undefined, 30000); parts[i+j] = ((await r.json())||{}).chunk||''; return; }catch(e){ await new Promise(r=>setTimeout(r,800)); } }
-        throw new Error('chunk '+(i+j));
-      }));
-      if(btn) btn.textContent = `Importing… ${Math.round(100*Math.min(i+8,meta.totalChunks)/meta.totalChunks)}%`;
-    }
-    const data = cleanDeep(JSON.parse(parts.join(''))); unpackGames(data.games);
-    const oldTeams = data.teams||[]; const oldGames = (data.games||[]).filter(g=>Object.values(g.quarters||{}).some(arr=>(arr||[]).some(isLiveEvent)) || g.modifiedAt || (g.tacticalLog||[]).length || !isSeedGame(g));
-    assignStableIds(oldTeams, oldGames, []);
-    let teamsIn=0, gamesIn=0;
-    oldTeams.forEach(t=>{ const i = app.teams.findIndex(x=>x.id===t.id); t.games = Array.from(new Set([...(i>=0 ? app.teams[i].games||[] : []), ...oldGames.filter(g=>g.teamId===t.id).map(g=>g.id)])); if(i>=0) app.teams[i] = t; else app.teams.push(t); teamsIn++; });
-    oldGames.forEach(g=>{ const i = app.games.findIndex(x=>x.id===g.id); if(i>=0) app.games[i] = g; else app.games.push(g); gamesIn++; });
-    CLOUD_LIST_KEYS.forEach(k=>{ if(data[k]!==undefined) app[k] = data[k]; });
-    cloudDiff();
-    alert(`Imported ${teamsIn} teams and ${gamesIn} live-tracked/edited games. They are saving to the database now (watch the badge bottom-left). Old accounts can’t be copied: each person signs up again once.`);
-    renderAll();
-  }catch(e){ alert('Import failed: '+e.message+'. Nothing was lost — try again.'); }
-  finally{ if(btn){ btn.disabled = false; btn.textContent = 'Import from old backend'; } }
+
+// ===================================================================================================
+// Game-day tools: tap-to-log grid, hold-to-talk, a second phone as the clock camera, special-teams and
+// shot-location stats, a one-page scouting report, and box score export (CSV and print/PDF).
+// Everything here logs through the same event shape as voice and the manual form, so stats, undo,
+// cloud sync and every existing page treat a tapped event exactly like a spoken one.
+// ===================================================================================================
+function escHtml(s){ return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+// ---- shot location ----
+// Named from the shooter's point of view, facing the goal.
+const SHOT_ZONES = [
+  {key:'lw', label:'Left wing'}, {key:'c', label:'2m / center'}, {key:'rw', label:'Right wing'},
+  {key:'lf', label:'Left flat'}, {key:'pen', label:'5m penalty'}, {key:'rf', label:'Right flat'},
+  {key:'top', label:'Outside / top'}, {key:'ctr', label:'Counter'},
+];
+function shotZoneLabel(k){ const z = SHOT_ZONES.find(z=>z.key===k); return z ? z.label : ''; }
+// Voice: "light 4 scores from the left wing", "... on the counter", "... from 2 meters".
+function detectShotZone(text){
+  const t = ' '+String(text||'').toLowerCase()+' ';
+  if(/\b(penalty shot|penalty goal|on a penalty|5 ?m(eter)? (shot|penalty)|five meter (shot|penalty))\b/.test(t)) return 'pen';
+  if(/\b(on the counter|counter ?attack|breakaway|fast break|on the break)\b/.test(t)) return 'ctr';
+  if(/\bleft (wing|post)\b/.test(t)) return 'lw';
+  if(/\bright (wing|post)\b/.test(t)) return 'rw';
+  if(/\bleft (flat|side)\b/.test(t)) return 'lf';
+  if(/\bright (flat|side)\b/.test(t)) return 'rf';
+  if(/\b(from|at|in) (the )?(2 ?m|2 meters?|two meters?|set|hole)\b|\b(set shot|hole set)\b/.test(t)) return 'c';
+  if(/\b(from|at) (the )?(top|outside|perimeter|distance)\b|\b(outside shot|long shot|long range)\b/.test(t)) return 'top';
+  return null;
 }
+
+// ---- tap-to-log ----
+const TAP_ACTIONS = [
+  {stat:'goal', label:'Goal', tone:'good'}, {stat:'shot_attempt', label:'Shot, no goal'}, {stat:'assist', label:'Assist', tone:'good'},
+  {stat:'exclusion_drawn', label:'Drew exclusion', tone:'good'}, {stat:'exclusion', label:'Excluded', tone:'bad'}, {stat:'penalty_drawn', label:'Drew 5m', tone:'good'},
+  {stat:'steal', label:'Steal', tone:'good'}, {stat:'turnover', label:'Turnover', tone:'bad'}, {stat:'block', label:'Block', tone:'good'},
+  {stat:'save', label:'Save', tone:'good'}, {stat:'rebound', label:'Rebound', tone:'good'}, {stat:'sprint_won', label:'Sprint won'}, {stat:'sprint_lost', label:'Sprint lost'},
+];
+const OPP_DEFAULT_CAPS = ['1','2','3','4','5','6','7','8','9','10','11','12','13'];
+// side: whose cap is selected; man: the situation from OUR point of view. An exclusion flips it on its
+// own and it falls back to even 25 s later (20 s exclusion plus the re-entry), or right after a goal.
+const tapState = { gameId:null, side:'team', capIdx:null, caps:[], man:'even', manUntil:0, follow:null };
+const MAN_UP_MS = 25000;
+function tapForcedSide(game){ return (app.statFor && app.statFor.gameId===game.id && app.statFor.side) || null; }
+function isOurGoalie(p){ return (p.wpPosition||'').toUpperCase()==='GK' || /^1[a-z]?$/i.test(String(p.cap||'')); }
+function tapCapsFor(game, side){
+  if(side==='team') return getActiveGameRoster(game).filter(p=>p.cap!==''&&p.cap!=null).map(p=>({cap:String(p.cap), name:p.name||'', playerId:p.id, gk:isOurGoalie(p)}));
+  const roster = (game.oppRoster||[]).filter(r=>r.cap);
+  if(roster.length) return roster.map(r=>({cap:String(r.cap), name:r.name||'', playerId:null, gk:/^1[a-z]?$/i.test(String(r.cap)) || isGoalieEntry(r,'opp')}));
+  return OPP_DEFAULT_CAPS.map(c=>({cap:c, name:'', playerId:null, gk:c==='1'}));
+}
+function capColorFor(game, side){ const ours = (game && game.ourColor) || 'Dark'; return side==='team' ? ours : (ours==='Dark' ? 'Light' : 'Dark'); }
+function otherSide(side){ return side==='team' ? 'opponent' : 'team'; }
+function shortName(name){ const parts = String(name||'').trim().split(/\s+/); return parts.length>1 ? parts[parts.length-1] : (parts[0]||''); }
+// The situation tagged onto goals and shots: team_up / opp_up / null (even).
+function tapManStateFor(){
+  if(tapState.man!=='even' && tapState.manUntil && Date.now()>tapState.manUntil){ tapState.man = 'even'; tapState.manUntil = 0; }
+  return tapState.man==='us_up' ? 'team_up' : tapState.man==='us_down' ? 'opp_up' : null;
+}
+function tapSetMan(k, auto){ tapState.man = k; tapState.manUntil = k==='even' ? 0 : Date.now()+MAN_UP_MS; if(!auto) renderTapLog(findGame(app.selectedGameId)); }
+function tapSetSide(side){ const game = findGame(app.selectedGameId); if(!game) return; if(tapForcedSide(game) && tapForcedSide(game)!==side) return; tapState.side = side; tapState.capIdx = null; renderTapLog(game); }
+function tapPickCap(i){ tapState.capIdx = tapState.capIdx===i ? null : i; renderTapLog(findGame(app.selectedGameId)); }
+function tapToast(text, bad){
+  const el = document.getElementById('tapToast'); if(!el) return;
+  el.textContent = text; el.className = 'tap-toast show'+(bad?' bad':'');
+  clearTimeout(tapToast._t); tapToast._t = setTimeout(()=>{ el.className = 'tap-toast'; }, 2600);
+}
+
+function renderTapLog(game){
+  const host = document.getElementById('tapLogPanel'); if(!host || !game) return;
+  if(tapState.gameId!==game.id) Object.assign(tapState, {gameId:game.id, side:'team', capIdx:null, man:'even', manUntil:0, follow:null});
+  const forced = tapForcedSide(game); if(forced) tapState.side = forced;
+  tapManStateFor();
+  tapState.caps = tapCapsFor(game, tapState.side);
+  if(tapState.side==='opponent') tapState.caps = tapState.caps.concat([{cap:'?', name:'unknown', playerId:null, gk:false}]);
+  const picked = tapState.capIdx!=null ? tapState.caps[tapState.capIdx] : null;
+  const seg = (on, label, handler, disabled) => `<button type="button" class="tap-seg${on?' on':''}" onclick="${handler}"${disabled?' disabled':''}>${label}</button>`;
+  const manLeft = tapState.manUntil ? Math.max(0, Math.ceil((tapState.manUntil-Date.now())/1000)) : 0;
+  host.innerHTML = `
+    <div class="tap-top">
+      <div class="tap-group">${seg(tapState.side==='team', `Us · ${capColorFor(game,'team')}`, "tapSetSide('team')", forced==='opponent')}${seg(tapState.side==='opponent', `Them · ${capColorFor(game,'opponent')}`, "tapSetSide('opponent')", forced==='team')}</div>
+      <div class="tap-group">${seg(tapState.man==='even','Even',"tapSetMan('even')")}${seg(tapState.man==='us_up','We’re up 6v5',"tapSetMan('us_up')")}${seg(tapState.man==='us_down','We’re down 5v6',"tapSetMan('us_down')")}</div>
+      <span class="tap-man-left" id="tapManLeft">${manLeft ? `ends in ${manLeft}s` : ''}</span>
+    </div>
+    <div class="tap-caps">${tapState.caps.map((c,i)=>`<button type="button" class="tap-cap${tapState.capIdx===i?' on':''}${c.gk?' gk':''}" onclick="tapPickCap(${i})"><b>${escHtml(c.cap)}</b><small>${escHtml(c.cap==='?' ? 'unknown' : shortName(c.name))}</small></button>`).join('')}</div>
+    <div class="tap-actions">${TAP_ACTIONS.map(a=>`<button type="button" class="tap-act ${a.tone||''}" onclick="tapLog('${a.stat}')"${picked?'':' disabled'}>${a.label}</button>`).join('')}</div>
+    <div class="tap-hint">${picked ? `${capColorFor(game,tapState.side)} ${escHtml(picked.cap)}${picked.name&&picked.cap!=='?'?' · '+escHtml(picked.name):''} — now tap what happened` : 'Tap a cap number, then what happened. Details like the assist or shot spot can wait.'}</div>
+    <div id="tapFollow">${renderTapFollow(game)}</div>
+    <div class="tap-bottom">
+      <button id="pttBtn" class="tap-ptt" type="button">🎙 Hold to talk</button>
+      <div class="tap-clock">
+        <span class="pill" id="tapClockTime">--:--</span>
+        <button type="button" class="ghost-btn tap-small" id="tapClockToggle" onclick="tapToggleClock()">⏸ Clock stopped</button>
+        <button type="button" class="ghost-btn tap-small" onclick="tapSetClock()">Set time</button>
+      </div>
+    </div>
+    <div class="tap-link" id="tapLinkNote"></div>
+    <div class="tap-toast" id="tapToast"></div>`;
+  wirePtt(document.getElementById('pttBtn'));
+  updateTapClockRow(game);
+}
+
+function tapLog(stat){
+  const game = findGame(app.selectedGameId); if(!game) return;
+  if(!hasManagePermission(game)){ alert('You do not have permission to log stats for this team.'); return; }
+  const info = tapState.capIdx!=null ? tapState.caps[tapState.capIdx] : null;
+  if(!info){ tapToast('Pick a cap number first', true); return; }
+  const side = tapState.side;
+  if(!game.quarters[app.currentQ]) game.quarters[app.currentQ] = [];
+  const batchId = 'b'+Date.now()+Math.random().toString(36).slice(2,6);
+  const cap = info.cap==='?' ? null : info.cap;
+  const ev = { playerId: side==='team' ? info.playerId : null, playerCap:cap, stat_type:stat, side, wall_time_offset_ms:gameElapsedNow(game), batchId,
+    raw_phrase:`(tap) ${capColorFor(game,side).toLowerCase()} ${cap||'?'} ${statDef(stat).label.toLowerCase()}` };
+  const man = tapManStateFor();
+  if(stat==='goal') ev.manState = man || 'even';
+  if(stat==='shot_attempt' && man) ev.manState = man;
+  expandShotAttempts([ev]).forEach(e=>game.quarters[app.currentQ].push(e));
+  // the situation follows the play
+  if(stat==='exclusion_drawn') tapSetMan(side==='team' ? 'us_up' : 'us_down', true);
+  if(stat==='exclusion') tapSetMan(side==='team' ? 'us_down' : 'us_up', true);
+  if(stat==='goal') tapSetMan('even', true);
+  tapState.follow = TAP_FOLLOW_UPS[stat] ? { stat, side, batchId, cap, quarter:app.currentQ, picks:{} } : null;
+  tapState.capIdx = null;
+  saveState(); renderGame();
+  tapToast(`✓ ${statDef(stat).label} · ${capColorFor(game,side)} ${cap||'?'}${ev.manState && ev.manState!=='even' ? ' ('+(ev.manState==='team_up'?'6v5 us':'6v5 them')+')' : ''}`);
+}
+
+// Optional details asked right after a tap, all saved into the same action so "Undo last" still
+// removes the whole thing. Nothing here is required — ignore it and keep logging.
+const TAP_FOLLOW_UPS = {
+  goal:{ same:'Assist by', zone:true, goalie:'Goalie beaten' },
+  shot_attempt:{ zone:true, save:'Saved by' },
+  exclusion_drawn:{ other:'Who was excluded', otherStat:'exclusion' },
+  exclusion:{ other:'Drawn by', otherStat:'exclusion_drawn' },
+  penalty_drawn:{ other:'Penalty foul by', otherStat:'exclusion' },
+  steal:{ other:'Stolen from', otherStat:'turnover' },
+  turnover:{ other:'Stolen by', otherStat:'steal' },
+};
+function renderTapFollow(game){
+  const f = tapState.follow; if(!f) return '';
+  const spec = TAP_FOLLOW_UPS[f.stat]; if(!spec) return '';
+  const chips = (kind, list) => list.map((c,i)=>`<button type="button" class="tap-chip${f.picks[kind]===c.cap?' on':''}" onclick="tapFollowPick('${kind}',${i})">${escHtml(c.cap)}${c.name?` <small>${escHtml(shortName(c.name))}</small>`:''}</button>`).join('');
+  const rows = [];
+  if(spec.same){ const list = tapCapsFor(game, f.side).filter(c=>c.cap!==f.cap); rows.push(`<div class="tap-follow-row"><span>${spec.same}</span>${chips('same', list)}</div>`); }
+  if(spec.other){ const list = tapCapsFor(game, otherSide(f.side)); rows.push(`<div class="tap-follow-row"><span>${spec.other}</span>${chips('other', list)}</div>`); }
+  const goalies = tapCapsFor(game, otherSide(f.side)).filter(c=>c.gk);
+  if(spec.goalie && goalies.length) rows.push(`<div class="tap-follow-row"><span>${spec.goalie}</span>${chips('goalie', goalies)}</div>`);
+  if(spec.save && goalies.length) rows.push(`<div class="tap-follow-row"><span>${spec.save}</span>${chips('save', goalies)}</div>`);
+  if(spec.zone) rows.push(`<div class="tap-follow-row"><span>Shot from</span>${SHOT_ZONES.map(z=>`<button type="button" class="tap-chip${f.picks.zone===z.key?' on':''}" onclick="tapFollowZone('${z.key}')">${z.label}</button>`).join('')}</div>`);
+  return `<div class="tap-follow"><div class="tap-follow-head"><b>Add details?</b> <span>${statDef(f.stat).label} · ${capColorFor(game,f.side)} ${escHtml(f.cap||'?')}</span><button type="button" class="ghost-btn tap-small" onclick="tapFollowDone()">Done</button></div>${rows.join('')}</div>`;
+}
+function tapFollowDone(){ tapState.follow = null; renderTapLog(findGame(app.selectedGameId)); }
+function tapBatchSpot(game, f){
+  const arr = game.quarters[f.quarter] || [];
+  let last = -1; arr.forEach((e,i)=>{ if(e.batchId===f.batchId) last = i; });
+  return { arr, last, primary: arr.find(e=>e.batchId===f.batchId && e.stat_type===f.stat) };
+}
+function tapFollowPick(kind, i){
+  const game = findGame(app.selectedGameId); const f = tapState.follow; if(!game || !f) return;
+  if(!hasManagePermission(game)) return;
+  const spot = tapBatchSpot(game, f); if(!spot.primary){ tapState.follow = null; renderTapLog(game); return; }
+  const spec = TAP_FOLLOW_UPS[f.stat];
+  const sideOf = kind==='same' ? f.side : otherSide(f.side);
+  let list = tapCapsFor(game, sideOf);
+  if(kind==='same') list = list.filter(c=>c.cap!==f.cap);
+  if(kind==='goalie' || kind==='save') list = list.filter(c=>c.gk);
+  const c = list[i]; if(!c) return;
+  const stat = kind==='same' ? 'assist' : kind==='other' ? spec.otherStat : kind==='goalie' ? 'scored_on' : 'save';
+  // picking again replaces the earlier choice instead of stacking a second one
+  const prevIdx = spot.arr.findIndex(e=>e.batchId===f.batchId && e.tapDetail===kind);
+  if(prevIdx>=0) spot.arr.splice(prevIdx, 1);
+  if(f.picks[kind]===c.cap && prevIdx>=0){ delete f.picks[kind]; saveState(); renderGame(); return; }
+  const ev = { playerId: sideOf==='team' ? c.playerId : null, playerCap:c.cap, stat_type:stat, side:sideOf, wall_time_offset_ms:spot.primary.wall_time_offset_ms, batchId:f.batchId, tapDetail:kind,
+    raw_phrase:`(tap) ${statDef(stat).label.toLowerCase()} ${capColorFor(game,sideOf).toLowerCase()} ${c.cap}` };
+  if(stat==='assist') ev.assistTo = f.cap;
+  if(stat==='scored_on' || stat==='save'){ ev.vsCap = f.cap; if(spot.primary.zone) ev.zone = spot.primary.zone; }
+  const at = tapBatchSpot(game, f).last;
+  spot.arr.splice(at+1, 0, ev);
+  f.picks[kind] = c.cap;
+  saveState(); renderGame();
+}
+function tapFollowZone(zone){
+  const game = findGame(app.selectedGameId); const f = tapState.follow; if(!game || !f) return;
+  if(!hasManagePermission(game)) return;
+  const arr = game.quarters[f.quarter] || [];
+  const same = f.picks.zone===zone;
+  arr.forEach(e=>{ if(e.batchId===f.batchId && ['goal','shot_attempt','save','scored_on'].includes(e.stat_type)){ if(same) delete e.zone; else e.zone = zone; } });
+  if(same) delete f.picks.zone; else f.picks.zone = zone;
+  saveState(); renderGame();
+}
+
+// ---- hold-to-talk ----
+// Hold the button while speaking and let go to log, so crowd noise between calls never triggers
+// anything. A quick tap instead keeps the mic on for one call (needed where the browser only lets the
+// mic start on a full tap); it switches off by itself once that call is logged.
+let _pttDownAt = 0;
+function wirePtt(btn){
+  if(!btn) return;
+  if(!SR){ btn.disabled = true; btn.textContent = '🎙 Voice not supported in this browser'; return; }
+  btn.addEventListener('pointerdown', e=>{ e.preventDefault(); pttDown(); });
+  btn.addEventListener('pointerup', e=>{ e.preventDefault(); pttUp(); });
+  btn.addEventListener('pointercancel', ()=>pttUp());
+  btn.addEventListener('contextmenu', e=>e.preventDefault());
+  pttPaint();
+}
+function pttPaint(){
+  const btn = document.getElementById('pttBtn'); if(!btn) return;
+  btn.classList.toggle('on', !!app.ptt);
+  btn.textContent = app.ptt==='hold' ? '🎙 Listening — let go to log' : app.ptt==='latched' ? '🎙 Listening for one call — tap to cancel' : '🎙 Hold to talk';
+}
+function pttDown(){
+  const game = findGame(app.selectedGameId);
+  if(!game || !hasManagePermission(game) || !app.recognition) return;
+  if(app.ptt==='latched'){ _pttDownAt = -1; return; } // second tap cancels
+  if(app.listening && !app.ptt){ tapToast('The mic is already on (Start listening)'); return; }
+  _pttDownAt = Date.now(); app.ptt = 'hold'; app.listening = true; gameElapsedNow(game);
+  try{ app.recognition.start(); }catch(e){}
+  const ms = document.getElementById('micStatus'); if(ms) ms.textContent = 'Hold-to-talk…';
+  pttPaint();
+}
+function pttUp(){
+  if(_pttDownAt===-1){ _pttDownAt = 0; pttStop(); return; }
+  if(app.ptt!=='hold') return;
+  const held = Date.now() - _pttDownAt; _pttDownAt = 0;
+  if(held < 400){ app.ptt = 'latched'; try{ app.recognition.start(); }catch(e){} pttPaint(); return; }
+  pttStop();
+}
+function pttStop(){
+  if(!app.ptt) return;
+  app.ptt = null; app.listening = false; app.pttFlush = true;
+  setTimeout(()=>{ try{ app.recognition && app.recognition.stop(); }catch(e){} }, 350); // let the last word land
+  const ms = document.getElementById('micStatus'); if(ms) ms.textContent = 'Mic off';
+  pttPaint();
+}
+if(typeof window!=='undefined' && window.addEventListener) window.addEventListener('pointerup', ()=>{ if(app.ptt==='hold' && Date.now()-_pttDownAt>=400) pttStop(); });
+
+// ---- the game clock on the stat-taker's phone ----
+function updateTapClockRow(game){
+  const t = document.getElementById('tapClockTime'); if(!t || !game) return;
+  const q = app.currentQ;
+  if(!isClockedPeriod(q)){ t.textContent = periodLabel(q); }
+  else {
+    const started = game.quarterStart && game.quarterStart[q];
+    t.textContent = `${periodLabel(q)} · ${started ? fmtClockMs(Math.max(0, gamePeriodLengthMs(game,q) - gameElapsedNow(game))) : '--:--'}`;
+  }
+  const paused = isGameClockPaused(game);
+  const tog = document.getElementById('tapClockToggle');
+  if(tog){ tog.textContent = paused ? '▶ Clock running' : '⏸ Clock stopped'; tog.classList.toggle('primary-btn', paused); }
+  const man = document.getElementById('tapManLeft');
+  if(man){
+    const before = tapState.man; tapManStateFor();
+    if(before!==tapState.man) renderTapLog(game);
+    else man.textContent = tapState.manUntil ? `ends in ${Math.max(0, Math.ceil((tapState.manUntil-Date.now())/1000))}s` : '';
+  }
+  const note = document.getElementById('tapLinkNote');
+  if(note){
+    if(isClockSyncActive()) note.innerHTML = '📷 This phone is reading the scoreboard. Other phones on this game follow its clock.';
+    else if(clockLink.lastAt && Date.now()-clockLink.lastAt < 8000) note.innerHTML = `📡 Clock from the camera phone · ${Math.round((Date.now()-clockLink.lastAt)/1000)}s ago`;
+    else note.innerHTML = 'Two phones? Put one on a tripod with <b>📷 Sync clock from camera</b> on this game. This phone follows its clock automatically.';
+  }
+}
+function tapToggleClock(){
+  const game = findGame(app.selectedGameId); if(!game || !hasManagePermission(game)) return;
+  const q = app.currentQ; if(!isClockedPeriod(q)) return;
+  if(!game.quarterStart) game.quarterStart = {};
+  if(isGameClockPaused(game)){ game.quarterStart[q] = Date.now() - game.clockPaused[q]; delete game.clockPaused[q]; }
+  else { const el = gameElapsedNow(game); game.clockPaused = game.clockPaused || {}; game.clockPaused[q] = el; }
+  const len = gamePeriodLengthMs(game, q);
+  clockLinkSend(game, q, len - gameElapsedNow(game), len, isGameClockPaused(game));
+  saveState(); updateLiveClockDisplay();
+}
+function tapSetClock(){
+  const game = findGame(app.selectedGameId); if(!game || !hasManagePermission(game)) return;
+  const q = app.currentQ; if(!isClockedPeriod(q)) return;
+  const len = gamePeriodLengthMs(game, q);
+  const shown = fmtClockMs(Math.max(0, len - gameElapsedNow(game)));
+  const input = prompt(`Time left on the game clock for ${periodLabel(q)} (m:ss)`, shown);
+  if(input==null) return;
+  const ms = parseClockToMs(input);
+  if(ms==null || ms>len){ alert('Type the time like 5:42'); return; }
+  if(!game.quarterStart) game.quarterStart = {};
+  game.quarterStart[q] = Date.now() - (len - ms);
+  if(isGameClockPaused(game)) game.clockPaused[q] = len - ms;
+  clockLinkSend(game, q, ms, len, isGameClockPaused(game));
+  saveState(); updateLiveClockDisplay();
+}
+
+// ---- a second phone as the clock camera ----
+// The phone reading the scoreboard broadcasts each reading on a per-game live channel; every other
+// phone with that game open adopts it within a second (no waiting on the database round trip).
+const clockLink = { channel:null, gameId:null, lastAt:0 };
+function clockLinkJoin(game){
+  if(!CLOUD || !sb || !game || game.practice || typeof sb.channel!=='function') return;
+  if(clockLink.gameId===game.id && clockLink.channel) return;
+  clockLinkLeave();
+  try{
+    const ch = sb.channel('clock-'+game.id, { config:{ broadcast:{ self:false } } });
+    ch.on('broadcast', { event:'clock' }, msg=>onRemoteClock(game.id, msg && msg.payload));
+    ch.subscribe();
+    clockLink.channel = ch; clockLink.gameId = game.id;
+  }catch(e){ console.warn('clock link unavailable', e); }
+}
+function clockLinkLeave(){
+  if(clockLink.channel){ try{ sb.removeChannel(clockLink.channel); }catch(e){} }
+  clockLink.channel = null; clockLink.gameId = null; clockLink.lastAt = 0;
+}
+function clockLinkSend(game, q, remainingMs, periodMs, held){
+  if(!game || !clockLink.channel || clockLink.gameId!==game.id || typeof clockLink.channel.send!=='function') return;
+  try{ clockLink.channel.send({ type:'broadcast', event:'clock', payload:{ q:String(q), r:Math.round(remainingMs), p:Math.round(periodMs), h:held?1:0 } }); }catch(e){}
+}
+function onRemoteClock(gameId, pl){
+  if(!pl || typeof pl!=='object') return;
+  const game = findGame(gameId); if(!game || app.selectedGameId!==gameId) return;
+  if(isClockSyncActive()) return; // this phone's own camera wins
+  const r = Number(pl.r), p = Number(pl.p);
+  if(!isFinite(r) || !isFinite(p) || p<60000 || p>20*60000 || r<0 || r>p) return;
+  const qs = String(pl.q||'');
+  if(!getGamePeriods(game).map(String).includes(qs)) return;
+  const q = /^\d+$/.test(qs) ? Number(qs) : qs;
+  if(!game.quarterStart) game.quarterStart = {};
+  if(!game.periodLengthMsByPeriod) game.periodLengthMsByPeriod = {};
+  if(!game.quarters[q]) game.quarters[q] = [];
+  game.periodLengthMsByPeriod[q] = p;
+  game.quarterStart[q] = Date.now() - (p - r) - 150; // ~150 ms in flight
+  if(pl.h){ game.clockPaused = game.clockPaused || {}; game.clockPaused[q] = p - r; }
+  else if(game.clockPaused) delete game.clockPaused[q];
+  const qChanged = String(app.currentQ)!==qs; if(qChanged) app.currentQ = q;
+  clockLink.lastAt = Date.now();
+  if(hasManagePermission(game)) saveState({quietPush:true});
+  if(app.page==='game'){ if(qChanged) renderGame(); else updateLiveClockDisplay(); }
+}
+
+// ---- special teams ----
+function isLiveTrackedEvent(e){ return !!e && !!e.stat_type && e.stat_type!=='unmatched' && !isImportedSeedEvent(e) && !isPlaceholderSeedEvent(e); }
+function computeSituations(games){
+  const S = { games:0, up:{chances:0, goals:0, shots:0, shGoalsAgainst:0}, down:{chances:0, goalsAgainst:0, shots:0, shGoalsFor:0},
+    pen:{ours:0, oursGoals:0, theirs:0, theirsGoals:0}, even:{for:0, against:0}, estimated:false };
+  (games||[]).forEach(game=>{
+    let any = false;
+    getStatPeriods(game).forEach(q=>{
+      const evs = (game.quarters[q]||[]).filter(isLiveTrackedEvent); if(!evs.length) return; any = true;
+      const groups = [], byBatch = {};
+      evs.forEach((e,i)=>{ const k = e.batchId || ('solo'+i); if(!byBatch[k]){ byBatch[k] = []; groups.push(byBatch[k]); } byBatch[k].push(e); });
+      let lastUp = null, lastDown = null;
+      groups.forEach(g=>{
+        const has = (stat, side) => g.some(e=>e.stat_type===stat && (e.side||'team')===side);
+        if(has('penalty_drawn','team')){ S.pen.ours++; return; }
+        if(has('penalty_drawn','opponent')){ S.pen.theirs++; return; }
+        const at = g[0].wall_time_offset_ms || 0;
+        // one exclusion is often logged twice (who drew it, who was excluded) a moment apart
+        if(has('exclusion_drawn','team') || has('exclusion','opponent')){ if(lastUp==null || Math.abs(at-lastUp)>4000) S.up.chances++; lastUp = at; }
+        if(has('exclusion_drawn','opponent') || has('exclusion','team')){ if(lastDown==null || Math.abs(at-lastDown)>4000) S.down.chances++; lastDown = at; }
+      });
+      evs.forEach(e=>{
+        const side = e.side || 'team';
+        if(e.stat_type==='goal'){
+          const pen = e.zone==='pen' || evs.some(n=>n.batchId && n.batchId===e.batchId && n.stat_type==='note' && /penalty/i.test(n.note||''));
+          if(pen){ if(side==='team') S.pen.oursGoals++; else S.pen.theirsGoals++; return; }
+          if(e.manState==='team_up'){ if(side==='team') S.up.goals++; else S.up.shGoalsAgainst++; }
+          else if(e.manState==='opp_up'){ if(side==='opponent') S.down.goalsAgainst++; else S.down.shGoalsFor++; }
+          else { if(side==='team') S.even.for++; else S.even.against++; }
+        }
+        if(e.stat_type==='shot_attempt' && e.manState==='team_up' && side==='team') S.up.shots++;
+        if(e.stat_type==='shot_attempt' && e.manState==='opp_up' && side==='opponent') S.down.shots++;
+      });
+    });
+    if(any) S.games++;
+  });
+  if(S.up.chances < S.up.goals){ S.up.chances = S.up.goals; S.estimated = true; }
+  if(S.down.chances < S.down.goalsAgainst){ S.down.chances = S.down.goalsAgainst; S.estimated = true; }
+  S.pen.ours = Math.max(S.pen.ours, S.pen.oursGoals); S.pen.theirs = Math.max(S.pen.theirs, S.pen.theirsGoals);
+  return S;
+}
+function pctText(n, d){ return d ? Math.round(100*n/d)+'%' : '—'; }
+function situationsHtml(S){
+  if(!S || !S.games) return '<div class="sit-empty">No live-tracked events yet. Man-up numbers fill in as exclusions and goals are logged.</div>';
+  const card = (title, big, sub) => `<div class="sit-card"><span>${title}</span><strong>${big}</strong><small>${sub}</small></div>`;
+  return `<div class="sit-grid">
+    ${card('Man-up (6 on 5)', `${S.up.goals} of ${S.up.chances}`, `${pctText(S.up.goals, S.up.chances)} converted${S.up.shots?` · ${S.up.shots} shots`:''}`)}
+    ${card('Man-down defense', `${S.down.chances - S.down.goalsAgainst} of ${S.down.chances}`, `${pctText(S.down.chances - S.down.goalsAgainst, S.down.chances)} stopped${S.down.shGoalsFor?` · ${S.down.shGoalsFor} short-handed goals`:''}`)}
+    ${card('5m penalties', `${S.pen.oursGoals} of ${S.pen.ours}`, `them ${S.pen.theirsGoals} of ${S.pen.theirs}`)}
+    ${card('Even strength', `${S.even.for} – ${S.even.against}`, 'goals for – against')}
+  </div>${S.estimated ? '<div class="sit-note">Some man-up goals had no exclusion logged, so chances are at least the goals scored.</div>' : ''}`;
+}
+
+// ---- shot chart and goalies ----
+function computeShotChart(games, side){
+  const Z = {}; SHOT_ZONES.forEach(z=>Z[z.key] = {goals:0, shots:0});
+  let tagged = 0, untagged = 0;
+  (games||[]).forEach(game=>getStatPeriods(game).forEach(q=>(game.quarters[q]||[]).filter(isLiveTrackedEvent).forEach(e=>{
+    if((e.side||'team')!==side || e.stat_type!=='shot_attempt') return;
+    if(!e.zone || !Z[e.zone]){ untagged++; return; }
+    tagged++; Z[e.zone].shots++;
+  })));
+  (games||[]).forEach(game=>getStatPeriods(game).forEach(q=>(game.quarters[q]||[]).filter(isLiveTrackedEvent).forEach(e=>{
+    if((e.side||'team')===side && e.stat_type==='goal' && e.zone && Z[e.zone]) Z[e.zone].goals++;
+  })));
+  return { zones:Z, tagged, untagged };
+}
+function shotChartHtml(chart){
+  const cell = k => { const z = chart.zones[k]; return `<div class="shot-zone z-${k}${z.shots?' has':''}"><span>${shotZoneLabel(k)}</span><strong>${z.shots ? `${z.goals}/${z.shots}` : '—'}</strong><small>${z.shots ? pctText(z.goals, z.shots) : ''}</small></div>`; };
+  return `<div class="shot-pool"><div class="shot-cage"></div><div class="shot-grid">${['lw','c','rw','lf','pen','rf','top','ctr'].map(cell).join('')}</div></div>
+    <div class="sit-note">${chart.tagged} shot${chart.tagged===1?'':'s'} with a spot${chart.untagged ? ` · ${chart.untagged} without one (add it in the "Add details?" row after a tap, or say "from the left wing")` : ''}</div>`;
+}
+function computeGoalies(game, side){
+  const rows = {};
+  getStatPeriods(game).forEach(q=>(game.quarters[q]||[]).filter(isLiveTrackedEvent).forEach(e=>{
+    if((e.side||'team')!==side || (e.stat_type!=='save' && e.stat_type!=='scored_on')) return;
+    const key = e.playerId || ('cap'+(e.playerCap||'?'));
+    if(!rows[key]) rows[key] = { cap:e.playerCap, playerId:e.playerId, sv:0, ga:0 };
+    if(e.stat_type==='save') rows[key].sv++; else rows[key].ga++;
+  }));
+  return Object.values(rows);
+}
+function goalieTableHtml(game, side){
+  const rows = computeGoalies(game, side); if(!rows.length) return '';
+  const nameOf = r => { if(side==='team'){ const p = r.playerId && findPlayer(r.playerId); if(p) return `#${p.cap} ${p.name||''}`; } const o = (game.oppRoster||[]).find(x=>String(x.cap)===String(r.cap)); return `#${r.cap||'?'}${o&&o.name?' '+o.name:''}`; };
+  return `<table class="stats"><thead><tr><th style="text-align:left;">Goalie</th><th>SV</th><th>GA</th><th>SV%</th></tr></thead><tbody>${rows.map(r=>`<tr><td class="pcell">${escHtml(nameOf(r))}</td><td>${r.sv}</td><td>${r.ga}</td><td>${pctText(r.sv, r.sv+r.ga)}</td></tr>`).join('')}</tbody></table>`;
+}
+let _shotChartSide = 'team';
+function setShotChartSide(side){ _shotChartSide = side; renderGameInsights(findGame(app.selectedGameId)); }
+function renderGameInsights(game){
+  const panel = document.getElementById('gameInsightsPanel'); if(!panel || !game) return;
+  const live = getGameEvents(game).some(isLiveTrackedEvent);
+  panel.style.display = live ? '' : 'none'; if(!live) return;
+  const team = findTeam(game.teamId);
+  document.getElementById('gameSituationsBody').innerHTML = situationsHtml(computeSituations([game]));
+  const chart = computeShotChart([game], _shotChartSide);
+  const goalieSide = otherSide(_shotChartSide); // the goalie who faced these shots
+  document.getElementById('gameShotBody').innerHTML =
+    `<div class="tap-group" style="margin-bottom:10px;"><button type="button" class="tap-seg${_shotChartSide==='team'?' on':''}" onclick="setShotChartSide('team')">${escHtml(team?team.name:'Us')} shots</button><button type="button" class="tap-seg${_shotChartSide==='opponent'?' on':''}" onclick="setShotChartSide('opponent')">${escHtml(game.opponent||'Opponent')} shots</button></div>`
+    + shotChartHtml(chart)
+    + (goalieTableHtml(game, goalieSide) ? `<div style="margin-top:12px;"><div class="sit-note" style="margin-bottom:6px;">Goalie facing these shots</div>${goalieTableHtml(game, goalieSide)}</div>` : '');
+}
+function renderTeamInsights(team){
+  const panel = document.getElementById('teamInsightsPanel'); if(!panel || !team) return;
+  const games = (app.games||[]).filter(g=>g.teamId===team.id && getGameEvents(g).some(isLiveTrackedEvent));
+  panel.style.display = games.length ? '' : 'none'; if(!games.length) return;
+  document.getElementById('teamInsightsNote').textContent = `${games.length} live-tracked game${games.length===1?'':'s'} this season`;
+  document.getElementById('teamSituationsBody').innerHTML = situationsHtml(computeSituations(games));
+  document.getElementById('teamShotBody').innerHTML = shotChartHtml(computeShotChart(games, 'team'));
+}
+
+// ---- scouting report ----
+function normSchool(s){ const k = String(s||'').toLowerCase().replace(/\(.*?\)/g,'').replace(/[^a-z0-9]/g,''); return k==='cal' || k==='ucberkeley' ? 'california' : k; }
+function scoutSchoolKey(name){ const n = normSchool(name); return Object.keys(SEED_SCHOOL_RESULTS).find(k=>normSchool(k)===n) || Object.keys(SEED_SCHOOL_PLAYER_STATS).find(k=>normSchool(k)===n) || null; }
+function scoutRosterFor(name){ const n = normSchool(name); const entry = Object.values(CURRENT_ROSTERS).find(r=>normSchool(r.label)===n); return entry ? entry.players : []; }
+function buildScoutHtml(game){
+  const team = findTeam(game.teamId), ourName = team ? team.name : 'Us', opp = game.opponent || 'Opponent';
+  const key = scoutSchoolKey(opp), roster = scoutRosterFor(opp);
+  const capOf = name => { const p = roster.find(r=>r.name===name); return p ? p.cap : ''; };
+  const parts = [];
+  parts.push(`<h1>${escHtml(opp)} — scouting report</h1><div class="scout-sub">For ${escHtml(ourName)} vs ${escHtml(opp)}${game.date?` · ${escHtml(game.date)}`:''}${game.location?` · ${escHtml(game.location)}`:''}</div>`);
+  // season so far
+  const results = key ? (SEED_SCHOOL_RESULTS[key]||[]).filter(r=>String(r.date||'').startsWith('2026') && r.teamScore!=null && r.oppScore!=null).sort((a,b)=>a.date.localeCompare(b.date)) : [];
+  if(results.length){
+    const w = results.filter(r=>r.teamScore>r.oppScore).length, l = results.filter(r=>r.teamScore<r.oppScore).length;
+    const gf = results.reduce((s,r)=>s+r.teamScore,0), ga = results.reduce((s,r)=>s+r.oppScore,0);
+    parts.push(`<h2>2026 season</h2><div class="scout-kpis"><div><b>${w}-${l}</b><span>record</span></div><div><b>${(gf/results.length).toFixed(1)}</b><span>goals per game</span></div><div><b>${(ga/results.length).toFixed(1)}</b><span>allowed per game</span></div></div>`);
+    parts.push(`<table><thead><tr><th>Date</th><th style="text-align:left;">Opponent</th><th>Result</th></tr></thead><tbody>${results.slice(-6).reverse().map(r=>`<tr><td>${escHtml(r.date.slice(5))}</td><td style="text-align:left;">${escHtml(r.opponent)}</td><td>${r.teamScore>r.oppScore?'W':r.teamScore<r.oppScore?'L':'T'} ${r.teamScore}-${r.oppScore}${r.note?' '+escHtml(r.note):''}</td></tr>`).join('')}</tbody></table>`);
+  } else parts.push(`<h2>2026 season</h2><p class="scout-none">No 2026 results on file for ${escHtml(opp)}.</p>`);
+  // players
+  const stats = key ? SEED_SCHOOL_PLAYER_STATS[key]||{} : {};
+  const players = Object.entries(stats).map(([name, seasons])=>({name, s:(seasons||{})['2026']})).filter(p=>p.s);
+  if(players.length){
+    const scorers = players.filter(p=>(p.s.g||0)+(p.s.a||0)>0).sort((a,b)=>(b.s.g||0)-(a.s.g||0) || (b.s.a||0)-(a.s.a||0)).slice(0,8);
+    // recap-only schools don't publish games played or shots, so those columns appear only when real
+    const hasGp = scorers.some(p=>(p.s.gp||0)>1), hasSh = scorers.some(p=>(p.s.sh||0)>0) && scorers.every(p=>(p.s.sh||0)>=(p.s.g||0)); // partial shot counts (fewer shots than goals) would print nonsense percentages
+    parts.push(`<h2>Who scores</h2><table><thead><tr><th>Cap</th><th style="text-align:left;">Player</th>${hasGp?'<th>GP</th>':''}<th>G</th><th>A</th>${hasSh?'<th>Shots</th><th>SH%</th>':''}<th>EXD</th><th>STL</th></tr></thead><tbody>${scorers.map(p=>`<tr><td>${escHtml(capOf(p.name))}</td><td style="text-align:left;">${escHtml(p.name)}</td>${hasGp?`<td>${p.s.gp||''}</td>`:''}<td>${p.s.g||0}</td><td>${p.s.a||0}</td>${hasSh?`<td>${p.s.sh||''}</td><td>${p.s.sh?pctText(p.s.g||0,p.s.sh):''}</td>`:''}<td>${p.s.exd||0}</td><td>${p.s.stl||0}</td></tr>`).join('')}</tbody></table>`);
+    const drawers = players.filter(p=>(p.s.exd||0)>0).sort((a,b)=>b.s.exd-a.s.exd).slice(0,4);
+    if(drawers.length) parts.push(`<h2>Who draws exclusions</h2><p>${drawers.map(p=>`<b>${escHtml(capOf(p.name)?'#'+capOf(p.name)+' ':'')}${escHtml(p.name)}</b> ${p.s.exd}`).join(' · ')}</p>`);
+    const goalies = players.filter(p=>(p.s.sv||0)>0).sort((a,b)=>b.s.sv-a.s.sv);
+    if(goalies.length) parts.push(`<h2>Goalies</h2><p>${goalies.map(p=>`<b>${escHtml(capOf(p.name)?'#'+capOf(p.name)+' ':'')}${escHtml(p.name)}</b> ${p.s.sv} saves${(p.s.gp||0)>1?` in ${p.s.gp} games`:''}`).join(' · ')}</p>`);
+    parts.push(`<p class="scout-note">Season totals come from the school's published stats. Schools that only publish game recaps undercount assists, steals and shots.</p>`);
+  } else parts.push(`<h2>Who scores</h2><p class="scout-none">No 2026 player stats on file for ${escHtml(opp)}.</p>`);
+  // what we've seen live
+  const tracked = (app.games||[]).filter(g=>g.teamId===game.teamId && normSchool(g.opponent)===normSchool(opp) && getGameEvents(g).some(isLiveTrackedEvent));
+  if(tracked.length){
+    const S = computeSituations(tracked);
+    parts.push(`<h2>From our tracked games vs ${escHtml(opp)} (${tracked.length})</h2><p>Their man-up: <b>${S.down.goalsAgainst} of ${S.down.chances}</b> (${pctText(S.down.goalsAgainst, S.down.chances)}). Ours: <b>${S.up.goals} of ${S.up.chances}</b> (${pctText(S.up.goals, S.up.chances)}). Even-strength goals ${S.even.for}–${S.even.against}.</p>`);
+    const chart = computeShotChart(tracked, 'opponent');
+    if(chart.tagged) parts.push(`<p>Where they shoot from: ${SHOT_ZONES.filter(z=>chart.zones[z.key].shots).sort((a,b)=>chart.zones[b.key].shots-chart.zones[a.key].shots).map(z=>`${z.label} ${chart.zones[z.key].goals}/${chart.zones[z.key].shots}`).join(' · ')}</p>`);
+  }
+  // head to head
+  const ours = team && SEED_SCHOOL_RESULTS[scoutSchoolKey(team.name)||''] || [];
+  const h2h = ours.filter(r=>normSchool(r.opponent)===normSchool(opp) && r.teamScore!=null).sort((a,b)=>b.date.localeCompare(a.date));
+  if(h2h.length){
+    const w = h2h.filter(r=>r.teamScore>r.oppScore).length, l = h2h.filter(r=>r.teamScore<r.oppScore).length;
+    parts.push(`<h2>Head to head (${escHtml(ourName)} ${w}-${l})</h2><p>${h2h.slice(0,6).map(r=>`${escHtml(r.date)}: ${r.teamScore>r.oppScore?'W':r.teamScore<r.oppScore?'L':'T'} ${r.teamScore}-${r.oppScore}`).join(' · ')}</p>`);
+  }
+  if(roster.length) parts.push(`<h2>Roster</h2><p class="scout-roster">${roster.map(p=>`<span><b>${escHtml(p.cap)}</b> ${escHtml(p.name)}${p.wpPosition?` (${escHtml(p.wpPosition)})`:''}</span>`).join('')}</p>`);
+  return parts.join('');
+}
+function openScoutReport(){
+  const game = findGame(app.selectedGameId); if(!game) return;
+  let m = document.getElementById('scoutModal');
+  if(!m){ m = document.createElement('div'); m.id = 'scoutModal'; m.className = 'modal-overlay'; m.onclick = e=>{ if(e.target===m) closeScoutReport(); }; document.body.appendChild(m); }
+  m.innerHTML = `<div class="modal-panel scout-panel"><div class="scout-actions"><button class="primary-btn" onclick="printScoutReport()">Print / save PDF</button><button class="ghost-btn" onclick="closeScoutReport()">Close</button></div><div class="scout-doc">${buildScoutHtml(game)}</div></div>`;
+  m.classList.remove('hidden'); m.style.display = 'flex';
+}
+function closeScoutReport(){ const m = document.getElementById('scoutModal'); if(m){ m.style.display = 'none'; m.classList.add('hidden'); } }
+function printScoutReport(){ const game = findGame(app.selectedGameId); if(!game) return; printDocument(buildScoutHtml(game), `${game.opponent||'Opponent'} scouting report`); }
+
+// ---- export ----
+function printDocument(html, title){
+  let host = document.getElementById('printHost');
+  if(!host){ host = document.createElement('div'); host.id = 'printHost'; document.body.appendChild(host); }
+  host.innerHTML = `<div class="print-doc">${html}<div class="print-foot">PoloIQ · ${escHtml(new Date().toLocaleDateString())}</div></div>`;
+  document.body.classList.add('printing');
+  const oldTitle = document.title; document.title = title;
+  const done = ()=>{ document.title = oldTitle; window.removeEventListener('afterprint', done); };
+  window.addEventListener('afterprint', done);
+  setTimeout(()=>window.print(), 50);
+}
+function csvCell(v){ const s = String(v==null?'':v); return /[",\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s; }
+function downloadFile(name, text, type){
+  const blob = new Blob([text], {type: type || 'text/csv;charset=utf-8'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+}
+function gameFileBase(game){ const team = findTeam(game.teamId); return `${team?team.name:'Team'} vs ${game.opponent||'Opponent'} ${game.date||''}`.trim().replace(/[^\w\- ]+/g,'').replace(/\s+/g,'_'); }
+// A stats table that is actually showing (its panel or wrapper isn't hidden), or null.
+function visibleTable(id){
+  const t = document.getElementById(id); if(!t || !t.rows || !t.rows.length) return null;
+  for(let el = t; el && el.style; el = el.parentElement){ if(el.style.display==='none') return null; if(el.id==='gamePage') break; }
+  return t;
+}
+function tableRows(id){ const t = visibleTable(id); return t ? Array.from(t.rows).map(r=>Array.from(r.cells).map(c=>c.textContent.trim())) : []; }
+function exportBoxScoreCsv(){
+  const game = findGame(app.selectedGameId); if(!game) return;
+  renderGame();
+  const team = findTeam(game.teamId), score = computeGameScore(game);
+  const lines = [[`${team?team.name:'Team'} ${score.team} - ${score.opponent} ${game.opponent||'Opponent'}`], [game.date||'', game.location||'', game.status||''], []];
+  const section = (title, id) => { const rows = tableRows(id); if(rows.length){ lines.push([title]); rows.forEach(r=>lines.push(r)); lines.push([]); } };
+  section(team ? team.name : 'Team', 'gameStatsTable'); section(`${team?team.name:'Team'} goalies`, 'gameGoalieTable');
+  section(game.opponent||'Opponent', 'oppStatsTable'); section(`${game.opponent||'Opponent'} goalies`, 'oppGoalieTable');
+  const S = computeSituations([game]);
+  if(S.games) lines.push(['Special teams'], ['Man-up', `${S.up.goals}/${S.up.chances}`], ['Man-down stops', `${S.down.chances-S.down.goalsAgainst}/${S.down.chances}`], ['5m penalties', `${S.pen.oursGoals}/${S.pen.ours}`, 'them', `${S.pen.theirsGoals}/${S.pen.theirs}`]);
+  downloadFile(`${gameFileBase(game)}_box_score.csv`, lines.map(r=>r.map(csvCell).join(',')).join('\n'));
+}
+function playByPlayRows(game){
+  const team = findTeam(game.teamId), rows = [];
+  getGamePeriods(game).forEach(q=>(game.quarters[q]||[]).filter(e=>isLiveTrackedEvent(e)).forEach(e=>{
+    const side = e.side || 'team';
+    let name = '';
+    if(side==='team'){ const p = e.playerId && findPlayer(e.playerId); name = p ? p.name||'' : ''; }
+    else { const o = (game.oppRoster||[]).find(x=>String(x.cap)===String(e.playerCap)); name = o ? o.name||'' : ''; }
+    rows.push({ period:periodLabel(q), clock:eventClockLabel(game, q, e), team: side==='team' ? (team?team.name:'Us') : (game.opponent||'Opponent'), cap:e.playerCap||'', name,
+      stat: e.stat_type==='note' ? 'Note' : statDef(e.stat_type).label, situation: e.manState==='team_up' ? 'man-up (us)' : e.manState==='opp_up' ? 'man-up (them)' : '',
+      zone: shotZoneLabel(e.zone), detail: e.stat_type==='note' ? (e.note||'') : [e.vsCap?`vs #${e.vsCap}`:'', e.assistTo?`to #${e.assistTo}`:''].filter(Boolean).join(' ') });
+  }));
+  return rows;
+}
+function exportPlayByPlayCsv(){
+  const game = findGame(app.selectedGameId); if(!game) return;
+  const rows = playByPlayRows(game);
+  if(!rows.length){ alert('No live-tracked events in this game yet.'); return; }
+  const head = ['Period','Clock','Team','Cap','Player','Stat','Situation','Shot spot','Detail'];
+  downloadFile(`${gameFileBase(game)}_play_by_play.csv`, [head].concat(rows.map(r=>[r.period,r.clock,r.team,r.cap,r.name,r.stat,r.situation,r.zone,r.detail])).map(r=>r.map(csvCell).join(',')).join('\n'));
+}
+function printBoxScore(){
+  const game = findGame(app.selectedGameId); if(!game) return;
+  renderGame();
+  const team = findTeam(game.teamId), score = computeGameScore(game);
+  const tbl = (title, id) => { const t = visibleTable(id); return t ? `<h2>${escHtml(title)}</h2><table>${t.innerHTML}</table>` : ''; };
+  const parts = [`<h1>${escHtml(team?team.name:'Team')} ${score.team} – ${score.opponent} ${escHtml(game.opponent||'Opponent')}</h1><div class="scout-sub">${[game.date, game.time, game.location, game.status==='final'?'Final':''].filter(Boolean).map(escHtml).join(' · ')}</div>`];
+  // goals by period, from the live log
+  if(getGameEvents(game).some(isLiveTrackedEvent)){
+    const periods = getStatPeriods(game).filter(q=>q<=4 || (game.quarters[q]||[]).length);
+    const goalsIn = (q, side) => (game.quarters[q]||[]).filter(e=>isLiveTrackedEvent(e) && e.stat_type==='goal' && (e.side||'team')===side).length;
+    parts.push(`<table class="line"><thead><tr><th></th>${periods.map(q=>`<th>${periodLabel(q)}</th>`).join('')}<th>Final</th></tr></thead><tbody><tr><td>${escHtml(team?team.name:'Us')}</td>${periods.map(q=>`<td>${goalsIn(q,'team')}</td>`).join('')}<td><b>${score.team}</b></td></tr><tr><td>${escHtml(game.opponent||'Opponent')}</td>${periods.map(q=>`<td>${goalsIn(q,'opponent')}</td>`).join('')}<td><b>${score.opponent}</b></td></tr></tbody></table>`);
+  }
+  parts.push(tbl(team?team.name:'Team', 'gameStatsTable'), tbl('Goalies', 'gameGoalieTable'), tbl(game.opponent||'Opponent', 'oppStatsTable'), tbl('Goalies', 'oppGoalieTable'));
+  const S = computeSituations([game]);
+  if(S.games && (S.up.chances || S.down.chances || S.pen.ours || S.pen.theirs)) parts.push(`<h2>Special teams</h2><p>Man-up ${S.up.goals} of ${S.up.chances} (${pctText(S.up.goals,S.up.chances)}) · Man-down stops ${S.down.chances-S.down.goalsAgainst} of ${S.down.chances} · 5m penalties ${S.pen.oursGoals}/${S.pen.ours}, them ${S.pen.theirsGoals}/${S.pen.theirs}</p>`);
+  const pbp = playByPlayRows(game).filter(r=>r.stat!=='Shot attempt' || r.zone);
+  if(pbp.length) parts.push(`<h2>Play by play</h2><table><thead><tr><th>Per</th><th>Clock</th><th style="text-align:left;">Team</th><th style="text-align:left;">Player</th><th style="text-align:left;">Play</th></tr></thead><tbody>${pbp.map(r=>`<tr><td>${escHtml(r.period)}</td><td>${escHtml(r.clock)}</td><td style="text-align:left;">${escHtml(r.team)}</td><td style="text-align:left;">${escHtml((r.cap?'#'+r.cap+' ':'')+r.name)}</td><td style="text-align:left;">${escHtml([r.stat, r.situation, r.zone, r.detail].filter(Boolean).join(' · '))}</td></tr>`).join('')}</tbody></table>`);
+  printDocument(parts.join(''), `${gameFileBase(game)} box score`);
+}
+function toggleExportMenu(){ const m = document.getElementById('gameExportMenu'); if(m) m.classList.toggle('open'); }
 
 document.addEventListener('DOMContentLoaded', ()=>{
   if(CLOUD){ setupRecognition(); cloudBoot().catch(e=>{ console.error(e); setCloudStatus('⚠️ Couldn’t start — refresh the page', true); }); checkUpcomingGameNotifications(); return; }

@@ -68,13 +68,12 @@ function fakeSupabase(){
 }
 
 // ---------------- devices ----------------
-let oldBackend=null; // for the import test
 function device(name, hash){
   const store={};
   const ctx={ console:{log(){},warn(){},error:console.error,info(){}}, setTimeout:(f,ms)=>{ if(!ms) setImmediate(f); return 0; }, clearTimeout(){}, setInterval:()=>0, clearInterval(){}, requestAnimationFrame:()=>0,
     document:makeDocument(), navigator:{userAgent:'node', onLine:true}, location:{href:'https://x/PoloIQ/', origin:'https://x', pathname:'/PoloIQ/', search:'', hash:hash||'', reload(){}}, history:{replaceState(){}},
     localStorage:{getItem:k=>store[k]??null, setItem:(k,v)=>{store[k]=String(v);}, removeItem:k=>{delete store[k];}}, sessionStorage:{getItem:()=>null,setItem(){}}, indexedDB:{deleteDatabase(){}},
-    fetch: async (url)=>{ if(!oldBackend) throw new Error('offline'); const m=/[?&]chunk=(\d+)/.exec(url); return {ok:true, json:async()=> m ? {chunk:oldBackend.rows[+m[1]]} : oldBackend.meta}; },
+    fetch: async ()=>{ throw new Error('offline'); },
     alert(){}, confirm:()=>true, prompt:()=>null, addEventListener(){}, removeEventListener(){}, matchMedia:()=>({matches:false,addEventListener(){}}), getComputedStyle:()=>({}),
     Image:function(){}, FileReader:function(){}, URL, Blob:function(){}, crypto:require('crypto').webcrypto, performance:{now:()=>Date.now()}, structuredClone, TextEncoder, TextDecoder, Math, Date, JSON, AbortController, URLSearchParams };
   ctx.window=ctx; ctx.self=ctx; ctx.globalThis=ctx; ctx.supabase=fakeSupabase();
@@ -195,14 +194,6 @@ async function form(d, {mode, email, password, role='player', team='', name='Tes
     const htmlOut=Object.values(fresh.document.__els).map(e=>e.innerHTML||'').join(' ');
     check('nothing executable rendered on the team page', !/<img src=x|<script>/i.test(htmlOut));
     check('real names with apostrophes still match (Saint Mary’s team)', F.teams.some(t=>t.name==="Saint Mary's") && F.teams.some(t=>t.name==="Mount St. Mary's")); }
-  // import from the old backend (admin)
-  const D=process.env.REALDIR;
-  if(D){ const n=fs.readdirSync(D).length; oldBackend={meta:{totalChunks:n, updatedAt:'x'}, rows:[...Array(n)].map((_,i)=>JSON.parse(fs.readFileSync(D+'/'+i+'.json')).chunk)};
-    await jack.cloudImportFromOldBackend(); await settle(200);
-    const old=JSON.parse(oldBackend.rows.join('')); const missing=old.teams.filter(t=>{ const a=J.teams.find(x=>x.name===t.name); return !a || (t.players||[]).some(p=>!a.players.some(q=>q.name===p.name)); });
-    check('import: every old team and roster is in the app', missing.length===0, missing.map(t=>t.name).join(','));
-    check('import: Navy stats from today untouched', jack.computeGameScore(Jg()).team===2);
-  }
   // arriving from the confirmation email
   { const land=device('landing', '#access_token=x&type=signup'); await land.cloudBoot(); await settle(); const LD=id=>land.document.getElementById(id);
     check('opening the email link shows "Email verified"', LD('authNoticeTitle').textContent==='Email verified', LD('authNoticeTitle').textContent);
