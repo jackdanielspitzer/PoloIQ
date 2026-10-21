@@ -384,6 +384,15 @@
     </div>
   </div>
   <!-- Modal: choose which side to take stats for when managing a game -->
+  <div id="authNoticeModal" class="modal-overlay hidden" style="display:none;">
+    <div class="modal-panel" style="max-width:440px;text-align:center;">
+      <div id="authNoticeIcon" style="font-size:40px;line-height:1;margin:4px 0 10px;"></div>
+      <h3 id="authNoticeTitle" style="margin:0 0 8px;"></h3>
+      <p id="authNoticeBody" style="color:var(--text-dim);margin:0 0 18px;font-size:14px;line-height:1.5;"></p>
+      <div id="authNoticeActions" style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;"></div>
+      <div id="authNoticeSmall" style="color:var(--text-faint);font-size:12px;margin-top:12px;min-height:16px;"></div>
+    </div>
+  </div>
   <div id="statForModal" class="modal-overlay hidden" style="display:none;">
     <div class="modal-panel">
       <div class="modal-header">
@@ -10801,6 +10810,8 @@ async function cloudBoot(){
   sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth:{ persistSession:true, autoRefreshToken:true, detectSessionInUrl:true } });
   sb.auth.onAuthStateChange((evt)=>{ if(evt==='SIGNED_IN' || evt==='SIGNED_OUT' || evt==='USER_UPDATED') cloudLoadProfile().then(()=>{ renderAll(); }); });
   await cloudLoadProfile();
+  renderAccount();
+  handleAuthLanding();
   await cloudLoadData();
   cloud.ready = true;
   cloudLoadOutbox(); cloudFlush();
@@ -10951,6 +10962,62 @@ function updateCloudBadge(){
   el.textContent = text; el.style.display = text ? 'block' : 'none'; el.style.color = cloud.statusBad ? '#ffb4a8' : '#cfe3ff';
 }
 
+// ---- account messages (check your email / verified / link expired) ----
+function showAuthNotice({icon, title, body, actions, small}){
+  const m = document.getElementById('authNoticeModal'); if(!m) return;
+  document.getElementById('authNoticeIcon').textContent = icon || '';
+  document.getElementById('authNoticeTitle').textContent = title || '';
+  document.getElementById('authNoticeBody').innerHTML = body || '';
+  document.getElementById('authNoticeSmall').textContent = small || '';
+  const box = document.getElementById('authNoticeActions'); box.innerHTML = '';
+  (actions||[{label:'OK', primary:true}]).forEach(a=>{
+    const b = document.createElement('button'); b.className = a.primary ? 'primary-btn action-btn' : 'ghost-btn'; b.textContent = a.label;
+    b.onclick = async ()=>{ if(a.onClick){ const keep = await a.onClick(b); if(keep) return; } hideAuthNotice(); };
+    box.appendChild(b);
+  });
+  m.style.display = 'flex'; m.classList.remove('hidden');
+}
+function hideAuthNotice(){ const m = document.getElementById('authNoticeModal'); if(m){ m.style.display = 'none'; m.classList.add('hidden'); } }
+const _authEsc = s => String(s||'').replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function authRedirectUrl(){ return location.origin + location.pathname; }
+function showCheckEmail(email){
+  showAuthNotice({ icon:'✉️', title:'Check your email',
+    body:`We sent a confirmation link to <b>${_authEsc(email)}</b>.<br>Click the link in that email and you'll be signed in to PoloIQ automatically.`,
+    small:'Not there? Check your spam folder, or resend it below.',
+    actions:[
+      { label:'Resend email', onClick: async (btn)=>{
+          btn.disabled = true; btn.textContent = 'Sending…';
+          const { error } = await sb.auth.resend({ type:'signup', email, options:{ emailRedirectTo: authRedirectUrl() } });
+          btn.disabled = false; btn.textContent = 'Resend email';
+          document.getElementById('authNoticeSmall').textContent = error ? (/rate|seconds|limit/i.test(error.message) ? 'Please wait a minute before sending another email.' : error.message) : `Sent again to ${email}.`;
+          return true; } },
+      { label:'Back to log in', primary:true, onClick: ()=>{ showUserForm({loginMode:true}); const el = document.getElementById('userEmailInput'); if(el) el.value = email; } },
+    ] });
+}
+// Arriving from the email link: Supabase puts the result in the address (#access_token…&type=signup,
+// or #error=…). Read it before the library tidies the address, then say plainly what happened.
+const _authLanding = (()=>{ try{ const h = new URLSearchParams((location.hash||'').replace(/^#/,'')); const q = new URLSearchParams(location.search||'');
+  return { type: h.get('type') || q.get('type'), error: h.get('error_description') || q.get('error_description'), code: h.get('error_code') || q.get('error_code') }; }catch(e){ return {}; } })();
+function handleAuthLanding(){
+  const L = _authLanding || {}; if(!L.type && !L.error) return;
+  try{ history.replaceState(null, '', location.pathname); }catch(e){}
+  if(L.error){
+    const expired = /expired|invalid/i.test(L.error) || /otp_expired/i.test(L.code||'');
+    showAuthNotice({ icon:'⚠️', title: expired ? 'That link has expired' : 'We couldn’t verify that link',
+      body: expired ? 'Confirmation links work once and expire after a while. Log in below — if your email still needs confirming, we’ll send a fresh link.' : _authEsc(L.error),
+      actions:[{ label:'Go to log in', primary:true, onClick: ()=>showUserForm({loginMode:true}) }] });
+    return;
+  }
+  const me = currentUser();
+  if(L.type==='signup' || L.type==='email' || L.type==='magiclink'){
+    showAuthNotice({ icon:'✅', title:'Email verified',
+      body: me ? `You're signed in as <b>${_authEsc(me.email)}</b>${me.role ? ` (${_authEsc(me.role)})` : ''}. Welcome to PoloIQ.` : 'Your email is confirmed. Log in to get started.',
+      actions: me ? [{ label:'Continue', primary:true }] : [{ label:'Go to log in', primary:true, onClick: ()=>showUserForm({loginMode:true}) }] });
+  } else if(L.type==='recovery'){
+    showAuthNotice({ icon:'🔑', title:'Set a new password', body:'Open your account (top right) and enter a new password, then save.', actions:[{ label:'OK', primary:true, onClick: ()=>{ if(currentUser()) showUserForm({editUserId: currentUser().id}); } }] });
+  }
+}
+
 // ---- accounts ----
 async function cloudSaveUser(){
   const errEl = document.getElementById('userFormError'); errEl.style.display='none'; errEl.style.color='';
@@ -10972,15 +11039,20 @@ async function cloudSaveUser(){
   }
   if(loginMode){
     const { error } = await sb.auth.signInWithPassword({ email, password });
-    if(error){ showUserFormError(/confirm/i.test(error.message) ? `Check ${email} and click the confirmation link first, then log in.` : /invalid/i.test(error.message) ? 'Incorrect email or password.' : error.message); return; }
+    if(error && /confirm/i.test(error.message)){ hideUserForm(); showCheckEmail(email); document.getElementById('authNoticeTitle').textContent = 'Confirm your email first'; return; }
+    if(error){ showUserFormError(/invalid/i.test(error.message) ? 'Incorrect email or password.' : error.message); return; }
     await cloudLoadProfile(); hideUserForm(); renderAccount(); renderAll(); return;
   }
   if(!password || password.length < 6){ showUserFormError('Choose a password of at least 6 characters.'); return; }
-  const { data, error } = await sb.auth.signUp({ email, password, options:{ data:{ name: name || email.split('@')[0], role, team_id: teamId||'' }, emailRedirectTo: location.origin + location.pathname } });
+  const saveBtn = document.getElementById('userFormSaveBtn'); if(saveBtn){ saveBtn.disabled = true; }
+  const { data, error } = await sb.auth.signUp({ email, password, options:{ data:{ name: name || email.split('@')[0], role, team_id: teamId||'' }, emailRedirectTo: authRedirectUrl() } });
+  if(saveBtn){ saveBtn.disabled = false; }
   if(error){ showUserFormError(/admin/i.test(error.message) ? 'The Admin role is only for the app owner.' : /registered|exists/i.test(error.message) ? 'An account with that email already exists — use Log in.' : error.message); return; }
   if(data && data.session){ await cloudLoadProfile(); hideUserForm(); renderAccount(); renderAll(); return; }
-  errEl.style.color = 'var(--good)';
-  showUserFormError(`Account created. Check ${email} for a confirmation link, then come back and log in.`);
+  // Supabase answers "success" without a new user when that email already has a confirmed account
+  if(data && data.user && Array.isArray(data.user.identities) && data.user.identities.length===0){ showUserFormError('An account with that email already exists — use Log in.'); return; }
+  hideUserForm();
+  showCheckEmail(email);
 }
 async function cloudLogout(){ try{ await sb.auth.signOut(); }catch(e){} app.currentUserId = null; app.users = []; cloud.syncedProfile = null; renderAccount(); renderAll(); }
 
