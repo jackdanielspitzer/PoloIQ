@@ -1065,11 +1065,17 @@
         <h2>Box scores you've pasted in (per opponent)</h2>
         <div id="customMatchupList"></div>
       </div>
+      <div class="panel" id="cloudImportPanel" style="display:none;">
+        <h2>Move data from the old backend</h2>
+        <p style="color:var(--text-dim);font-size:13px;">One time only: copies teams, rosters, live-tracked games and shared lists from the old Google Sheet into the new database. Old accounts can't be copied — each person signs up again once.</p>
+        <button class="primary-btn action-btn" id="cloudImportBtn" onclick="cloudImportFromOldBackend()">Import from old backend</button>
+      </div>
     </section>
   </main>
   <footer style="text-align:center;padding:18px 16px 26px;font-size:11.5px;color:var(--text-faint);letter-spacing:.04em;">PoloIQ&trade; &mdash; Patent Pending &middot; &copy; 2026 Jack Spitzer. All rights reserved.</footer>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js" integrity="sha384-GFr3yTh5lJznCbZfpTtXnwboFsxqtTQoeTZCRHhE0579KrRmlCzen5AA8ohaB5ug" crossorigin="anonymous"></script>
 <script>
 const STAT_DEFS = [
   { key:'goal', label:'Goal', short:'GL', tone:'good', patterns:['goal','scores','score','scored'] },
@@ -1322,6 +1328,13 @@ async function reconcileWithIndexedDb(){
 }
 function saveState(opts){
   stampLocalEdits();
+  if(CLOUD){
+    // Nothing shared is stored on this computer: changes go to the database (see cloudDiff). Practice
+    // games are private to this device by design, so they're the one thing kept here.
+    try{ localStorage.setItem('poloiq-practice', JSON.stringify(app.practiceGames||[])); }catch(e){}
+    cloudSaveSoon(!!(opts && opts.quietPush));
+    return;
+  }
   const _stateJson = serializeAppState();
   try{
     localStorage.setItem('poloai-app-state', _stateJson);
@@ -1371,7 +1384,7 @@ function gameNeedsSync(g){
   return Object.values(g.quarters||{}).some(arr=>(arr||[]).some(e=>e && !Array.isArray(e.scoreAfter) && e.raw_phrase!=='(imported result)'));
 }
 async function pushSharedStateToServer(){
-  if(!sharedStateConfigured()) return;
+  if(CLOUD || !sharedStateConfigured()) return;
   if(!_syncState.pulledOnce) return; // the first successful pull pushes anything still pending
   if(_syncState.pushing){ clearTimeout(_syncState.pushTimer); _syncState.pushTimer = null; _syncState.pushDueAt = 0; schedulePush(1500); return; }
   _syncState.pushing = true;
@@ -1580,7 +1593,7 @@ function dedupeTeamsByName(teams, preferIds){
   return { teams: dedupedTeams, remap };
 }
 async function pullSharedStateFromServer(applyIfNewer){
-  if(_syncState.pulling || !sharedStateConfigured()) return; _syncState.pulling = true;
+  if(CLOUD || _syncState.pulling || !sharedStateConfigured()) return; _syncState.pulling = true;
   try{
     const metaRes = await fetchWithTimeout(SHARED_STATE_URL, undefined, 20000);
     if(!metaRes.ok){ _syncState.backendAvailable = false; return; }
@@ -1960,6 +1973,7 @@ async function finishPendingLogin(){
   app.currentUserId = existing.id; saveState(); hideUserForm(); renderAccount(); renderAll();
 }
 async function saveUser(){
+  if(CLOUD) return cloudSaveUser();
   const errEl=document.getElementById('userFormError'); errEl.style.display='none';
   const name=document.getElementById('userNameInput').value.trim(); const email=document.getElementById('userEmailInput').value.trim().toLowerCase(); const password=document.getElementById('userPasswordInput').value || ''; const loginMode = document.getElementById('userLoginMode').checked; const role=document.getElementById('userRoleInput').value; const teamId=document.getElementById('userTeamAssign').value || null;
   if(!email){ showUserFormError('Please provide an email.'); return; }
@@ -1998,7 +2012,7 @@ async function saveUser(){
   app.users.push(u); app.currentUserId = u.id; saveState(); hideUserForm(); renderAccount(); renderAll(); }
 function renderUserTeamAssign(){ const sel=document.getElementById('userTeamAssign'); sel.innerHTML = '<option value="">(none)</option>' + app.teams.map(t=>`<option value="${t.id}">${t.name}</option>`).join(''); }
 function currentUser(){ return app.users.find(u=>u.id===app.currentUserId) || null; }
-function logoutUser(){ app.currentUserId=null; saveState(); renderAccount(); renderAll(); }
+function logoutUser(){ if(CLOUD){ cloudLogout(); return; } app.currentUserId=null; saveState(); renderAccount(); renderAll(); }
 function toggleAccountDropdown(e){ if(e) e.stopPropagation(); const d=document.getElementById('accountDropdown'); if(d) d.classList.toggle('hidden'); }
 function closeAccountDropdown(){ const d=document.getElementById('accountDropdown'); if(d) d.classList.add('hidden'); }
 document.addEventListener('click', closeAccountDropdown);
@@ -5435,7 +5449,7 @@ function saveGame(){
   if(!teamId){ alert('Choose a team before scheduling a game.'); return; }
   if(!opponent){ alert('Add the opponent name before saving.'); return; }
   addOpponent(opponent);
-  const game=blankGame(teamId); game.opponent=opponent; game.date=date; game.time=time; game.location=location; touchGame(game); app.games.push(game); saveState(); hideGameForm(); renderGames(); navigate('game', game.id, {manage:true}); }
+  const game=blankGame(teamId); game.opponent=opponent; game.date=date; game.time=time; game.location=location; if(CLOUD){ game.id = stableGameId(teamId, date, opponent, 1); if(app.games.some(g=>g.id===game.id)) game.id += '-'+Math.random().toString(36).slice(2,6); } touchGame(game); app.games.push(game); saveState(); hideGameForm(); renderGames(); navigate('game', game.id, {manage:true}); }
 
 // Once every school on the schedule has its own full game history, the unfiltered list is
 // hundreds of other teams' games a coach never asked for — default to just the team they've
@@ -5488,6 +5502,7 @@ async function deleteGame(gameId){
   await pullSharedStateFromServer(false);
   if(!findGame(gameId)) { renderGames(); return; } // already gone (deleted elsewhere, or never existed after the pull)
   app.games = app.games.filter(g=>g.id!==gameId);
+  if(CLOUD) cloudDeleteGame(gameId);
   const t = findTeam(game.teamId); if(t) t.games = (t.games||[]).filter(id=>id!==gameId);
   saveState();
   renderGames();
@@ -10635,6 +10650,7 @@ function renderOpponentsList(){
   el.innerHTML = app.opponents.map(o=>`<div class="item" style="display:flex;align-items:center;justify-content:space-between;gap:10px;"><strong style="margin:0;">${o}</strong><button class="ghost-btn" style="color:var(--bad);border-color:var(--accent-dim);" onclick="removeOpponent('${o.replace(/'/g,"\\'")}')">Remove</button></div>`).join('');
 }
 function renderDataPage(){
+  { const panel = document.getElementById('cloudImportPanel'); const cu = currentUser(); if(panel) panel.style.display = (CLOUD && cu && cu.role==='admin') ? '' : 'none'; }
   renderOpponentsList();
   const el = document.getElementById('customMatchupList');
   const cm = app.customMatchupGames || {};
@@ -10677,7 +10693,329 @@ function importAppData(evt){
   evt.target.value = '';
 }
 
+/* ================= Cloud database (Supabase) =================
+   Everything shared lives in the PoloIQ Supabase database: accounts (Supabase Auth + profiles), teams,
+   games, one row per logged stat (events) and a few shared lists. Nothing is downloaded and kept on the
+   computer: the built-in schedules/results come from this file's own code every time it loads, and only
+   what people create or change is read from / written to the database.
+   The only things kept in the browser are the login session, a tiny queue of stats that haven't reached
+   the database yet (pool Wi-Fi drops — they send themselves when the connection is back), and practice
+   games (which are private to that device by design). */
+const SUPABASE_URL = 'https://rdbczjonabgmrqulvsxx.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_Jyb_0UZySTJNoWx6DJ62lw_ZwZyYLsS'; // public key; the database's row-level rules decide who may write what
+const CLOUD = typeof window!=='undefined' && !!(window.supabase && window.supabase.createClient);
+let sb = null;
+const cloud = { ready:false, profile:null, syncedTeams:new Map(), syncedGames:new Map(), gamesInDb:new Set(), syncedEvents:new Map(), syncedEventJson:new Map(), syncedLists:new Map(), syncedProfile:null, outbox:[], flushing:false, flushTimer:null, quietTimer:null, warned:{} };
+
+// ---- stable ids: the same team / player / game gets the same id on every device ----
+function stableSlug(s){ return String(s==null?'':s).toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,''); }
+function stableGameId(teamId, date, opponent, n){ return 'g-'+String(teamId).replace(/^team-/,'')+'-'+(date||'nodate')+'-'+stableSlug(opponent)+((n||1)>1?'-'+n:''); }
+function assignStableIds(teams, games, users){
+  const tmap={}, pmap={}, gmap={};
+  (teams||[]).forEach(t=>{
+    const nid = 'team-'+stableSlug(t.name); if(t.id!==nid){ tmap[t.id]=nid; t.id=nid; }
+    const used = new Set();
+    (t.players||[]).forEach(p=>{
+      const base = 'p-'+stableSlug(t.name)+'-'+(stableSlug(p.name) || ('cap-'+stableSlug(p.cap)));
+      let id=base, k=2; while(used.has(id)) id = base+'-'+(k++); used.add(id);
+      if(p.id!==id){ pmap[p.id]=id; p.id=id; } p.teamId = t.id;
+    });
+  });
+  const seen = new Set();
+  (games||[]).forEach(g=>{
+    if(tmap[g.teamId]) g.teamId = tmap[g.teamId];
+    let id = stableGameId(g.teamId, g.date, g.opponent, g.gameNumber||1), k=2; const base=id;
+    while(seen.has(id)) id = base+'-x'+(k++); seen.add(id);
+    if(g.id!==id){ gmap[g.id]=id; g.id=id; }
+    Object.values(g.quarters||{}).forEach(arr=>(arr||[]).forEach(e=>{ if(e && e.playerId && pmap[e.playerId]) e.playerId=pmap[e.playerId]; if(e && e.vsId && pmap[e.vsId]) e.vsId=pmap[e.vsId]; }));
+    (g.tacticalTokens||[]).forEach(tk=>{ if(pmap[tk.refId]) tk.refId = pmap[tk.refId]; });
+  });
+  (teams||[]).forEach(t=>{ t.games = (t.games||[]).map(id=>gmap[id]||id); });
+  (users||[]).forEach(u=>{ if(u.teamId && tmap[u.teamId]) u.teamId = tmap[u.teamId]; });
+  return {tmap, pmap, gmap};
+}
+
+// ---- what a row looks like ----
+function isLiveEvent(e){ return !!e && !Array.isArray(e.scoreAfter) && e.raw_phrase!=='(imported result)'; }
+function gameMetaOf(g){ const {quarters, modifiedAt, id, teamId, date, opponent, status, ...rest} = g; return rest; }
+// what counts as "this game changed": its row fields (status, date, opponent) as well as the rest
+function gameSyncJson(g){ return JSON.stringify([g.teamId, g.date||'', g.opponent||'', g.status||'upcoming', gameMetaOf(g)]); }
+function gameRowOf(g){ return { id:g.id, team_id:g.teamId, date:g.date||null, opponent:g.opponent||null, status:g.status||'upcoming', data:gameMetaOf(g), updated_at:new Date().toISOString() }; }
+function eventDataOf(e){ const {eid, _seq, ...rest} = e; return rest; }
+function profileToUser(p){ return { id:p.id, email:p.email, name:p.name, role:p.role, teamId:p.team_id, profilePic:p.profile_pic }; }
+const CLOUD_LIST_KEYS = ['opponents','plays','customMatchupGames'];
+
+// ---- applying rows from the database ----
+function applyCloudTeam(row){
+  const t = {...(row.data||{}), id:row.id, name:row.name};
+  if(!Array.isArray(t.players)) t.players = []; if(!Array.isArray(t.games)) t.games = [];
+  const i = app.teams.findIndex(x=>x.id===row.id);
+  if(i>=0){ t.games = Array.from(new Set([...(app.teams[i].games||[]), ...t.games])); app.teams[i] = t; } else app.teams.push(t);
+  cloud.syncedTeams.set(t.id, JSON.stringify(t));
+}
+function applyCloudGame(row){
+  let g = app.games.find(x=>x.id===row.id);
+  if(!g){ g = blankGame(row.team_id); g.id = row.id; app.games.push(g); const t = findTeam(row.team_id); if(t && !(t.games||[]).includes(g.id)) (t.games=t.games||[]).push(g.id); }
+  const quarters = g.quarters;
+  Object.keys(g).forEach(k=>{ if(!['id','quarters','modifiedAt'].includes(k)) delete g[k]; });
+  Object.assign(g, blankGame(row.team_id), row.data||{}, { id:row.id, teamId:row.team_id, date:row.date||'', opponent:row.opponent||'', status:row.status||'upcoming', quarters: quarters || {1:[],2:[],3:[],4:[]} });
+  (g.extraPeriods||[]).forEach(p=>{ if(!g.quarters[p]) g.quarters[p] = []; });
+  cloud.gamesInDb.add(g.id); cloud.syncedGames.set(g.id, gameSyncJson(g));
+}
+function insertEventInOrder(arr, ev){
+  // live events keep database order (seq); imported placeholder events (no seq) stay first
+  let at = arr.length; while(at>0 && arr[at-1]._seq!=null && ev._seq!=null && arr[at-1]._seq > ev._seq) at--;
+  arr.splice(at, 0, ev);
+}
+function applyCloudEvent(row){
+  const g = findGame(row.game_id); if(!g) return false;
+  const q = row.period; if(!g.quarters[q]){ g.quarters[q] = []; if(!/^[1-4]$/.test(q) && !(g.extraPeriods||[]).includes(q)) (g.extraPeriods=g.extraPeriods||[]).push(q); }
+  if(Object.values(g.quarters).some(arr=>(arr||[]).some(e=>e.eid===row.id))) return false;
+  insertEventInOrder(g.quarters[q], {...row.data, eid:row.id, _seq:Number(row.seq)});
+  if(!cloud.syncedEvents.has(g.id)) cloud.syncedEvents.set(g.id, new Set());
+  cloud.syncedEvents.get(g.id).add(row.id); cloud.syncedEventJson.set(row.id, JSON.stringify(row.data));
+  return true;
+}
+function removeCloudEvent(id){
+  let changed = false;
+  app.games.forEach(g=>Object.keys(g.quarters||{}).forEach(q=>{ const i = g.quarters[q].findIndex(e=>e.eid===id); if(i>=0){ g.quarters[q].splice(i,1); changed = true; const s = cloud.syncedEvents.get(g.id); if(s) s.delete(id); } }));
+  cloud.syncedEventJson.delete(id);
+  return changed;
+}
+
+// ---- boot ----
+function seedBuiltInData(){
+  if(!Array.isArray(app.opponents)) app.opponents = [];
+  ensureSeedTeamsAndSchedule(); reconcileSeedRosters(); ensurePastSeasonResults(); ensureOpponentSchoolResults(); ensureSchoolSeed2026Schedule(); stripFabricatedSeedVsCap();
+  (app.teams||[]).forEach(applyBrandingIfKnown);
+  assignStableIds(app.teams, app.games, []);
+}
+async function cloudBoot(){
+  // Nothing from earlier versions is kept on this computer: drop the old full copy and its backup store.
+  try{ localStorage.removeItem('poloai-app-state'); localStorage.removeItem('deck-app-state'); }catch(e){}
+  try{ if(window.indexedDB && typeof IDB_NAME!=='undefined') indexedDB.deleteDatabase(IDB_NAME); }catch(e){}
+  try{ app.practiceGames = JSON.parse(localStorage.getItem('poloiq-practice')||'[]'); }catch(e){ app.practiceGames = []; }
+  seedBuiltInData();
+  renderAll();
+  setCloudStatus('Loading…');
+  sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth:{ persistSession:true, autoRefreshToken:true, detectSessionInUrl:true } });
+  sb.auth.onAuthStateChange((evt)=>{ if(evt==='SIGNED_IN' || evt==='SIGNED_OUT' || evt==='USER_UPDATED') cloudLoadProfile().then(()=>{ renderAll(); }); });
+  await cloudLoadProfile();
+  await cloudLoadData();
+  cloud.ready = true;
+  cloudLoadOutbox(); cloudFlush();
+  cloudSubscribe();
+  window.addEventListener('online', ()=>cloudFlush());
+  renderAll();
+}
+async function cloudLoadProfile(){
+  const { data:{ session } } = await sb.auth.getSession();
+  if(!session){ app.currentUserId = null; app.users = []; cloud.syncedProfile = null; return; }
+  const { data, error } = await sb.from('profiles').select('*');
+  app.users = (data||[]).map(profileToUser);
+  app.currentUserId = session.user.id;
+  if(!app.users.some(u=>u.id===session.user.id)) app.users.push({ id:session.user.id, email:session.user.email, name:(session.user.user_metadata||{}).name||'', role:'player', teamId:null });
+  const me = app.users.find(u=>u.id===session.user.id);
+  cloud.syncedProfile = JSON.stringify(me);
+}
+async function cloudLoadData(){
+  const [teams, games, lists] = await Promise.all([ sb.from('teams').select('*'), sb.from('games').select('*'), sb.from('app_lists').select('*') ]);
+  if(teams.error || games.error){ setCloudStatus('⚠️ Can’t reach the database — showing built-in data only', true); return; }
+  (teams.data||[]).forEach(applyCloudTeam);
+  (games.data||[]).forEach(applyCloudGame);
+  // stats: page through every row (the API returns up to 1,000 per request)
+  for(let from=0; ; from+=1000){
+    const { data, error } = await sb.from('events').select('*').order('seq').range(from, from+999);
+    if(error){ setCloudStatus('⚠️ Couldn’t load all stats — refresh to retry', true); break; }
+    (data||[]).forEach(applyCloudEvent);
+    if(!data || data.length < 1000) break;
+  }
+  (lists.data||[]).forEach(r=>{ if(CLOUD_LIST_KEYS.includes(r.key)){ app[r.key] = r.value; cloud.syncedLists.set(r.key, JSON.stringify(r.value)); } });
+  // baselines: everything as loaded counts as "already saved"
+  app.teams.forEach(t=>{ if(!cloud.syncedTeams.has(t.id)) cloud.syncedTeams.set(t.id, JSON.stringify(t)); });
+  app.games.forEach(g=>{ if(!cloud.syncedGames.has(g.id)) cloud.syncedGames.set(g.id, gameSyncJson(g)); });
+  CLOUD_LIST_KEYS.forEach(k=>{ if(!cloud.syncedLists.has(k)) cloud.syncedLists.set(k, JSON.stringify(app[k]||null)); });
+  resetSyncBaseline();
+  setCloudStatus('');
+}
+
+// ---- writing: compare with what the database has, queue only the differences ----
+function cloudSaveSoon(quiet){
+  if(!CLOUD || !cloud.ready) return;
+  if(quiet){ if(!cloud.quietTimer) cloud.quietTimer = setTimeout(()=>{ cloud.quietTimer = null; cloudDiff(); }, 10000); return; }
+  clearTimeout(cloud.quietTimer); cloud.quietTimer = null;
+  cloudDiff();
+}
+function cloudDiff(){
+  const now = new Date().toISOString();
+  // Only send what this account may change; anything else (a page tidying data as it renders, a
+  // logged-out visitor) just becomes the new baseline instead of a rejected write and a warning.
+  const me0 = currentUser();
+  const mayTeam = t => !!me0 && (hasTeamManagePermission(t) || t.claimStatus!=='claimed');
+  const mayGame = g => !!me0 && hasManagePermission(g);
+  const mayLists = !!me0 && ['admin','statistician','manager','coach'].includes(me0.role);
+  // my profile (team claims, name, role, picture)
+  const me = currentUser();
+  if(me && cloud.syncedProfile && JSON.stringify(me)!==cloud.syncedProfile){
+    cloud.syncedProfile = JSON.stringify(me);
+    cloudEnqueue({ op:'update', table:'profiles', id:me.id, row:{ name:me.name||null, role:me.role, team_id:me.teamId||null, profile_pic:me.profilePic||null } });
+  }
+  app.teams.forEach(t=>{ const j = JSON.stringify(t); if(cloud.syncedTeams.get(t.id)!==j){ cloud.syncedTeams.set(t.id, j); if(mayTeam(t)) cloudEnqueue({ op:'upsert', table:'teams', row:{ id:t.id, name:t.name, data:t, updated_at:now } }); } });
+  app.games.forEach(g=>{
+    const metaJson = gameSyncJson(g);
+    if(!mayGame(g)){ if(cloud.syncedGames.get(g.id)!==metaJson) cloud.syncedGames.set(g.id, metaJson); return; }
+    const live = []; Object.keys(g.quarters||{}).forEach(q=>(g.quarters[q]||[]).forEach(e=>{ if(isLiveEvent(e)) live.push([q,e]); }));
+    const known = cloud.syncedEvents.get(g.id) || new Set();
+    const metaChanged = cloud.syncedGames.get(g.id)!==metaJson;
+    const needsRow = (metaChanged || live.some(([,e])=>!e.eid)) ;
+    if(needsRow && (metaChanged || !cloud.gamesInDb.has(g.id))){
+      cloud.syncedGames.set(g.id, metaJson); cloud.gamesInDb.add(g.id);
+      cloudEnqueue({ op:'upsert', table:'games', row:gameRowOf(g) });
+    }
+    const present = new Set();
+    live.forEach(([q,e], i)=>{
+      if(!e.eid){ e.eid = (crypto.randomUUID ? crypto.randomUUID() : ('e'+Date.now()+Math.random().toString(16).slice(2))); e._seq = Date.now()*1000 + (i % 1000);
+        known.add(e.eid); cloud.syncedEventJson.set(e.eid, JSON.stringify(eventDataOf(e)));
+        cloudEnqueue({ op:'upsert', table:'events', row:{ id:e.eid, game_id:g.id, period:String(q), seq:e._seq, data:eventDataOf(e) } }); }
+      else { const dj = JSON.stringify(eventDataOf(e)); if(cloud.syncedEventJson.has(e.eid) && cloud.syncedEventJson.get(e.eid)!==dj){ cloud.syncedEventJson.set(e.eid, dj); cloudEnqueue({ op:'upsert', table:'events', row:{ id:e.eid, game_id:g.id, period:String(q), seq:e._seq||Date.now()*1000, data:eventDataOf(e) } }); } }
+      present.add(e.eid);
+    });
+    known.forEach(id=>{ if(!present.has(id)){ known.delete(id); cloud.syncedEventJson.delete(id); cloudEnqueue({ op:'delete', table:'events', id }); } });
+    if(known.size) cloud.syncedEvents.set(g.id, known);
+  });
+  CLOUD_LIST_KEYS.forEach(k=>{ const j = JSON.stringify(app[k]||null); if(cloud.syncedLists.get(k)!==j){ cloud.syncedLists.set(k, j); if(mayLists) cloudEnqueue({ op:'upsert', table:'app_lists', row:{ key:k, value:app[k]||null, updated_at:now } }); } });
+  cloudFlush();
+}
+function cloudDeleteGame(id){ if(!CLOUD || !cloud.ready) return; cloud.gamesInDb.delete(id); cloud.syncedGames.delete(id); cloud.syncedEvents.delete(id); cloudEnqueue({ op:'delete', table:'games', id }); cloudFlush(); }
+
+// ---- the unsent queue (only holds changes that haven't reached the database yet) ----
+function cloudEnqueue(op){ cloud.outbox.push(op); cloudSaveOutbox(); }
+function cloudSaveOutbox(){ try{ if(cloud.outbox.length) localStorage.setItem('poloiq-outbox', JSON.stringify(cloud.outbox)); else localStorage.removeItem('poloiq-outbox'); }catch(e){} updateCloudBadge(); }
+function cloudLoadOutbox(){ try{ const q = JSON.parse(localStorage.getItem('poloiq-outbox')||'[]'); if(Array.isArray(q)) cloud.outbox = q.concat(cloud.outbox); }catch(e){} }
+async function cloudRun(op){
+  if(op.op==='upsert') return sb.from(op.table).upsert(op.row);
+  if(op.op==='update') return sb.from(op.table).update(op.row).eq('id', op.id);
+  if(op.op==='delete') return sb.from(op.table).delete().eq(op.table==='app_lists'?'key':'id', op.id);
+  return { error:null };
+}
+async function cloudFlush(){
+  if(!sb || cloud.flushing || !cloud.outbox.length) { updateCloudBadge(); return; }
+  cloud.flushing = true; updateCloudBadge();
+  try{
+    while(cloud.outbox.length){
+      const op = cloud.outbox[0];
+      let res; try{ res = await cloudRun(op); }catch(e){ res = { error:{ message:String(e), network:true } }; }
+      const err = res && res.error;
+      if(!err){ cloud.outbox.shift(); cloudSaveOutbox(); continue; }
+      const msg = (err.message||'') + ' ' + (err.code||'');
+      const permission = /row-level security|permission|42501|401|403|JWT|not allowed|violates/i.test(msg) && !/fetch|network|Failed/i.test(msg);
+      if(permission){
+        cloud.outbox.shift(); cloudSaveOutbox();
+        if(!cloud.warned.perm){ cloud.warned.perm = true; showAppNotification('⚠️ A change wasn’t saved: this account doesn’t have permission to edit that team or game.', 'bad'); setTimeout(()=>{ cloud.warned.perm = false; }, 30000); }
+        continue;
+      }
+      // network trouble: keep it queued and try again shortly
+      clearTimeout(cloud.flushTimer); cloud.flushTimer = setTimeout(cloudFlush, 4000);
+      break;
+    }
+  } finally { cloud.flushing = false; updateCloudBadge(); }
+}
+
+// ---- live updates from other devices ----
+let _cloudRenderTimer = null;
+function cloudRenderSoon(){ clearTimeout(_cloudRenderTimer); _cloudRenderTimer = setTimeout(()=>{ const modalOpen = document.querySelector('.modal-overlay:not(.hidden)'); if(!modalOpen) renderAll(); }, 250); }
+function cloudSubscribe(){
+  try{
+    sb.channel('poloiq-live')
+      .on('postgres_changes', { event:'*', schema:'public', table:'events' }, p=>{
+        if(p.eventType==='DELETE'){ if(removeCloudEvent(p.old && p.old.id)) cloudRenderSoon(); }
+        else if(p.new && applyCloudEvent(p.new)) cloudRenderSoon();
+      })
+      .on('postgres_changes', { event:'*', schema:'public', table:'games' }, p=>{
+        if(p.eventType==='DELETE'){ const id = p.old && p.old.id; app.games = app.games.filter(g=>g.id!==id || !cloud.gamesInDb.has(id)); cloud.gamesInDb.delete(id); cloudRenderSoon(); return; }
+        if(p.new && (()=>{ const lg = findGame(p.new.id); return !lg || JSON.stringify([p.new.team_id, p.new.date||'', p.new.opponent||'', p.new.status||'upcoming', p.new.data])!==gameSyncJson(lg); })()){ applyCloudGame(p.new); cloudRenderSoon(); }
+      })
+      .on('postgres_changes', { event:'*', schema:'public', table:'teams' }, p=>{ if(p.new){ applyCloudTeam(p.new); cloudRenderSoon(); } })
+      .subscribe();
+  }catch(e){ console.warn('live updates unavailable', e); }
+}
+
+// ---- status badge ----
+function setCloudStatus(text, bad){ cloud.statusText = text; cloud.statusBad = !!bad; updateCloudBadge(); }
+function updateCloudBadge(){
+  if(!CLOUD || typeof document==='undefined' || !document.body) return;
+  let el = document.getElementById('cloudBadge');
+  if(!el){ el = document.createElement('div'); el.id = 'cloudBadge'; el.style.cssText = 'position:fixed;left:12px;bottom:12px;z-index:9999;font-size:12px;padding:6px 10px;border-radius:999px;background:rgba(10,20,40,.85);color:#cfe3ff;border:1px solid rgba(255,255,255,.15);pointer-events:none;'; document.body.appendChild(el); }
+  const n = cloud.outbox.length;
+  const text = cloud.statusText ? cloud.statusText : n ? (navigator.onLine===false ? `Offline — ${n} change${n===1?'':'s'} waiting to save` : `Saving… (${n})`) : '';
+  el.textContent = text; el.style.display = text ? 'block' : 'none'; el.style.color = cloud.statusBad ? '#ffb4a8' : '#cfe3ff';
+}
+
+// ---- accounts ----
+async function cloudSaveUser(){
+  const errEl = document.getElementById('userFormError'); errEl.style.display='none'; errEl.style.color='';
+  const name = document.getElementById('userNameInput').value.trim();
+  const email = document.getElementById('userEmailInput').value.trim().toLowerCase();
+  const password = document.getElementById('userPasswordInput').value || '';
+  const loginMode = document.getElementById('userLoginMode').checked;
+  const role = document.getElementById('userRoleInput').value;
+  const teamId = document.getElementById('userTeamAssign').value || null;
+  if(!email){ showUserFormError('Please provide an email.'); return; }
+  if(role==='admin' && !ADMIN_EMAILS.includes(email) && !loginMode){ showUserFormError('The Admin role is only for the app owner. Pick Coach, Manager or Statistician.'); return; }
+  const mount = document.getElementById('userPresetIcons'); const pic = mount && (mount.dataset.uploaded || mount.dataset.selected) || null;
+  if(_editUserId){
+    const u = currentUser(); if(!u) return;
+    if(email !== u.email){ showUserFormError('Changing the email isn’t supported yet — make a new account instead.'); return; }
+    u.name = name || u.name; u.role = role; u.teamId = teamId; if(pic) u.profilePic = pic;
+    if(password){ const { error } = await sb.auth.updateUser({ password }); if(error){ showUserFormError(error.message); return; } }
+    saveState(); hideUserForm(); renderAccount(); renderAll(); return;
+  }
+  if(loginMode){
+    const { error } = await sb.auth.signInWithPassword({ email, password });
+    if(error){ showUserFormError(/confirm/i.test(error.message) ? `Check ${email} and click the confirmation link first, then log in.` : /invalid/i.test(error.message) ? 'Incorrect email or password.' : error.message); return; }
+    await cloudLoadProfile(); hideUserForm(); renderAccount(); renderAll(); return;
+  }
+  if(!password || password.length < 6){ showUserFormError('Choose a password of at least 6 characters.'); return; }
+  const { data, error } = await sb.auth.signUp({ email, password, options:{ data:{ name: name || email.split('@')[0], role, team_id: teamId||'' }, emailRedirectTo: location.origin + location.pathname } });
+  if(error){ showUserFormError(/admin/i.test(error.message) ? 'The Admin role is only for the app owner.' : /registered|exists/i.test(error.message) ? 'An account with that email already exists — use Log in.' : error.message); return; }
+  if(data && data.session){ await cloudLoadProfile(); hideUserForm(); renderAccount(); renderAll(); return; }
+  errEl.style.color = 'var(--good)';
+  showUserFormError(`Account created. Check ${email} for a confirmation link, then come back and log in.`);
+}
+async function cloudLogout(){ try{ await sb.auth.signOut(); }catch(e){} app.currentUserId = null; app.users = []; cloud.syncedProfile = null; renderAccount(); renderAll(); }
+
+// ---- one-time move from the old shared backend (admin only) ----
+async function cloudImportFromOldBackend(){
+  const u = currentUser();
+  if(!u || u.role!=='admin'){ alert('Log in with the Admin account first.'); return; }
+  if(!confirm('Copy teams, rosters, live-tracked games and shared lists from the old backend into the new database?')) return;
+  const btn = document.getElementById('cloudImportBtn'); if(btn){ btn.disabled = true; btn.textContent = 'Importing…'; }
+  try{
+    const meta = await (await fetchWithTimeout(SHARED_STATE_URL, undefined, 20000)).json();
+    const parts = new Array(meta.totalChunks);
+    for(let i=0;i<meta.totalChunks;i+=8){
+      await Promise.all(Array.from({length:Math.min(8, meta.totalChunks-i)}, async (_,j)=>{
+        for(let a=0;a<3;a++){ try{ const r = await fetchWithTimeout(SHARED_STATE_URL+'?chunk='+(i+j), undefined, 30000); parts[i+j] = ((await r.json())||{}).chunk||''; return; }catch(e){ await new Promise(r=>setTimeout(r,800)); } }
+        throw new Error('chunk '+(i+j));
+      }));
+      if(btn) btn.textContent = `Importing… ${Math.round(100*Math.min(i+8,meta.totalChunks)/meta.totalChunks)}%`;
+    }
+    const data = JSON.parse(parts.join('')); unpackGames(data.games);
+    const oldTeams = data.teams||[]; const oldGames = (data.games||[]).filter(g=>Object.values(g.quarters||{}).some(arr=>(arr||[]).some(isLiveEvent)) || g.modifiedAt || (g.tacticalLog||[]).length || !isSeedGame(g));
+    assignStableIds(oldTeams, oldGames, []);
+    let teamsIn=0, gamesIn=0;
+    oldTeams.forEach(t=>{ const i = app.teams.findIndex(x=>x.id===t.id); t.games = Array.from(new Set([...(i>=0 ? app.teams[i].games||[] : []), ...oldGames.filter(g=>g.teamId===t.id).map(g=>g.id)])); if(i>=0) app.teams[i] = t; else app.teams.push(t); teamsIn++; });
+    oldGames.forEach(g=>{ const i = app.games.findIndex(x=>x.id===g.id); if(i>=0) app.games[i] = g; else app.games.push(g); gamesIn++; });
+    CLOUD_LIST_KEYS.forEach(k=>{ if(data[k]!==undefined) app[k] = data[k]; });
+    cloudDiff();
+    alert(`Imported ${teamsIn} teams and ${gamesIn} live-tracked/edited games. They are saving to the database now (watch the badge bottom-left). Old accounts can’t be copied: each person signs up again once.`);
+    renderAll();
+  }catch(e){ alert('Import failed: '+e.message+'. Nothing was lost — try again.'); }
+  finally{ if(btn){ btn.disabled = false; btn.textContent = 'Import from old backend'; } }
+}
+
 document.addEventListener('DOMContentLoaded', ()=>{
+  if(CLOUD){ setupRecognition(); cloudBoot().catch(e=>{ console.error(e); setCloudStatus('⚠️ Couldn’t start — refresh the page', true); }); checkUpcomingGameNotifications(); return; }
   loadState(); resetSyncBaseline(); setupRecognition(); renderAll(); // instant paint from the local cache
   reconcileWithIndexedDb(); // then adopt IndexedDB's copy if it's ahead of localStorage's (async, non-blocking)
   checkGameStateNotifications(app.games); // establish baseline silently — no toast for state already known at boot
