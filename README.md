@@ -25,6 +25,8 @@ node tests/accounts.js
 node tests/clockread.js
 node tests/cloud.js
 node tests/gameday.js
+node tests/pbp.js
+node tests/scout.js
 ```
 
 See `tests/README.txt` for what each one covers.
