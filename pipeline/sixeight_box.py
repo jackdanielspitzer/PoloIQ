@@ -29,7 +29,7 @@ def pbp_file(conv, day):
     other cap: G goalie scored on, M goalie shot on (or blocker with flag b), A scorer, X/P who drew it,
     XD/PD who committed it, ST who lost the ball, TO who stole it, B whose shot, SP sprint loser.
     flags: m man-up, i man-up worked out from an exclusion just before, p penalty shot, c counter,
-    g goalie worked out (6-8 did not name him), b blocked."""
+    g goalie worked out (6-8 did not name him), b blocked, l typed in after the game (a correction)."""
     cap = lambda w: (w or {}).get("cap") or ""
     rows = []
     for e in conv["events"]:
@@ -43,7 +43,7 @@ def pbp_file(conv, day):
             other = e.get("blockedBy") or e.get("goalie")
         f = ("m" if e.get("manUp") else "") + ("i" if e.get("manUpInferred") else "") + ("p" if e.get("penalty") else "") + \
             ("c" if e.get("counter") else "") + ("g" if e.get("goalieInferred") or (t == "shot_missed" and not e.get("blockedBy") and e.get("goalie")) else "") + \
-            ("b" if e.get("blockedBy") else "")
+            ("b" if e.get("blockedBy") else "") + ("l" if e.get("late") else "")
         row = [e["q"], e.get("clock"), 1 if e.get("est") else 0, e["side"][0], c, cap(e.get("player")), cap(other), f]
         if e.get("after"):
             row.append(cap(e["after"].get("excluded")))

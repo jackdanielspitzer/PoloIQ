@@ -117,8 +117,9 @@ def convert(g):
         if last is not None and s > last + 30:
             period_starts.append(_ts(e))
         last = s
-    labels_ok = _labels_consistent(raw)
+    labels_ok = _labels_consistent(raw) or _labels_usable(raw)
     mode = _mode(raw)
+    late = _late_entries(raw) if mode == "live" else set()
     if mode == "postgame":
         # typed in after the game: the entry times mean nothing, so only trust the period labels, and only
         # when they are actually spread over the game (some scorers leave everything on Period 1)
@@ -149,7 +150,7 @@ def convert(g):
     events = []
     for t, e in raw:
         ev = {"type": t, "side": side.get(e.get("team_color")), "q": period_of(e), "at": e["datetime"],
-              "clock": _secs(e.get("play_time")), "est": False}
+              "clock": _secs(e.get("play_time")), "est": False, "late": id(e) in late}
         if t == "sprint":
             w, l = who(e.get("winner")), who(e.get("loser"))
             wp = players.get(e.get("winner"))
@@ -165,8 +166,16 @@ def convert(g):
             if ga:
                 ev["goalie"] = who(ga[0] if isinstance(ga[0], str) else ga[0].get("player"))
         events.append(ev)
+    _no_phantom_overtime(events)
     if mode != "postgame":
         _clocks(events)
+        # game order: period, then the game clock counting down (entry time breaks ties); a correction typed in
+        # later without a clock goes at the end of its period
+        def qi(q):
+            if isinstance(q, int):
+                return q
+            return 99 if q == "SO" else 4 + int(str(q)[2:] or 1)
+        events.sort(key=lambda e: (qi(e["q"]), e["clock"] is None, -(e["clock"] if e["clock"] is not None else 0), e["at"]))
     score = {"dark": 0, "light": 0}
     for ev in events:
         if ev["type"] == "goal" and ev["side"] in score:
@@ -185,6 +194,56 @@ def convert(g):
             "teams": [display_name(g.get("dark_team_name")), display_name(g.get("light_team_name"))],
             "score": [g.get("dark_team_score"), g.get("light_team_score")],
             "events": events, "rosters": rosters}
+
+
+def _labels_usable(raw):
+    """The scorer's period labels, even when a few corrections typed in later break their time order: usable
+    when every regulation period has entries and almost all entries, in entry order, never step backwards."""
+    labs = []
+    for _, e in raw:
+        q = e.get("quarter") or ""
+        if q.startswith("Period"):
+            labs.append(int(q.split()[-1]))
+        elif q.startswith("Overtime"):
+            labs.append(4 + int(q.split()[-1]))
+    if not labs or not all(k in labs for k in (1, 2, 3, 4)):
+        return False
+    best, run = 0, labs[0]
+    for k in labs:
+        if k >= run:
+            best += 1
+            run = k
+    return best >= 0.85 * len(labs)
+
+
+def _late_entries(raw):
+    """Entries typed in well before the game or long after it (corrections): their entry time is no guide to
+    when they happened. Returns the ids of those history entries."""
+    ts = sorted(_ts(e) for _, e in raw)
+    if len(ts) < 10:
+        return set()
+    lo, hi = ts[int(len(ts) * 0.05)], ts[int(len(ts) * 0.95) - 1]
+    out = set()
+    for _, e in raw:
+        t = _ts(e)
+        if (lo - t).total_seconds() > 300 or (t - hi).total_seconds() > 900:
+            out.add(id(e))
+    return out
+
+
+def _no_phantom_overtime(events):
+    """Overtime only exists when regulation ends level. A record whose clock glitches made extra 'periods' in a
+    game that wasn't tied after four keeps those plays in the fourth."""
+    reg = {"dark": 0, "light": 0}
+    for e in events:
+        if e["type"] == "goal" and isinstance(e["q"], int) and 1 <= e["q"] <= 4 and e["side"] in reg:
+            reg[e["side"]] += 1
+    if reg["dark"] != reg["light"]:
+        for e in events:
+            if isinstance(e["q"], str) and e["q"].startswith("OT"):
+                e["q"] = 4
+            elif isinstance(e["q"], int) and e["q"] > 4:
+                e["q"] = 4
 
 
 def _mode(raw):
@@ -226,10 +285,10 @@ def _clocks(events):
     for i, e in enumerate(events):
         by_q.setdefault(e["q"], []).append(i)
     for q, idx in by_q.items():
-        anchors = [i for i in idx if events[i]["clock"] is not None]
+        anchors = [i for i in idx if events[i]["clock"] is not None and not events[i].get("late")]
         for i in idx:
             e = events[i]
-            if e["clock"] is not None:
+            if e["clock"] is not None or e.get("late"):
                 continue
             t = _wall(e)
             prev = next((j for j in reversed(anchors) if _wall(events[j]) <= t), None)
@@ -268,6 +327,8 @@ def _pair(events, rosters=None, timed=True):
             return None
         if e["clock"] is not None and f["clock"] is not None and not e["est"] and not f["est"]:
             return abs(e["clock"] - f["clock"])
+        if e.get("late") or f.get("late"):
+            return None  # a correction typed in later can't be matched by when it was typed
         return abs((_wall(e) - _wall(f)).total_seconds())
 
     used = set()

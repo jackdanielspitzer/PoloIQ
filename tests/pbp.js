@@ -73,6 +73,13 @@ const rowsAll=c.pbpPlayRows(game, c.getGameBox(game), pb, null);
 check('whole-game rows cover every period', rowsAll.some(r=>r.period==='Q2') && rowsAll.some(r=>r.period==='Q1'));
 const noData=Object.assign(c.blankGame(cal.id),{opponent:'Nobody U', date:'2026-09-02', status:'final'});
 check('a game with nothing published says so', /final score only/.test(c.gameDocHtml(noData, null)));
+// whole game in one list from the viewer
+c.renderGame();
+check('viewer offers a Whole game tab', D('gameQuarterTabs').children.some(b=>b.textContent==='Whole game'));
+run('_pbpWholeGame=true'); c.renderGame();
+const wf=D('gameFeed').innerHTML;
+check('whole game lists every quarter in order with headers', /pbp-period">Q1</.test(wf) && /pbp-period">Q2</.test(wf) && wf.indexOf('pbp-period">Q1')<wf.indexOf('pbp-period">Q2') && /penalty shot/.test(wf) && /Sprint won/.test(wf));
+run('_pbpWholeGame=false');
 // a game typed into 6-8 after it ended: no clock, no running score, a clear note, no timeline guesses
 const post=JSON.parse(JSON.stringify(pb)); post.mode='postgame'; post.ev.forEach(r=>{ r[0]=0; r[1]=null; });
 run(`_pbpCache['test-pbp-1']=${JSON.stringify(post)};`);
