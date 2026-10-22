@@ -62,6 +62,27 @@ const evil=JSON.parse(JSON.stringify(pb)); evil.r.d[0][1]='<img src=x onerror=al
 run(`_pbpCache['test-pbp-1']=cleanDeep(${JSON.stringify(evil)});`);
 c.renderGame();
 check('names from the file are escaped', !/<img/.test(D('gameFeed').innerHTML));
+// printable report: box score + every play with clock, score and matchups
+run(`_pbpCache['test-pbp-1']=${JSON.stringify(pb)};`);
+const doc=c.gameDocHtml(game, pb);
+check('PDF report has the play-by-play table with clock and score columns', /<th>Clock<\/th><th>Score<\/th>/.test(doc) && /Goal — #7 Ann Shooter/.test(doc) && />7:26</.test(doc));
+check('PDF report shows the score after every play', /<td>1-0<\/td><td[^>]*>California/.test(doc) && /<td>1-1<\/td>/.test(doc));
+check('PDF report has matchups and the 6-8 note', /drawn by #4 Bo Passer/.test(doc) && /6-8 Sports live scoring/.test(doc));
+check('PDF report has special teams', /Special teams/.test(doc) && /Man-up 1 of 1/.test(doc));
+const rowsAll=c.pbpPlayRows(game, c.getGameBox(game), pb, null);
+check('whole-game rows cover every period', rowsAll.some(r=>r.period==='Q2') && rowsAll.some(r=>r.period==='Q1'));
+const noData=Object.assign(c.blankGame(cal.id),{opponent:'Nobody U', date:'2026-09-02', status:'final'});
+check('a game with nothing published says so', /final score only/.test(c.gameDocHtml(noData, null)));
+// a game typed into 6-8 after it ended: no clock, no running score, a clear note, no timeline guesses
+const post=JSON.parse(JSON.stringify(pb)); post.mode='postgame'; post.ev.forEach(r=>{ r[0]=0; r[1]=null; });
+run(`_pbpCache['test-pbp-1']=${JSON.stringify(post)};`);
+c.renderGame();
+const pf=D('gameFeed').innerHTML;
+check('typed-in-later game says so and lists every play', /typed into 6-8 Sports after the game/.test(pf) && /Goal — #7 Ann Shooter/.test(pf) && /Steal/.test(pf));
+check('typed-in-later game shows no clock or running score', !/~?\d:\d\d</.test(pf) && !/· 1-0/.test(pf));
+const pdoc=c.gameDocHtml(game, post);
+check('its PDF lists every play as entered, without clock', /Every play \(as entered on 6-8 Sports\)/.test(pdoc) && !/<th>Clock<\/th><th>Score<\/th>/.test(pdoc));
+run(`_pbpCache['test-pbp-1']=${JSON.stringify(pb)};`);
 // a game tracked live in the app keeps its own log
 game.quarters[1].push({stat_type:'goal', side:'team', playerCap:'7', wall_time_offset_ms:1000, raw_phrase:'dark 7 goal'});
 c.renderGame();

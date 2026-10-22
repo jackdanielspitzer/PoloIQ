@@ -78,6 +78,8 @@ def entry(rec, flip):
         out["pb"] = rec["pb"]
         mine = rec.get("side") or "dark"
         out["pc"] = ({"dark": "light", "light": "dark"}[mine] if flip else mine)[0]
+        if b.get("postgame"):
+            out["pm"] = 1  # typed into 6-8 after the game: totals are real, the order and times are not
     if b.get("pairs"):
         out["pr"] = [[k, "u" if tm == me else "v", a, o, n] for k, tm, a, o, n in b["pairs"]]
     partial = []
@@ -118,6 +120,12 @@ def build():
                     if any(g[2] or g[4] for g in e["gu"] + e["gv"]):
                         s6["gu"], s6["gv"], s6["gs"] = e["gu"], e["gv"], e["s"]
                         stats["schoolGoaliesBorrowed"] += 1
+                    if s6.get("pm") or not (s6.get("q") or [[]])[0]:
+                        # 6-8 can't place this game's plays in time: the school's scoring summary and line score can
+                        if e.get("tl") or e.get("pn"):
+                            s6["tl"], s6["pn"], s6["gs"] = e["tl"], e["pn"], e["s"]
+                        if (e.get("q") or [[]])[0]:
+                            s6["q"] = e["q"]
                     return False
         base = f"{team}|{date}|{ts}-{os_}"
         opp = re.sub(r"[^a-z0-9]", "", norm(e["o"]))

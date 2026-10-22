@@ -118,8 +118,23 @@ def convert(g):
             period_starts.append(_ts(e))
         last = s
     labels_ok = _labels_consistent(raw)
+    mode = _mode(raw)
+    if mode == "postgame":
+        # typed in after the game: the entry times mean nothing, so only trust the period labels, and only
+        # when they are actually spread over the game (some scorers leave everything on Period 1)
+        labs = [e.get("quarter") or "" for _, e in raw]
+        spread = all(sum(1 for q in labs if q == f"Period {k}") >= 0.08 * len(labs) for k in (1, 2, 3, 4))
 
     def period_of(e):
+        if mode == "postgame":
+            if not spread:
+                return 0  # period unknown
+            q = e.get("quarter") or ""
+            if q.startswith("Period"):
+                return int(q.split()[-1])
+            if q.startswith("Overtime"):
+                return f"OT{q.split()[-1]}"
+            return "SO" if q.lower().startswith("shoot") else 0
         if labels_ok:
             q = e.get("quarter") or ""
             if q.startswith("Period"):
@@ -150,7 +165,8 @@ def convert(g):
             if ga:
                 ev["goalie"] = who(ga[0] if isinstance(ga[0], str) else ga[0].get("player"))
         events.append(ev)
-    _clocks(events)
+    if mode != "postgame":
+        _clocks(events)
     score = {"dark": 0, "light": 0}
     for ev in events:
         if ev["type"] == "goal" and ev["side"] in score:
@@ -164,11 +180,26 @@ def convert(g):
         if s:
             rosters[s].append({"cap": str(p["number"]), "name": person(f"{p.get('first_name', '')} {p.get('last_name', '')}"),
                                "goalie": bool(p.get("is_goalie")), "played": bool(p.get("was_in_water_once") or p.get("in_water"))})
-    _pair(events, rosters)
-    return {"source": "6-8sports", "sourceId": g["pk"],
+    _pair(events, rosters, timed=(mode != "postgame"))
+    return {"source": "6-8sports", "sourceId": g["pk"], "mode": mode,
             "teams": [display_name(g.get("dark_team_name")), display_name(g.get("light_team_name"))],
             "score": [g.get("dark_team_score"), g.get("light_team_score")],
             "events": events, "rosters": rosters}
+
+
+def _mode(raw):
+    """'live' when the game was scored as it happened (game clocks on the entries, or entry times spread over
+    a game's length), 'postgame' when it was typed in afterwards: no clocks and entry times bunched into a few
+    minutes, spread over days, or stamped exactly a minute apart."""
+    if not raw:
+        return "postgame"
+    clocked = sum(1 for _, e in raw if _secs(e.get("play_time")) is not None) / len(raw)
+    if clocked > 0.2:
+        return "live"
+    ts = sorted(_ts(e) for _, e in raw)
+    span = (ts[-1] - ts[0]).total_seconds() / 3600
+    grid = sum(1 for t in ts if t.second == 0) / len(ts)
+    return "live" if 0.5 <= span <= 4 and grid < 0.5 else "postgame"
 
 
 def _labels_consistent(raw):
@@ -220,7 +251,7 @@ def _clocks(events):
             e["est"] = True
 
 
-def _pair(events, rosters=None):
+def _pair(events, rosters=None, timed=True):
     """Work out who each action was against.
 
     6-8 logs the two halves of a play as separate entries (an exclusion and the exclusion drawn, a steal
@@ -240,6 +271,24 @@ def _pair(events, rosters=None):
         return abs((_wall(e) - _wall(f)).total_seconds())
 
     used = set()
+    if not timed:
+        # entered after the game: nothing can be matched by when it was entered. Keep only what the scorer
+        # stated (the goalie on each goal, sprint winner/loser), plus a team's one goalie who played.
+        only = {}
+        for s_ in ("dark", "light"):
+            gks = [p for p in (rosters or {}).get(s_, []) if p.get("goalie")]
+            played = [p for p in gks if p.get("played")]
+            pick = played if len(played) == 1 else (gks if len(gks) == 1 else [])
+            if pick:
+                only[s_] = {"name": pick[0]["name"], "cap": pick[0]["cap"]}
+        for e in events:
+            if e["type"] == "goal":
+                if e.get("goalie"):
+                    e["vs"] = e["goalie"]
+                elif OPP.get(e["side"]) in only:
+                    e["goalie"] = e["vs"] = only[OPP[e["side"]]]
+                    e["goalieInferred"] = True
+        return
 
     def nearest(i, types, other_side, window=25, key=None):
         e = events[i]

@@ -48,7 +48,7 @@ def pbp_file(conv, day):
         if e.get("after"):
             row.append(cap(e["after"].get("excluded")))
         rows.append(row)
-    return {"id": conv["sourceId"], "date": day, "teams": conv["teams"], "score": conv["score"], "src": "6-8 Sports live scoring",
+    return {"id": conv["sourceId"], "date": day, "teams": conv["teams"], "score": conv["score"], "src": "6-8 Sports live scoring", "mode": conv.get("mode", "live"),
             "r": {s[0]: [[p["cap"], p["name"], 1 if p.get("goalie") else 0] for p in conv["rosters"][s]] for s in ("dark", "light")},
             "ev": rows}
 
@@ -160,11 +160,11 @@ def build(conv, me_side):
         for g in goals:
             if g["team"] == tm:
                 per[g["q"]] = per.get(g["q"], 0) + 1
-        periods[tm] = [per.get(k, 0) for k in (1, 2, 3, 4)] + [per[k] for k in sorted(k for k in per if isinstance(k, str))]
+        periods[tm] = [] if 0 in per else [per.get(k, 0) for k in (1, 2, 3, 4)] + [per[k] for k in sorted(k for k in per if isinstance(k, str))]
     lines = {tm: [v for v in d.values() if v["name"] or v["g"] or v["a"] or v["ex"]] for tm, d in players.items()}
     goalies = {names[s]: [k for k in keepers[s].values() if k["ga"] or k["sv"]] for s in ("dark", "light")}
     box = {"teams": [A, B], "periods": periods, "score": score, "players": lines, "goalies": goalies,
-           "goals": goals, "pens": pens, "abbr": {}, "title": "6-8 Sports live scoring", "kind": "6-8",
+           "goals": goals, "pens": pens, "abbr": {}, "title": "6-8 Sports live scoring", "kind": "6-8", "postgame": conv.get("mode") == "postgame",
            "pairs": [[k[0], k[1], k[2], k[3], n] for k, n in sorted(pairs.items())]}
     return box, names[me_side]
 
@@ -292,7 +292,12 @@ def main(team_names=None, everything=False):
                 continue
             box, me = build(conv, c["side"])
             pk = str(conv["sourceId"])
-            json.dump(pbp_file(conv, day), open(os.path.join(PBP, pk + ".json"), "w"), separators=(",", ":"), ensure_ascii=False)
+            body = json.dumps(pbp_file(conv, day), separators=(",", ":"), ensure_ascii=False)
+            path = os.path.join(PBP, pk + ".json")
+            # rewrite only when it changed (a synced folder turns rapid rewrites into "name 2.json" copies)
+            if not os.path.exists(path) or open(path, encoding="utf-8").read() != body:
+                with open(path, "w", encoding="utf-8") as f:
+                    f.write(body)
             ts, os_ = c["score"]
             if c.get("swapped"):
                 print(f"  {team} {day} vs {g['opponent']}: 6-8 had the team names on the wrong cap colours; read from the other side", flush=True)
